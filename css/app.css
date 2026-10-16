@@ -151,10 +151,42 @@ body.view-task .board-only {
   background: #a0a0a0;
 }
 
-.status-dot.synced {
+.status-dot.synced,
+.status-dot.connected {
   background: #21ba45;
   box-shadow: 0 0 0 0 rgba(33, 186, 69, 0.6);
   animation: status-pulse 2s infinite;
+}
+
+.status-dot.disconnected {
+  background: #f2711c;
+  box-shadow: 0 0 4px rgba(242, 113, 28, 0.6);
+}
+
+.mongo-status-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  font-weight: 500 !important;
+  transition: all 0.2s ease !important;
+}
+
+.mongo-empty-state {
+  max-width: 680px !important;
+  margin: 60px auto !important;
+  background: var(--app-surface) !important;
+  border: 1px solid var(--app-border-strong) !important;
+  border-radius: 12px !important;
+  padding: 40px 30px !important;
+  text-align: center !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4) !important;
+}
+
+.mongo-empty-state code {
+  background: rgba(0, 181, 173, 0.15);
+  color: #00b5ad;
+  padding: 2px 6px;
+  border-radius: 4px;
 }
 
 @keyframes status-pulse {

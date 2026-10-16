@@ -14,5 +14,8 @@
     "single-file"
   ],
   "author": "Adrián R. Espinosa",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "mongodb": "^7.7.0"
+  }
 }

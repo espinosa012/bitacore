@@ -1,23 +1,20 @@
 #!/usr/bin/env node
 
 /**
- * Lightweight zero-dependency HTTP server for vg-task-manager (standard Node.js only).
- * Serves the task manager board on the first available port from 8766,
- * opens the browser automatically, and acts as a local sync agent so that
- * any browser (Safari, Firefox, Chrome...) can read and write a folder on disk:
- *
- *   <sync-dir>/tasks.json
- *   <sync-dir>/attachments/<taskId>/<filename>
+ * vg-task-manager: HTTP Server & MongoDB Atlas Sync Backend
+ * Serves the web UI and provides API endpoints for:
+ *   - Connecting to MongoDB Atlas (vg-task-manager database, tasks and attachments collections)
+ *   - Querying, creating, updating, and deleting tasks
+ *   - Storing, streaming, and deleting attachment files in MongoDB
  *
  * Usage:
- *   node server.js [sync-dir]        (default: the app directory)
+ *   node server.js [mongo-uri]
  *
  * Environment:
  *   VG_PORT             first port to try (default 8766)
- *   VG_ALLOWED_ORIGINS  extra comma-separated origins allowed to use the sync API
+ *   VG_MONGO_URI        MongoDB Atlas connection string (optional default)
+ *   VG_ALLOWED_ORIGINS  extra comma-separated origins allowed for CORS
  *   VG_NO_OPEN=1        do not open the browser automatically
- *
- * Stop with Ctrl+C.
  */
 
 const http = require('http');
@@ -25,19 +22,23 @@ const fs = require('fs');
 const path = require('path');
 const net = require('net');
 const { exec } = require('child_process');
+const { MongoClient } = require('mongodb');
 
 const APP_DIR = __dirname;
-const SYNC_DIR = path.resolve(process.argv[2] || APP_DIR);
-const TASKS_FILE = path.join(SYNC_DIR, 'tasks.json');
-const ATTACHMENTS_DIR = path.join(SYNC_DIR, 'attachments');
 const INDEX_FILE = path.join(APP_DIR, 'index.html');
-
 const FIRST_PORT = parseInt(process.env.VG_PORT, 10) || 8766;
 const MAX_ATTEMPTS = 20;
-const MAX_BODY = 200 * 1024 * 1024;
+const MAX_BODY = 100 * 1024 * 1024; // 100 MB max body size
 
-// Origins allowed to call the sync API cross-origin (e.g. the GitHub Pages build).
-// Same-origin requests (page served by this server) are always allowed.
+const DB_NAME = 'vg-task-manager';
+const DEFAULT_URI = process.env.VG_MONGO_URI || (process.argv[2] && process.argv[2].startsWith('mongodb') ? process.argv[2] : null);
+
+// MongoDB state
+let mongoClient = null;
+let mongoDb = null;
+let activeUri = null;
+
+// Origins allowed to call the API cross-origin
 const ALLOWED_ORIGINS = new Set([
   'https://espinosa012.github.io',
   ...(process.env.VG_ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean)
@@ -62,6 +63,61 @@ const MIME_TYPES = {
   '.woff2': 'font/woff2',
   '.ttf': 'font/ttf'
 };
+
+async function connectMongo(uri) {
+  if (!uri || typeof uri !== 'string') {
+    throw new Error('A valid MongoDB connection URI is required');
+  }
+  const cleanUri = uri.trim();
+
+  if (mongoClient) {
+    try {
+      await mongoClient.close();
+    } catch (e) {
+      // ignore
+    }
+    mongoClient = null;
+    mongoDb = null;
+    activeUri = null;
+  }
+
+  const client = new MongoClient(cleanUri, {
+    serverSelectionTimeoutMS: 10000,
+    connectTimeoutMS: 10000
+  });
+
+  await client.connect();
+  const db = client.db(DB_NAME);
+  await db.command({ ping: 1 });
+
+  mongoClient = client;
+  mongoDb = db;
+  activeUri = cleanUri;
+
+  const taskCount = await db.collection('tasks').countDocuments();
+  console.log(`[MongoDB] Connected to database "${DB_NAME}". Total tasks: ${taskCount}`);
+  return { ok: true, database: DB_NAME, taskCount };
+}
+
+async function disconnectMongo() {
+  if (mongoClient) {
+    try {
+      await mongoClient.close();
+    } catch (e) {
+      // ignore
+    }
+  }
+  mongoClient = null;
+  mongoDb = null;
+  activeUri = null;
+  console.log('[MongoDB] Disconnected.');
+  return { ok: true };
+}
+
+function maskUri(uri) {
+  if (!uri) return null;
+  return uri.replace(/:([^@]+)@/, ':****@');
+}
 
 function openBrowser(url) {
   const cmd = process.platform === 'darwin' ? `open "${url}"`
@@ -100,7 +156,7 @@ function isLoopbackOrigin(origin) {
   }
 }
 
-/** CORS headers for an allowed origin, or null if the origin is not allowed. */
+/** CORS headers */
 function corsHeaders(req) {
   const origin = req.headers.origin;
   if (!origin) return {};
@@ -109,7 +165,6 @@ function corsHeaders(req) {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'GET, PUT, POST, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
-    // Chrome Private Network Access: public site -> localhost
     'Access-Control-Allow-Private-Network': 'true',
     'Vary': 'Origin'
   };
@@ -142,108 +197,247 @@ function readBody(req) {
   });
 }
 
-/** A single path segment: no separators, no traversal, no hidden files. */
 function isSafeSegment(name) {
   return typeof name === 'string' && name.length > 0 && name.length <= 255 &&
-    !name.includes('/') && !name.includes('\\') && !name.includes('\0') &&
-    name !== '.' && name !== '..';
-}
-
-function listAttachments() {
-  const result = [];
-  if (!fs.existsSync(ATTACHMENTS_DIR)) return result;
-  for (const taskEntry of fs.readdirSync(ATTACHMENTS_DIR, { withFileTypes: true })) {
-    if (!taskEntry.isDirectory()) continue;
-    const taskDir = path.join(ATTACHMENTS_DIR, taskEntry.name);
-    for (const fileEntry of fs.readdirSync(taskDir, { withFileTypes: true })) {
-      if (!fileEntry.isFile() || fileEntry.name.startsWith('.')) continue;
-      const stats = fs.statSync(path.join(taskDir, fileEntry.name));
-      result.push({ taskId: taskEntry.name, filename: fileEntry.name, size: stats.size });
-    }
-  }
-  return result;
-}
-
-function validateTasksPayload(parsed) {
-  return Array.isArray(parsed) || (parsed && Array.isArray(parsed.tasks));
+    !name.includes('/') && !name.includes('\\') && !name.includes('\0');
 }
 
 async function handleApi(req, res, pathname, cors) {
-  // GET /api/status
-  if (pathname === '/api/status' && req.method === 'GET') {
+  // 1. Connection status: GET /api/status or /api/mongo/status
+  if ((pathname === '/api/status' || pathname === '/api/mongo/status') && req.method === 'GET') {
+    const isConnected = !!mongoDb;
+    let count = 0;
+    if (isConnected) {
+      try {
+        count = await mongoDb.collection('tasks').countDocuments();
+      } catch (e) {
+        // ignore
+      }
+    }
     return sendJson(res, 200, {
       ok: true,
       app: 'vg-task-manager',
-      dirName: path.basename(SYNC_DIR),
-      dirPath: SYNC_DIR,
-      hasTasks: fs.existsSync(TASKS_FILE)
+      connected: isConnected,
+      database: isConnected ? DB_NAME : null,
+      taskCount: count,
+      maskedUri: maskUri(activeUri)
     }, cors);
   }
 
-  // GET / PUT /api/tasks
-  if (pathname === '/api/tasks') {
-    if (req.method === 'GET') {
-      if (!fs.existsSync(TASKS_FILE)) {
-        return sendJson(res, 404, { error: `No tasks.json in ${SYNC_DIR}` }, cors);
-      }
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...cors });
-      return res.end(fs.readFileSync(TASKS_FILE));
+  // 2. Connect to MongoDB: POST /api/mongo/connect
+  if (pathname === '/api/mongo/connect' && req.method === 'POST') {
+    const body = await readBody(req);
+    let parsed;
+    try {
+      parsed = JSON.parse(body.toString('utf8'));
+    } catch (err) {
+      return sendJson(res, 400, { ok: false, error: 'Invalid JSON: ' + err.message }, cors);
     }
+    if (!parsed || !parsed.uri) {
+      return sendJson(res, 400, { ok: false, error: 'Connection string "uri" is required' }, cors);
+    }
+    try {
+      const stats = await connectMongo(parsed.uri);
+      return sendJson(res, 200, {
+        ok: true,
+        database: DB_NAME,
+        taskCount: stats.taskCount,
+        maskedUri: maskUri(activeUri)
+      }, cors);
+    } catch (err) {
+      return sendJson(res, 400, { ok: false, error: 'Could not connect to MongoDB: ' + err.message }, cors);
+    }
+  }
+
+  // 3. Disconnect from MongoDB: POST /api/mongo/disconnect
+  if (pathname === '/api/mongo/disconnect' && req.method === 'POST') {
+    await disconnectMongo();
+    return sendJson(res, 200, { ok: true, connected: false }, cors);
+  }
+
+  // 4. Tasks endpoints: GET / PUT / POST /api/tasks
+  if (pathname === '/api/tasks') {
+    if (!mongoDb) {
+      return sendJson(res, 403, { ok: false, error: 'Not connected to MongoDB. Please connect first.' }, cors);
+    }
+
+    if (req.method === 'GET') {
+      try {
+        const rawTasks = await mongoDb.collection('tasks').find({}).toArray();
+        const normalized = rawTasks.map(t => {
+          const id = t.id || t._id;
+          const copy = { ...t, id: String(id) };
+          delete copy._id;
+          return copy;
+        });
+
+        // Load tag registry if stored in 'tags' collection
+        const tagDoc = await mongoDb.collection('tags').findOne({ _id: 'registry' }).catch(() => null);
+        const tags = tagDoc && Array.isArray(tagDoc.tags) ? tagDoc.tags : [];
+
+        return sendJson(res, 200, { tags, tasks: normalized }, cors);
+      } catch (err) {
+        return sendJson(res, 500, { ok: false, error: 'Failed to read tasks from MongoDB: ' + err.message }, cors);
+      }
+    }
+
     if (req.method === 'PUT' || req.method === 'POST') {
       const body = await readBody(req);
       let parsed;
       try {
         parsed = JSON.parse(body.toString('utf8'));
       } catch (err) {
-        return sendJson(res, 400, { error: 'Invalid JSON: ' + err.message }, cors);
+        return sendJson(res, 400, { ok: false, error: 'Invalid JSON: ' + err.message }, cors);
       }
-      if (!validateTasksPayload(parsed)) {
-        return sendJson(res, 400, { error: 'JSON must be an array of tasks or an object with a tasks array' }, cors);
+
+      const tasksList = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.tasks) ? parsed.tasks : null);
+      if (!tasksList) {
+        return sendJson(res, 400, { ok: false, error: 'JSON payload must contain an array of tasks or { tags, tasks }' }, cors);
       }
-      fs.mkdirSync(SYNC_DIR, { recursive: true });
-      const tmp = TASKS_FILE + '.tmp';
-      fs.writeFileSync(tmp, JSON.stringify(parsed, null, 2), 'utf8');
-      fs.renameSync(tmp, TASKS_FILE);
-      return sendJson(res, 200, { ok: true, count: Array.isArray(parsed) ? parsed.length : parsed.tasks.length }, cors);
+
+      try {
+        // Save tags registry
+        if (parsed && Array.isArray(parsed.tags)) {
+          await mongoDb.collection('tags').updateOne(
+            { _id: 'registry' },
+            { $set: { tags: parsed.tags, updatedAt: new Date() } },
+            { upsert: true }
+          );
+        }
+
+        const taskCol = mongoDb.collection('tasks');
+        if (tasksList.length > 0) {
+          const ops = tasksList.map(t => {
+            const id = t.id || t._id;
+            const doc = { ...t, _id: id, id };
+            return {
+              updateOne: {
+                filter: { _id: id },
+                update: { $set: doc },
+                upsert: true
+              }
+            };
+          });
+          await taskCol.bulkWrite(ops);
+        }
+
+        // Remove deleted tasks from collection
+        const currentIds = tasksList.map(t => t.id || t._id);
+        await taskCol.deleteMany({ _id: { $nin: currentIds } });
+
+        return sendJson(res, 200, { ok: true, count: tasksList.length }, cors);
+      } catch (err) {
+        return sendJson(res, 500, { ok: false, error: 'Failed to save tasks to MongoDB: ' + err.message }, cors);
+      }
     }
   }
 
-  // GET /api/attachments
+  // 5. Single Task: PUT / DELETE /api/tasks/<id>
+  const taskMatch = pathname.match(/^\/api\/tasks\/([^/]+)$/);
+  if (taskMatch) {
+    if (!mongoDb) return sendJson(res, 403, { ok: false, error: 'Not connected to MongoDB' }, cors);
+    const taskId = decodeURIComponent(taskMatch[1]);
+
+    if (req.method === 'DELETE') {
+      try {
+        await mongoDb.collection('tasks').deleteOne({ _id: taskId });
+        // Also remove any attachments for this task
+        await mongoDb.collection('attachments').deleteMany({ taskId });
+        return sendJson(res, 200, { ok: true }, cors);
+      } catch (err) {
+        return sendJson(res, 500, { ok: false, error: err.message }, cors);
+      }
+    }
+
+    if (req.method === 'PUT') {
+      try {
+        const body = await readBody(req);
+        const task = JSON.parse(body.toString('utf8'));
+        const doc = { ...task, _id: taskId, id: taskId };
+        await mongoDb.collection('tasks').updateOne({ _id: taskId }, { $set: doc }, { upsert: true });
+        return sendJson(res, 200, { ok: true }, cors);
+      } catch (err) {
+        return sendJson(res, 500, { ok: false, error: err.message }, cors);
+      }
+    }
+  }
+
+  // 6. List attachments: GET /api/attachments
   if (pathname === '/api/attachments' && req.method === 'GET') {
-    return sendJson(res, 200, listAttachments(), cors);
+    if (!mongoDb) return sendJson(res, 200, [], cors);
+    try {
+      const list = await mongoDb.collection('attachments')
+        .find({}, { projection: { data: 0 } })
+        .toArray();
+      return sendJson(res, 200, list, cors);
+    } catch (err) {
+      return sendJson(res, 500, { ok: false, error: err.message }, cors);
+    }
   }
 
-  // GET / PUT / DELETE /api/attachments/<taskId>/<filename>
-  const match = pathname.match(/^\/api\/attachments\/([^/]+)\/([^/]+)$/);
-  if (match) {
-    const taskId = decodeURIComponent(match[1]);
-    const filename = decodeURIComponent(match[2]);
+  // 7. Single attachment: GET / PUT / DELETE /api/attachments/<taskId>/<filename>
+  const attMatch = pathname.match(/^\/api\/attachments\/([^/]+)\/([^/]+)$/);
+  if (attMatch) {
+    if (!mongoDb) return sendJson(res, 403, { ok: false, error: 'Not connected to MongoDB' }, cors);
+    const taskId = decodeURIComponent(attMatch[1]);
+    const filename = decodeURIComponent(attMatch[2]);
     if (!isSafeSegment(taskId) || !isSafeSegment(filename)) {
-      return sendJson(res, 400, { error: 'Invalid task id or filename' }, cors);
+      return sendJson(res, 400, { ok: false, error: 'Invalid task id or filename' }, cors);
     }
-    const taskDir = path.join(ATTACHMENTS_DIR, taskId);
-    const filePath = path.join(taskDir, filename);
 
     if (req.method === 'GET') {
-      if (!fs.existsSync(filePath)) return sendJson(res, 404, { error: 'Not found' }, cors);
-      const ext = path.extname(filePath).toLowerCase();
-      res.writeHead(200, { 'Content-Type': MIME_TYPES[ext] || 'application/octet-stream', 'Cache-Control': 'no-store', ...cors });
-      return fs.createReadStream(filePath).pipe(res);
-    }
-    if (req.method === 'PUT') {
-      const body = await readBody(req);
-      fs.mkdirSync(taskDir, { recursive: true });
-      const tmp = filePath + '.tmp';
-      fs.writeFileSync(tmp, body);
-      fs.renameSync(tmp, filePath);
-      return sendJson(res, 200, { ok: true, size: body.length }, cors);
-    }
-    if (req.method === 'DELETE') {
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
       try {
-        if (fs.readdirSync(taskDir).length === 0) fs.rmdirSync(taskDir);
-      } catch (e) { /* ignore */ }
-      return sendJson(res, 200, { ok: true }, cors);
+        const doc = await mongoDb.collection('attachments').findOne({ taskId, filename });
+        if (!doc || !doc.data) {
+          return sendJson(res, 404, { ok: false, error: 'Attachment not found in MongoDB' }, cors);
+        }
+        const ext = path.extname(filename).toLowerCase();
+        const contentType = doc.contentType || MIME_TYPES[ext] || 'application/octet-stream';
+        const buffer = doc.data.buffer ? Buffer.from(doc.data.buffer) : doc.data;
+        res.writeHead(200, {
+          'Content-Type': contentType,
+          'Content-Length': buffer.length,
+          'Cache-Control': 'no-cache',
+          ...cors
+        });
+        return res.end(buffer);
+      } catch (err) {
+        return sendJson(res, 500, { ok: false, error: err.message }, cors);
+      }
+    }
+
+    if (req.method === 'PUT') {
+      try {
+        const body = await readBody(req);
+        const ext = path.extname(filename).toLowerCase();
+        const contentType = req.headers['content-type'] || MIME_TYPES[ext] || 'application/octet-stream';
+        await mongoDb.collection('attachments').updateOne(
+          { taskId, filename },
+          {
+            $set: {
+              taskId,
+              filename,
+              data: body,
+              size: body.length,
+              contentType,
+              updatedAt: new Date()
+            }
+          },
+          { upsert: true }
+        );
+        return sendJson(res, 200, { ok: true, size: body.length }, cors);
+      } catch (err) {
+        return sendJson(res, 500, { ok: false, error: err.message }, cors);
+      }
+    }
+
+    if (req.method === 'DELETE') {
+      try {
+        await mongoDb.collection('attachments').deleteOne({ taskId, filename });
+        return sendJson(res, 200, { ok: true }, cors);
+      } catch (err) {
+        return sendJson(res, 500, { ok: false, error: err.message }, cors);
+      }
     }
   }
 
@@ -326,22 +520,34 @@ function createServer() {
 
 async function main() {
   try {
-    fs.mkdirSync(SYNC_DIR, { recursive: true });
     const port = await findAvailablePort(FIRST_PORT, MAX_ATTEMPTS);
     const server = createServer();
 
+    // If an initial MongoDB URI was provided in environment or CLI, connect now
+    if (DEFAULT_URI) {
+      console.log(`Connecting to MongoDB using configured URI...`);
+      try {
+        await connectMongo(DEFAULT_URI);
+      } catch (err) {
+        console.warn(`Initial MongoDB connection failed: ${err.message}. You can connect from the web interface.`);
+      }
+    }
+
     server.listen(port, '127.0.0.1', () => {
       const url = `http://localhost:${port}/`;
-      console.log(`\nvg-task-manager running: ${url}  (Press Ctrl+C to stop)`);
-      console.log(`Sync folder: ${SYNC_DIR}\n`);
-      if (port !== 8766) {
-        console.log(`Note: GitHub Pages looks for the agent on port 8766; use ${url} directly.\n`);
+      console.log(`\nvg-task-manager running: ${url} (Press Ctrl+C to stop)`);
+      console.log(`MongoDB target: database "${DB_NAME}", collection "tasks"`);
+      if (mongoDb) {
+        console.log(`Status: Connected to MongoDB Atlas (${maskUri(activeUri)})\n`);
+      } else {
+        console.log(`Status: Waiting for MongoDB connection string from web UI\n`);
       }
       if (!process.env.VG_NO_OPEN) openBrowser(url);
     });
 
-    const shutdown = () => {
+    const shutdown = async () => {
       console.log('\nStopping vg-task-manager...');
+      await disconnectMongo();
       server.close(() => process.exit(0));
     };
 

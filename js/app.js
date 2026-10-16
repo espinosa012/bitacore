@@ -1,12 +1,11 @@
 /**
- * vg-task-manager: Main Application Orchestrator
+ * vg-task-manager: Main Application Orchestrator (MongoDB Atlas Backend)
  */
 (function() {
   window.VG = window.VG || {};
   const Storage = window.VG.Storage;
   const Validation = window.VG.Validation;
-  const ZipManager = window.VG.ZipManager;
-  const FsSync = window.VG.FsSync;
+  const MongoSync = window.VG.MongoSync;
   const Board = window.VG.Board;
   const Modals = window.VG.Modals;
   const UI = window.VG.UI;
@@ -23,7 +22,7 @@
     tasks = newTasks || [];
   }
 
-  /** Replaces the whole board (import, folder, clear) with its tag registry */
+  /** Replaces the whole board with its tag registry */
   function replaceBoard(newTasks, rawTags = []) {
     tasks = newTasks || [];
     Tags.load(rawTags, tasks);
@@ -33,7 +32,7 @@
     }
   }
 
-  /** The tasks.json document: tag registry + tasks */
+  /** The board document: tag registry + tasks */
   function buildDocument() {
     return { tags: Tags.getAll(), tasks };
   }
@@ -50,8 +49,6 @@
     select.disabled = usage.length === 0;
   }
 
-  // True when the board has changes that exist only in this tab
-  // (not written to a synced folder and not exported since).
   let hasUnsavedChanges = false;
 
   function markDirty() {
@@ -64,17 +61,17 @@
 
   function persistChanges(notifyMessage = 'Saved') {
     refreshTagFilter();
-    Storage.saveLocalTasks(tasks);
-    if (!FsSync.isLiveSync()) markDirty();
 
-    // If local folder is connected, save directly to tasks.json on disk ("sincronia")
-    if (FsSync.isLiveSync()) {
-      FsSync.saveTasksToDirectory(buildDocument()).then(saved => {
+    if (MongoSync && MongoSync.isConnected()) {
+      MongoSync.saveTasks(buildDocument()).then(saved => {
         if (!saved) {
           markDirty();
-          showToast(`Could not write tasks.json to "${FsSync.getLinkedDirName()}". Use Download ZIP to keep your changes.`, 'error', 7000);
-        } else if (notifyMessage) {
-          showToast(`${notifyMessage} & synced to folder`, 'success');
+          showToast('Could not save changes to MongoDB Atlas', 'error', 7000);
+        } else {
+          markClean();
+          if (notifyMessage) {
+            showToast(`${notifyMessage} & synced to MongoDB`, 'success');
+          }
         }
       });
       return;
@@ -89,240 +86,101 @@
     UI.toast(message, type, duration);
   }
 
-  function updateFolderBadge() {
-    const folderBadge = document.getElementById('folderStatusBadge');
-    const folderDot = document.getElementById('folderDot');
-    const folderLabel = document.getElementById('folderLabel');
-    const btnOpenFolder = document.getElementById('btnOpenFolder');
+  function updateMongoBadge() {
+    const btnMongoStatus = document.getElementById('btnMongoStatus');
+    const mongoStatusDot = document.getElementById('mongoStatusDot');
+    const mongoStatusLabel = document.getElementById('mongoStatusLabel');
+    const mongoEmptyState = document.getElementById('mongoEmptyState');
+    const kanbanBoard = document.getElementById('kanbanBoard');
+    const priorityFilter = document.getElementById('priorityFilter');
+    const tagFilter = document.getElementById('tagFilter');
+    const searchInput = document.getElementById('searchInput');
 
-    if (!folderBadge || !folderLabel) return;
+    if (!btnMongoStatus || !mongoStatusLabel) return;
 
-    const setState = (state) => {
-      folderBadge.classList.toggle('green', state === 'synced');
-      folderBadge.classList.toggle('yellow', state === 'readonly');
-      if (folderDot) folderDot.classList.toggle('synced', state === 'synced');
-      if (btnOpenFolder) btnOpenFolder.classList.toggle('green', state === 'synced');
-    };
+    const isConnected = MongoSync && MongoSync.isConnected();
 
-    if (FsSync.isLiveSync()) {
-      const dirName = FsSync.getLinkedDirName();
-      const via = FsSync.getMode() === 'agent' ? 'local agent' : 'browser';
-      setState('synced');
-      folderLabel.textContent = `${dirName} (Synced)`;
-      folderBadge.title = `Connected to local folder: ${dirName} (via ${via}). Click to disconnect.`;
-    } else if (FsSync.isLinked()) {
-      const dirName = FsSync.getLinkedDirName();
-      setState('readonly');
-      folderLabel.textContent = `${dirName} (Read-only)`;
-      folderBadge.title = `Loaded from "${dirName}". This browser cannot write to disk: use Download ZIP to save changes, or run "npm start" for live sync. Click to disconnect.`;
+    if (isConnected) {
+      btnMongoStatus.classList.add('green');
+      btnMongoStatus.classList.remove('orange');
+      if (mongoStatusDot) {
+        mongoStatusDot.className = 'status-dot synced';
+      }
+      const dbName = MongoSync.getCurrentDb() || 'vg-task-manager';
+      mongoStatusLabel.textContent = `MongoDB: ${dbName} (${tasks.length})`;
+      btnMongoStatus.title = `Connected to database "${dbName}". Click to manage connection or disconnect.`;
+
+      if (mongoEmptyState) mongoEmptyState.style.display = 'none';
+      if (kanbanBoard) kanbanBoard.style.display = 'flex';
+      if (priorityFilter) priorityFilter.disabled = false;
+      if (searchInput) searchInput.disabled = false;
     } else {
-      const agent = FsSync.getAgentStatus();
-      setState('standalone');
-      folderLabel.textContent = 'No folder linked';
-      folderBadge.title = agent
-        ? `Local agent detected (folder "${agent.dirName}"). Click to connect.`
-        : 'Click to select a local folder for live sync';
+      btnMongoStatus.classList.remove('green');
+      btnMongoStatus.classList.add('orange');
+      if (mongoStatusDot) {
+        mongoStatusDot.className = 'status-dot disconnected';
+      }
+      mongoStatusLabel.textContent = 'Connect MongoDB';
+      btnMongoStatus.title = 'Click to enter your MongoDB connection string';
+
+      if (mongoEmptyState) mongoEmptyState.style.display = 'block';
+      if (kanbanBoard) kanbanBoard.style.display = 'none';
+      if (priorityFilter) priorityFilter.disabled = true;
+      if (searchInput) searchInput.disabled = true;
     }
   }
 
-  async function handleOpenDirectory() {
+  async function loadFromMongo() {
     try {
-      showToast('Opening folder selector...', 'info');
-      const result = await FsSync.selectDirectory();
-      replaceBoard(result.tasks, result.tags);
-      Storage.saveLocalTasks(tasks);
+      showToast('Loading tasks from MongoDB Atlas...', 'info');
+      const data = await MongoSync.loadTasks();
+      const validation = Validation.validateTasksJson(data);
+      if (!validation.valid) {
+        throw new Error('Data format error from MongoDB: ' + validation.error);
+      }
+      const normalizedTasks = Validation.normalizeTasks(validation.list);
+      replaceBoard(normalizedTasks, validation.tags);
       markClean();
-      updateFolderBadge();
+      updateMongoBadge();
       Board.renderBoard();
       window.VG.TaskPage.onTasksReplaced();
-      showToast(`Loaded ${tasks.length} tasks and ${result.attachmentCount} attachments from "${result.dirName}"`, 'success');
-      if (result.mode === 'snapshot') {
-        showToast('Read-only: this browser cannot write to folders. Use Download ZIP to save changes, or run "npm start" for live sync.', 'warning', 8000);
-      }
+      showToast(`Loaded ${normalizedTasks.length} tasks from MongoDB Atlas`, 'success');
+      return true;
     } catch (err) {
-      if (err.name !== 'AbortError') {
-        UI.alert(err.message, { title: 'Could not open folder' });
-      }
+      UI.alert(err.message, { title: 'Could not load tasks from MongoDB' });
+      return false;
     }
-  }
-
-  async function handleDownloadZip() {
-    if (!tasks || tasks.length === 0) {
-      showToast('Board is empty. Create a task or upload files first.', 'warning');
-      return;
-    }
-
-    try {
-      showToast('Building ZIP archive...', 'info');
-      const res = await ZipManager.exportTasksZip(tasks, 'tasks.zip');
-      markClean();
-      showToast(`Downloaded tasks.zip (${res.taskCount} tasks, ${res.attachmentCount} attachments)`, 'success');
-    } catch (err) {
-      UI.alert(err.message, { title: 'Could not create the ZIP archive' });
-    }
-  }
-
-  async function handleUploadFile(file) {
-    if (!file) return;
-
-    const lowerName = file.name.toLowerCase();
-
-    // 1. ZIP File
-    if (lowerName.endsWith('.zip') || file.type === 'application/zip') {
-      try {
-        showToast(`Extracting ${file.name}...`, 'info');
-        const res = await ZipManager.importTasksZip(file);
-        replaceBoard(res.tasks, res.tags);
-        Storage.saveLocalTasks(tasks);
-        markClean();
-        Board.renderBoard();
-        window.VG.TaskPage.onTasksReplaced();
-        showToast(`Imported ${tasks.length} tasks and ${res.attachmentCount} attachments from ${file.name}`, 'success');
-      } catch (err) {
-        UI.alert(err.message, { title: `Could not import "${file.name}"` });
-      }
-      return;
-    }
-
-    // 2. JSON File
-    if (lowerName.endsWith('.json') || file.type === 'application/json') {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const parsed = JSON.parse(event.target.result);
-          const validation = Validation.validateTasksJson(parsed);
-          if (!validation.valid) {
-            UI.alert(validation.error, { title: `"${file.name}" has an invalid tasks format` });
-            return;
-          }
-
-          replaceBoard(Validation.normalizeTasks(validation.list), validation.tags);
-          Storage.saveLocalTasks(tasks);
-          markClean();
-          Board.renderBoard();
-          window.VG.TaskPage.onTasksReplaced();
-          showToast(`Loaded ${tasks.length} tasks from ${file.name}`, 'success');
-        } catch (err) {
-          UI.alert(err.message, { title: `Invalid JSON file "${file.name}"` });
-        }
-      };
-      reader.readAsText(file);
-      return;
-    }
-
-    showToast(`Unsupported file type: ${file.name}. Please upload a .json or .zip file.`, 'warning');
-  }
-
-  async function handleClearBoard() {
-    if (!tasks || tasks.length === 0) {
-      showToast('Board is already empty', 'info');
-      return;
-    }
-
-    const ok = await UI.confirm(
-      `Clear all ${tasks.length} tasks from the board?\n\nTip: use "Download ZIP" first if you want to keep a complete backup.`,
-      { title: 'Clear board', okText: 'Clear board', danger: true }
-    );
-    if (ok) {
-      replaceBoard([], []);
-      Storage.clearLocalTasks();
-      await Storage.clearAttachmentsIfSoleTab();
-      FsSync.unlink();
-      markClean();
-      updateFolderBadge();
-      Board.renderBoard();
-      window.VG.TaskPage.onTasksReplaced();
-      showToast('Board cleared', 'info');
-    }
-  }
-
-  function handleDownloadJson() {
-    if (!tasks || tasks.length === 0) {
-      showToast('Board is empty. Create a task or upload files first.', 'warning');
-      return;
-    }
-    const blob = new Blob([JSON.stringify(buildDocument(), null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'tasks.json';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-    markClean();
-    showToast(`Downloaded tasks.json (${tasks.length} tasks)`, 'success');
   }
 
   function setupEventListeners() {
     const searchInput = document.getElementById('searchInput');
     const priorityFilter = document.getElementById('priorityFilter');
     const btnNewTask = document.getElementById('btnNewTask');
-    const btnOpenFolder = document.getElementById('btnOpenFolder');
-    const btnUpload = document.getElementById('btnUpload');
-    const btnDownloadZip = document.getElementById('btnDownloadZip');
-    const btnDownloadJson = document.getElementById('btnDownloadJson');
-    const btnClearBoard = document.getElementById('btnClearBoard');
-    const fileInputPicker = document.getElementById('fileInputPicker');
-    const folderStatusBadge = document.getElementById('folderStatusBadge');
+    const btnMongoStatus = document.getElementById('btnMongoStatus');
+    const btnConnectEmptyState = document.getElementById('btnConnectEmptyState');
+    const tagFilter = document.getElementById('tagFilter');
 
     if (searchInput) searchInput.addEventListener('input', () => Board.renderBoard());
     if (priorityFilter) priorityFilter.addEventListener('change', () => Board.renderBoard());
-    const tagFilter = document.getElementById('tagFilter');
     if (tagFilter) tagFilter.addEventListener('change', () => Board.renderBoard());
 
     if (btnNewTask) {
-      btnNewTask.addEventListener('click', () => Modals.openCreateModal('planned'));
-    }
-
-    if (btnOpenFolder) {
-      btnOpenFolder.addEventListener('click', handleOpenDirectory);
-    }
-
-    if (folderStatusBadge) {
-      const onBadgeActivate = async () => {
-        if (FsSync.isLinked()) {
-          if (await UI.confirm(`Disconnect folder "${FsSync.getLinkedDirName()}"?`, { title: 'Disconnect folder', okText: 'Disconnect' })) {
-            FsSync.unlink();
-            updateFolderBadge();
-            showToast('Disconnected from folder', 'info');
-          }
-        } else {
-          handleOpenDirectory();
+      btnNewTask.addEventListener('click', () => {
+        if (!MongoSync.isConnected()) {
+          showToast('Please connect to MongoDB first', 'warning');
+          Modals.openMongoModal();
+          return;
         }
-      };
-      folderStatusBadge.addEventListener('click', onBadgeActivate);
-      folderStatusBadge.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onBadgeActivate();
-        }
+        Modals.openCreateModal('planned');
       });
     }
 
-    // Download menu (ZIP / JSON)
-    window.jQuery('#downloadMenu').dropdown({ action: 'hide' });
-
-    if (btnUpload && fileInputPicker) {
-      btnUpload.addEventListener('click', () => fileInputPicker.click());
-      fileInputPicker.addEventListener('change', (e) => {
-        if (e.target.files && e.target.files.length > 0) {
-          handleUploadFile(e.target.files[0]);
-          fileInputPicker.value = '';
-        }
-      });
+    if (btnMongoStatus) {
+      btnMongoStatus.addEventListener('click', () => Modals.openMongoModal());
     }
 
-    if (btnDownloadZip) {
-      btnDownloadZip.addEventListener('click', handleDownloadZip);
-    }
-
-    if (btnDownloadJson) {
-      btnDownloadJson.addEventListener('click', handleDownloadJson);
-    }
-
-    if (btnClearBoard) {
-      btnClearBoard.addEventListener('click', handleClearBoard);
+    if (btnConnectEmptyState) {
+      btnConnectEmptyState.addEventListener('click', () => Modals.openMongoModal());
     }
 
     // Bulk Tag buttons and toolbar
@@ -333,7 +191,13 @@
     const btnBulkBarClose = document.getElementById('btnBulkBarClose');
 
     if (btnBulkTag) {
-      btnBulkTag.addEventListener('click', () => Board.openBulkTagDialog());
+      btnBulkTag.addEventListener('click', () => {
+        if (!MongoSync.isConnected()) {
+          Modals.openMongoModal();
+          return;
+        }
+        Board.openBulkTagDialog();
+      });
     }
     if (btnBulkBarTag) {
       btnBulkBarTag.addEventListener('click', () => Board.openBulkTagDialog());
@@ -348,7 +212,7 @@
       btnBulkBarClose.addEventListener('click', () => Board.clearSelection());
     }
 
-    // Keyboard shortcuts: Escape closes modals/selection, "/" focuses search, "n" creates task, "t" bulk tags
+    // Keyboard shortcuts
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         if (Board && Board.getSelectedTaskIds && Board.getSelectedTaskIds().length > 0) {
@@ -362,6 +226,7 @@
         }
         Modals.closeCreateModal();
         Modals.closeEditModal();
+        Modals.closeMongoModal();
         return;
       }
 
@@ -377,32 +242,26 @@
         searchInput.select();
       } else if (e.key === 'n' || e.key === 'N') {
         e.preventDefault();
-        Modals.openCreateModal('planned');
+        if (!MongoSync.isConnected()) {
+          Modals.openMongoModal();
+        } else {
+          Modals.openCreateModal('planned');
+        }
       } else if (e.key === 't' || e.key === 'T') {
         e.preventDefault();
-        Board.openBulkTagDialog();
+        if (!MongoSync.isConnected()) {
+          Modals.openMongoModal();
+        } else {
+          Board.openBulkTagDialog();
+        }
       }
     });
 
-    // Warn before leaving when changes only live in this tab: the board
-    // starts empty on every visit, so they would be lost.
+    // Warn before leaving if unsaved changes exist
     window.addEventListener('beforeunload', (e) => {
-      if ((hasUnsavedChanges && !FsSync.isLiveSync()) || window.VG.TaskPage.isDirty()) {
+      if (hasUnsavedChanges || window.VG.TaskPage.isDirty()) {
         e.preventDefault();
         e.returnValue = '';
-      }
-    });
-
-    // Drag and drop JSON or ZIP files directly onto the browser window
-    window.addEventListener('dragover', (e) => e.preventDefault());
-    window.addEventListener('drop', (e) => {
-      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        const file = e.dataTransfer.files[0];
-        const lower = file.name.toLowerCase();
-        if (lower.endsWith('.json') || lower.endsWith('.zip') || file.type === 'application/zip') {
-          e.preventDefault();
-          handleUploadFile(file);
-        }
       }
     });
   }
@@ -412,35 +271,37 @@
     await Storage.initDb();
     await Storage.registerTab();
 
-    // 2. Setup modals and the task page
+    // 2. Setup modals and task page
     Modals.initModals();
     window.VG.TaskPage.init();
 
     // 3. Render column drop zones
     Board.renderBoardColumns();
 
-    // 4. Setup toolbar and drag/drop listeners
+    // 4. Setup listeners
     setupEventListeners();
 
-    // 5. Always start with a clean empty board on page entry
+    // 5. Start with empty board - NO tasks visible until MongoDB connection is provided
     replaceBoard([], []);
-
-    // Clear any stale cached tasks from earlier localStorage, and the attachment
-    // blobs of previous visits (nothing references them on an empty board)
     Storage.clearLocalTasks();
-    await Storage.clearAttachmentsIfSoleTab();
 
-    // 6. Update UI
-    updateFolderBadge();
+    // 6. Check if MongoDB is already connected on backend
+    const status = await MongoSync.checkStatus();
+
+    // 7. Update UI
+    updateMongoBadge();
     Board.renderBoard();
 
-    // A #/task/<id> link cannot resolve on an empty board: route() explains and
-    // falls back to the board
-    if (window.location.hash) window.VG.TaskPage.route();
-
-    // 7. Detect a running local sync agent (server.js) for browsers without
-    //    the File System Access API (Safari, Firefox)
-    FsSync.probeAgent().then(updateFolderBadge);
+    // 8. If already connected on backend, load tasks automatically
+    if (status && status.connected) {
+      await loadFromMongo();
+    } else {
+      // Not connected: automatically open the MongoDB connection modal
+      // so the user can enter the connection string immediately
+      setTimeout(() => {
+        Modals.openMongoModal();
+      }, 350);
+    }
   }
 
   window.VG.App = {
@@ -452,7 +313,8 @@
     refreshTagFilter,
     persistChanges,
     showToast,
-    updateFolderBadge
+    updateMongoBadge,
+    loadFromMongo
   };
 
   document.addEventListener('DOMContentLoaded', initApp);

@@ -57,44 +57,11 @@
 
       <div class="right menu">
         <div class="item">
-          <a id="folderStatusBadge" class="ui basic inverted label folder-status" title="Live synchronization status with local folder" role="button" tabindex="0">
-            <span class="status-dot" id="folderDot"></span>
-            <span id="folderLabel">Standalone</span>
-          </a>
-        </div>
-
-        <div class="item">
-          <div class="ui small buttons">
-            <button id="btnOpenFolder" class="ui labeled icon button" title="Select a local folder with tasks.json and attachments/. Live sync in Chrome/Edge, or in any browser with the local agent (npm start)">
-              <i class="folder open outline icon"></i>
-              Open Folder
-            </button>
-
-            <input type="file" id="fileInputPicker" accept=".json,.zip" hidden />
-            <button id="btnUpload" class="ui labeled icon button" title="Upload a tasks.json or tasks.zip file">
-              <i class="upload icon"></i>
-              Upload
-            </button>
-
-            <div class="ui floating dropdown icon button" id="downloadMenu" title="Download the board">
-              <i class="download icon"></i>
-              <i class="dropdown icon"></i>
-              <div class="menu">
-                <div class="item" id="btnDownloadZip" title="tasks.json and attachments/<taskId>/ folders">
-                  <i class="file archive outline icon"></i>
-                  Download ZIP
-                </div>
-                <div class="item" id="btnDownloadJson" title="tasks.json only">
-                  <i class="file code outline icon"></i>
-                  Download JSON
-                </div>
-              </div>
-            </div>
-
-            <button id="btnClearBoard" class="ui icon button" title="Clear all tasks from the board" aria-label="Clear board">
-              <i class="trash alternate outline icon"></i>
-            </button>
-          </div>
+          <button id="btnMongoStatus" class="ui basic inverted button mongo-status-btn" title="MongoDB Atlas Connection">
+            <span class="status-dot disconnected" id="mongoStatusDot"></span>
+            <i class="database icon"></i>
+            <span id="mongoStatusLabel">Connect MongoDB</span>
+          </button>
         </div>
 
         <div class="item">
@@ -109,6 +76,22 @@
 
   <!-- Kanban Board -->
   <main class="board-view">
+    <div class="ui inverted placeholder segment mongo-empty-state" id="mongoEmptyState" style="display: none;">
+      <div class="ui icon header">
+        <i class="database icon" style="font-size: 3.5rem; color: #00b5ad; margin-bottom: 0.5rem;"></i>
+        <div class="content" style="font-size: 1.4rem; font-weight: 700; margin-top: 0.5rem;">
+          MongoDB Atlas Connection Required
+          <div class="sub header" style="color: #9ab; max-width: 520px; margin: 0.75rem auto 1.5rem; line-height: 1.5;">
+            Enter your MongoDB connection string to access and manage your tasks and attachments in real-time. Tasks are stored directly in the <code>vg-task-manager</code> database.
+          </div>
+        </div>
+      </div>
+      <button class="ui teal large labeled icon button" id="btnConnectEmptyState">
+        <i class="plug icon"></i>
+        Connect to MongoDB Atlas
+      </button>
+    </div>
+
     <div class="board" id="kanbanBoard">
       <!-- Columns rendered dynamically -->
     </div>
@@ -469,10 +452,71 @@
     </div>
   </div>
 
+  <!-- MODAL: MongoDB Connection -->
+  <div class="ui small inverted modal" id="modalMongoOverlay">
+    <i class="close icon" id="closeMongoModalBtn"></i>
+    <div class="header">
+      <i class="database icon" style="color: #00b5ad;"></i>
+      <span>Connect to MongoDB Atlas</span>
+    </div>
+    <div class="content">
+      <form id="mongoConnectForm" class="ui inverted form">
+        <p style="margin-bottom: 1.2rem; color: #a0aec0; line-height: 1.5;">
+          Enter your MongoDB connection string. Tasks will be loaded from the
+          <strong style="color: #e2e8f0;">tasks</strong> collection in the <strong style="color: #e2e8f0;">vg-task-manager</strong> database.
+          Attached files are stored directly in MongoDB.
+        </p>
+
+        <div class="required field">
+          <label for="mongoUriInput">Connection String (URI)</label>
+          <div class="ui inverted fluid icon input">
+            <input
+              type="text"
+              id="mongoUriInput"
+              placeholder="mongodb+srv://admin:password@cluster.mongodb.net/"
+              autocomplete="off"
+              spellcheck="false"
+              required
+            />
+            <i class="key icon"></i>
+          </div>
+          <small style="display: block; margin-top: 6px; color: #718096;">
+            Target Database: <strong style="color: #a0aec0;">vg-task-manager</strong> · Collection: <strong style="color: #a0aec0;">tasks</strong>
+          </small>
+        </div>
+
+        <div class="ui negative message" id="mongoConnectError" style="display: none; margin-top: 1rem;">
+          <i class="close icon" id="closeMongoErrorBtn"></i>
+          <div class="header">Connection Failed</div>
+          <p id="mongoConnectErrorText"></p>
+        </div>
+
+        <div class="ui positive message" id="mongoConnectSuccess" style="display: none; margin-top: 1rem;">
+          <div class="header">Connection Established</div>
+          <p id="mongoConnectSuccessText"></p>
+        </div>
+      </form>
+    </div>
+    <div class="actions" style="display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <button type="button" class="ui basic inverted red button" id="btnDisconnectMongo" style="display: none;">
+          <i class="unlink icon"></i>
+          Disconnect
+        </button>
+      </div>
+      <div>
+        <button type="button" class="ui basic inverted button" id="cancelMongoBtn">Cancel</button>
+        <button type="submit" form="mongoConnectForm" class="ui teal button" id="btnSubmitMongo">
+          <i class="plug icon"></i>
+          <span id="btnSubmitMongoText">Connect & Load Tasks</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Scripts -->
   <script src="vendor/jquery/jquery.min.js"></script>
   <script src="vendor/fomantic-ui/semantic.min.js"></script>
-  <script src="jszip.min.js"></script>
   <script src="vendor/dompurify/purify.min.js"></script>
   <script src="vendor/easymde/easymde.min.js"></script>
   <script src="js/constants.js"></script>
@@ -482,8 +526,7 @@
   <script src="js/validation.js"></script>
   <script src="js/markdown.js"></script>
   <script src="js/attachments.js"></script>
-  <script src="js/zip-manager.js"></script>
-  <script src="js/fs-sync.js"></script>
+  <script src="js/mongo-sync.js"></script>
   <script src="js/board.js"></script>
   <script src="js/modals.js"></script>
   <script src="js/task-page.js"></script>

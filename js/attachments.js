@@ -1,5 +1,5 @@
 /**
- * vg-task-manager: Attachment Management (File handling, preview, download, sync)
+ * vg-task-manager: Attachment Management (File handling, preview, download, MongoDB sync)
  */
 (function() {
   window.VG = window.VG || {};
@@ -7,8 +7,6 @@
 
   function sanitizeFilename(filename) {
     if (!filename) return 'unnamed_file';
-    // Remove directory traversal and dangerous characters
-    // Leading dots would create hidden files that folder sync skips
     return filename.replace(/[/\\?%*:|"<>\x00-\x1f]/g, '_').trim().replace(/^\.+/, '_') || 'unnamed_file';
   }
 
@@ -49,18 +47,18 @@
       created_at: new Date().toISOString()
     };
 
-    // Save blob to IndexedDB
+    // Save blob to IndexedDB for quick local caching/preview
     await Storage.saveAttachmentBlob(task.id, filename, file);
 
     // Push into task metadata
     task.attachments.push(attachmentRecord);
     task.updated_at = new Date().toISOString();
 
-    // If local directory is synced, save directly to disk
-    if (window.VG.FsSync && window.VG.FsSync.isLinked()) {
-      const written = await window.VG.FsSync.writeAttachmentFile(task.id, filename, file);
-      if (!written && window.VG.FsSync.isLiveSync() && window.VG.App) {
-        window.VG.App.showToast(`Could not write "${filename}" to the synced folder`, 'error', 6000);
+    // Upload attachment to MongoDB in the cloud
+    if (window.VG.MongoSync && window.VG.MongoSync.isConnected()) {
+      const written = await window.VG.MongoSync.uploadAttachment(task.id, filename, file);
+      if (!written && window.VG.App) {
+        window.VG.App.showToast(`Could not upload "${filename}" to MongoDB`, 'error', 6000);
       }
     }
 
@@ -75,16 +73,16 @@
 
     const att = task.attachments[idx];
 
-    // Delete blob from IndexedDB
+    // Delete blob from local cache
     await Storage.deleteAttachmentBlob(task.id, att.filename);
 
     // Remove from task array
     task.attachments.splice(idx, 1);
     task.updated_at = new Date().toISOString();
 
-    // If local directory is synced, remove from disk
-    if (window.VG.FsSync && window.VG.FsSync.isLinked()) {
-      await window.VG.FsSync.deleteAttachmentFile(task.id, att.filename);
+    // Delete from MongoDB
+    if (window.VG.MongoSync && window.VG.MongoSync.isConnected()) {
+      await window.VG.MongoSync.deleteAttachment(task.id, att.filename);
     }
 
     return true;
@@ -103,7 +101,7 @@
 
   const SAFE_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif', 'image/bmp']);
   const IMAGE_EXTENSIONS = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', avif: 'image/avif', bmp: 'image/bmp' };
-  const TEXT_EXTENSIONS =new Set(['txt', 'md', 'markdown', 'log', 'csv', 'json', 'js', 'ts', 'css', 'lua', 'py', 'sql', 'yaml', 'yml', 'xml', 'html', 'htm', 'svg']);
+  const TEXT_EXTENSIONS = new Set(['txt', 'md', 'markdown', 'log', 'csv', 'json', 'js', 'ts', 'css', 'lua', 'py', 'sql', 'yaml', 'yml', 'xml', 'html', 'htm', 'svg']);
 
   /** MIME type to open an attachment inline with, or null if it should be downloaded */
   function getSafeViewType(attachment) {
@@ -112,21 +110,32 @@
     if (SAFE_IMAGE_TYPES.has(type)) return type;
     if (IMAGE_EXTENSIONS[ext]) return IMAGE_EXTENSIONS[ext];
     if (type === 'application/pdf' || ext === 'pdf') return 'application/pdf';
-    // Text and markup (including HTML/SVG source) is shown as plain text, never rendered
     if (type.startsWith('text/') || TEXT_EXTENSIONS.has(ext)) return 'text/plain;charset=utf-8';
     return null;
   }
 
   async function openOrDownloadAttachment(task, attachment, forceDownload = false) {
-    const blob = await Storage.getAttachmentBlob(task.id, attachment.filename);
+    let blob = await Storage.getAttachmentBlob(task.id, attachment.filename);
+
+    // If not in local IndexedDB cache, fetch from MongoDB
     if (!blob) {
-      window.VG.UI.toast(`File "${attachment.filename}" is not available locally.`, 'warning');
+      try {
+        const url = `/api/attachments/${encodeURIComponent(task.id)}/${encodeURIComponent(attachment.filename)}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (res.ok) {
+          blob = await res.blob();
+          await Storage.saveAttachmentBlob(task.id, attachment.filename, blob);
+        }
+      } catch (err) {
+        console.warn('Could not fetch attachment from MongoDB:', err);
+      }
+    }
+
+    if (!blob) {
+      window.VG.UI.toast(`File "${attachment.filename}" is not available in MongoDB.`, 'warning');
       return;
     }
 
-    // Blob URLs share the app's origin, so active content (HTML, SVG, XML...)
-    // must never be rendered inline: it could read IndexedDB/localStorage.
-    // The blob is re-typed with a safe MIME type before opening it.
     const viewType = forceDownload ? null : getSafeViewType(attachment);
 
     if (viewType) {

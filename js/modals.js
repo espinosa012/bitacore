@@ -27,6 +27,79 @@
     const btnSaveTask = document.getElementById('btnSaveTask');
     const btnDeleteTask = document.getElementById('btnDeleteTask');
 
+    // MongoDB connection modal elements
+    const modalMongoOverlay = document.getElementById('modalMongoOverlay');
+    const closeMongoModalBtn = document.getElementById('closeMongoModalBtn');
+    const cancelMongoBtn = document.getElementById('cancelMongoBtn');
+    const mongoConnectForm = document.getElementById('mongoConnectForm');
+    const btnDisconnectMongo = document.getElementById('btnDisconnectMongo');
+    const closeMongoErrorBtn = document.getElementById('closeMongoErrorBtn');
+
+    if (closeMongoModalBtn) closeMongoModalBtn.addEventListener('click', closeMongoModal);
+    if (cancelMongoBtn) cancelMongoBtn.addEventListener('click', closeMongoModal);
+    if (closeMongoErrorBtn) {
+      closeMongoErrorBtn.addEventListener('click', () => {
+        const errBox = document.getElementById('mongoConnectError');
+        if (errBox) errBox.style.display = 'none';
+      });
+    }
+
+    if (btnDisconnectMongo) {
+      btnDisconnectMongo.addEventListener('click', async () => {
+        const ok = await UI.confirm('Disconnect from MongoDB Atlas? Tasks will be hidden.', {
+          title: 'Disconnect MongoDB',
+          okText: 'Disconnect',
+          danger: true
+        });
+        if (ok) {
+          if (window.VG.MongoSync) await window.VG.MongoSync.disconnect();
+          window.VG.App.replaceBoard([], []);
+          window.VG.App.updateMongoBadge();
+          window.VG.Board.renderBoard();
+          closeMongoModal();
+          window.VG.App.showToast('Disconnected from MongoDB', 'info');
+        }
+      });
+    }
+
+    if (mongoConnectForm) {
+      mongoConnectForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const uriInput = document.getElementById('mongoUriInput');
+        const uri = (uriInput ? uriInput.value : '').trim();
+        const errBox = document.getElementById('mongoConnectError');
+        const errText = document.getElementById('mongoConnectErrorText');
+        const succBox = document.getElementById('mongoConnectSuccess');
+        const succText = document.getElementById('mongoConnectSuccessText');
+        const submitBtn = document.getElementById('btnSubmitMongo');
+
+        if (!uri) return;
+
+        if (errBox) errBox.style.display = 'none';
+        if (succBox) succBox.style.display = 'none';
+        if (submitBtn) submitBtn.classList.add('loading');
+
+        try {
+          const res = await window.VG.MongoSync.connect(uri);
+          if (submitBtn) submitBtn.classList.remove('loading');
+          if (succBox && succText) {
+            succBox.style.display = 'block';
+            succText.textContent = `Connected! Loading tasks from "${res.database}"...`;
+          }
+          await window.VG.App.loadFromMongo();
+          setTimeout(() => {
+            closeMongoModal();
+          }, 600);
+        } catch (err) {
+          if (submitBtn) submitBtn.classList.remove('loading');
+          if (errBox && errText) {
+            errBox.style.display = 'block';
+            errText.textContent = err.message || 'Connection failed';
+          }
+        }
+      });
+    }
+
     // Tab buttons
     const tabBtnAttachments = document.getElementById('tabBtnAttachments');
     const tabBtnComments = document.getElementById('tabBtnComments');
@@ -164,6 +237,33 @@
   function closeCreateModal() {
     const modalCreateOverlay = document.getElementById('modalCreateOverlay');
     if (modalCreateOverlay && UI.isModalVisible(modalCreateOverlay)) UI.hideModal(modalCreateOverlay);
+  }
+
+  function openMongoModal() {
+    const modal = document.getElementById('modalMongoOverlay');
+    const input = document.getElementById('mongoUriInput');
+    const errBox = document.getElementById('mongoConnectError');
+    const succBox = document.getElementById('mongoConnectSuccess');
+    const disconnectBtn = document.getElementById('btnDisconnectMongo');
+
+    if (errBox) errBox.style.display = 'none';
+    if (succBox) succBox.style.display = 'none';
+
+    if (input) {
+      const stored = window.VG.MongoSync ? window.VG.MongoSync.getStoredUri() : '';
+      input.value = stored || (window.VG.MongoSync ? window.VG.MongoSync.DEFAULT_URI : '');
+    }
+
+    if (disconnectBtn && window.VG.MongoSync) {
+      disconnectBtn.style.display = window.VG.MongoSync.isConnected() ? 'inline-block' : 'none';
+    }
+
+    if (modal) UI.showModal(modal);
+  }
+
+  function closeMongoModal() {
+    const modal = document.getElementById('modalMongoOverlay');
+    if (modal && UI.isModalVisible(modal)) UI.hideModal(modal);
   }
 
   async function handleCreateTaskSubmit(e) {
@@ -325,13 +425,11 @@
     window.VG.Board.renderBoard();
   }
 
-  /** Removes a task with its attachments (IndexedDB and synced folder) */
+  /** Removes a task with its attachments (IndexedDB and MongoDB) */
   async function deleteTask(task) {
     await window.VG.Storage.deleteTaskAttachments(task.id);
-    if (window.VG.FsSync && window.VG.FsSync.isLiveSync()) {
-      for (const att of task.attachments || []) {
-        await window.VG.FsSync.deleteAttachmentFile(task.id, att.filename);
-      }
+    if (window.VG.MongoSync && window.VG.MongoSync.isConnected()) {
+      await window.VG.MongoSync.deleteTask(task.id);
     }
 
     const tasks = window.VG.App.getTasks();
@@ -640,6 +738,8 @@
     closeCreateModal,
     openEditModal,
     closeEditModal,
+    openMongoModal,
+    closeMongoModal,
     isAnyModalOpen,
     switchTab,
     applyTaskEdits,
