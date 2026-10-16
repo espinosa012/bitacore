@@ -179,6 +179,21 @@
     }
   }
 
+  function handleDownloadJson() {
+    if (!tasks || tasks.length === 0) {
+      showToast('Board is empty. Create a task or upload files first.', 'warning');
+      return;
+    }
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(tasks, null, 2));
+    const a = document.createElement('a');
+    a.href = dataStr;
+    a.download = 'tasks.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    showToast(`Downloaded tasks.json (${tasks.length} tasks)`, 'success');
+  }
+
   function setupEventListeners() {
     const searchInput = document.getElementById('searchInput');
     const priorityFilter = document.getElementById('priorityFilter');
@@ -186,6 +201,7 @@
     const btnOpenFolder = document.getElementById('btnOpenFolder');
     const btnUpload = document.getElementById('btnUpload');
     const btnDownloadZip = document.getElementById('btnDownloadZip');
+    const btnDownloadJson = document.getElementById('btnDownloadJson');
     const btnClearBoard = document.getElementById('btnClearBoard');
     const fileInputPicker = document.getElementById('fileInputPicker');
     const folderStatusBadge = document.getElementById('folderStatusBadge');
@@ -229,6 +245,10 @@
       btnDownloadZip.addEventListener('click', handleDownloadZip);
     }
 
+    if (btnDownloadJson) {
+      btnDownloadJson.addEventListener('click', handleDownloadJson);
+    }
+
     if (btnClearBoard) {
       btnClearBoard.addEventListener('click', handleClearBoard);
     }
@@ -268,18 +288,11 @@
     // 4. Setup toolbar and drag/drop listeners
     setupEventListeners();
 
-    // 5. Load stored tasks if any
-    const stored = Storage.loadLocalTasks();
-    if (stored) {
-      const validation = Validation.validateTasksJson(stored);
-      if (validation.valid) {
-        tasks = Validation.normalizeTasks(validation.list);
-      } else {
-        tasks = [];
-      }
-    } else {
-      tasks = [];
-    }
+    // 5. Always start with a clean empty board on page entry
+    tasks = [];
+
+    // Clear any stale cached tasks from earlier localStorage
+    Storage.clearLocalTasks();
 
     // 6. Update UI
     updateFolderBadge();
