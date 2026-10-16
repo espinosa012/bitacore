@@ -9,6 +9,7 @@
   const FsSync = window.VG.FsSync;
   const Board = window.VG.Board;
   const Modals = window.VG.Modals;
+  const UI = window.VG.UI;
 
   let tasks = [];
 
@@ -55,20 +56,7 @@
   }
 
   function showToast(message, type = 'info', duration = 3500) {
-    const container = document.getElementById('toastContainer');
-    if (!container) return;
-
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.textContent = message;
-
-    container.appendChild(toast);
-    requestAnimationFrame(() => toast.classList.add('show'));
-
-    setTimeout(() => {
-      toast.classList.remove('show');
-      setTimeout(() => toast.remove(), 300);
-    }, duration);
+    UI.toast(message, type, duration);
   }
 
   function updateFolderBadge() {
@@ -79,27 +67,31 @@
 
     if (!folderBadge || !folderLabel) return;
 
+    const setState = (state) => {
+      folderBadge.classList.toggle('green', state === 'synced');
+      folderBadge.classList.toggle('yellow', state === 'readonly');
+      if (folderDot) folderDot.classList.toggle('synced', state === 'synced');
+      if (btnOpenFolder) btnOpenFolder.classList.toggle('green', state === 'synced');
+    };
+
     if (FsSync.isLiveSync()) {
       const dirName = FsSync.getLinkedDirName();
       const via = FsSync.getMode() === 'agent' ? 'local agent' : 'browser';
-      if (folderDot) folderDot.classList.add('synced');
-      folderLabel.textContent = `📁 ${dirName} (Synced)`;
+      setState('synced');
+      folderLabel.textContent = `${dirName} (Synced)`;
       folderBadge.title = `Connected to local folder: ${dirName} (via ${via}). Click to disconnect.`;
-      if (btnOpenFolder) btnOpenFolder.classList.add('btn-folder-linked');
     } else if (FsSync.isLinked()) {
       const dirName = FsSync.getLinkedDirName();
-      if (folderDot) folderDot.classList.remove('synced');
-      folderLabel.textContent = `📁 ${dirName} (Read-only)`;
+      setState('readonly');
+      folderLabel.textContent = `${dirName} (Read-only)`;
       folderBadge.title = `Loaded from "${dirName}". This browser cannot write to disk: use Download ZIP to save changes, or run "npm start" for live sync. Click to disconnect.`;
-      if (btnOpenFolder) btnOpenFolder.classList.remove('btn-folder-linked');
     } else {
       const agent = FsSync.getAgentStatus();
-      if (folderDot) folderDot.classList.remove('synced');
-      folderLabel.textContent = 'Standalone (No folder linked)';
+      setState('standalone');
+      folderLabel.textContent = 'No folder linked';
       folderBadge.title = agent
         ? `Local agent detected (folder "${agent.dirName}"). Click to connect.`
         : 'Click to select a local folder for live sync';
-      if (btnOpenFolder) btnOpenFolder.classList.remove('btn-folder-linked');
     }
   }
 
@@ -119,8 +111,7 @@
       }
     } catch (err) {
       if (err.name !== 'AbortError') {
-        alert('Could not open folder:\n\n' + err.message);
-        showToast('Folder selection cancelled or failed', 'error');
+        UI.alert(err.message, { title: 'Could not open folder' });
       }
     }
   }
@@ -137,8 +128,7 @@
       markClean();
       showToast(`Downloaded tasks.zip (${res.taskCount} tasks, ${res.attachmentCount} attachments)`, 'success');
     } catch (err) {
-      alert('Error creating ZIP archive: ' + err.message);
-      showToast('Export error: ' + err.message, 'error');
+      UI.alert(err.message, { title: 'Could not create the ZIP archive' });
     }
   }
 
@@ -159,8 +149,7 @@
         window.VG.TaskPage.onTasksReplaced();
         showToast(`Imported ${tasks.length} tasks and ${res.attachmentCount} attachments from ${file.name}`, 'success');
       } catch (err) {
-        alert(`Failed to import ZIP file "${file.name}":\n\n${err.message}`);
-        showToast('ZIP import failed: ' + err.message, 'error');
+        UI.alert(err.message, { title: `Could not import "${file.name}"` });
       }
       return;
     }
@@ -173,8 +162,7 @@
           const parsed = JSON.parse(event.target.result);
           const validation = Validation.validateTasksJson(parsed);
           if (!validation.valid) {
-            alert(`Upload rejected: "${file.name}" has an invalid tasks format.\n\n${validation.error}`);
-            showToast('Validation error: ' + validation.error, 'error');
+            UI.alert(validation.error, { title: `"${file.name}" has an invalid tasks format` });
             return;
           }
 
@@ -185,8 +173,7 @@
           window.VG.TaskPage.onTasksReplaced();
           showToast(`Loaded ${tasks.length} tasks from ${file.name}`, 'success');
         } catch (err) {
-          alert(`Invalid JSON file "${file.name}":\n\n${err.message}`);
-          showToast('JSON parse error: ' + err.message, 'error');
+          UI.alert(err.message, { title: `Invalid JSON file "${file.name}"` });
         }
       };
       reader.readAsText(file);
@@ -202,7 +189,11 @@
       return;
     }
 
-    if (confirm(`Clear all ${tasks.length} tasks from the board?\n\nTip: You can click "Download ZIP" before clearing if you want to keep a complete backup.`)) {
+    const ok = await UI.confirm(
+      `Clear all ${tasks.length} tasks from the board?\n\nTip: use "Download ZIP" first if you want to keep a complete backup.`,
+      { title: 'Clear board', okText: 'Clear board', danger: true }
+    );
+    if (ok) {
       tasks = [];
       Storage.clearLocalTasks();
       await Storage.clearAttachmentsIfSoleTab();
@@ -257,9 +248,9 @@
     }
 
     if (folderStatusBadge) {
-      folderStatusBadge.addEventListener('click', () => {
+      const onBadgeActivate = async () => {
         if (FsSync.isLinked()) {
-          if (confirm(`Disconnect folder "${FsSync.getLinkedDirName()}"?`)) {
+          if (await UI.confirm(`Disconnect folder "${FsSync.getLinkedDirName()}"?`, { title: 'Disconnect folder', okText: 'Disconnect' })) {
             FsSync.unlink();
             updateFolderBadge();
             showToast('Disconnected from folder', 'info');
@@ -267,8 +258,18 @@
         } else {
           handleOpenDirectory();
         }
+      };
+      folderStatusBadge.addEventListener('click', onBadgeActivate);
+      folderStatusBadge.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onBadgeActivate();
+        }
       });
     }
+
+    // Download menu (ZIP / JSON)
+    window.jQuery('#downloadMenu').dropdown({ action: 'hide' });
 
     if (btnUpload && fileInputPicker) {
       btnUpload.addEventListener('click', () => fileInputPicker.click());

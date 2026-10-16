@@ -12,6 +12,7 @@
   const Storage = window.VG.Storage;
   const Attachments = window.VG.Attachments;
   const Markdown = window.VG.Markdown;
+  const UI = window.VG.UI;
 
   const ROUTE_PREFIX = '#/task/';
   const BASE_TITLE = document.title;
@@ -113,13 +114,17 @@
     }
   }
 
-  function confirmDiscard() {
-    return !isDirty() || confirm('You have unsaved changes on this task. Discard them?');
+  async function confirmDiscard() {
+    return !isDirty() || UI.confirm('You have unsaved changes on this task. Discard them?', {
+      title: 'Unsaved changes',
+      okText: 'Discard',
+      danger: true
+    });
   }
 
   /** Back to the board, asking first when there are unsaved edits */
-  function close() {
-    if (!confirmDiscard()) return;
+  async function close() {
+    if (!(await confirmDiscard())) return;
     leaveToBoard();
   }
 
@@ -134,16 +139,18 @@
     }
   }
 
-  function onHashChange() {
+  async function onHashChange() {
     if (ignoreNextHashChange) {
       ignoreNextHashChange = false;
       return;
     }
     const nextId = taskIdFromHash();
-    if (isOpen() && nextId !== currentTaskId && !confirmDiscard()) {
-      // Stay on the task: restore its URL without adding a history entry
+    if (isOpen() && nextId !== currentTaskId && isDirty()) {
+      // Stay on the task while asking: restore its URL without a new history entry
+      const targetUrl = window.location.href;
       window.history.replaceState(null, '', ROUTE_PREFIX + encodeURIComponent(currentTaskId));
-      return;
+      if (!(await confirmDiscard())) return;
+      window.history.replaceState(null, '', targetUrl);
     }
     route();
   }
@@ -157,7 +164,7 @@
 
     const task = window.VG.App.getTasks().find(t => t.id === taskId);
     if (!task) {
-      window.VG.App.showToast('That task is not on the board. Load its folder or ZIP first.', 'warning', 5000);
+      UI.toast('That task is not on the board. Load its folder or ZIP first.', 'warning', 5000);
       window.history.replaceState(null, '', window.location.pathname + window.location.search);
       showBoard();
       return;
@@ -230,7 +237,7 @@
 
     const error = window.VG.Modals.applyTaskEdits(task, readFields(), 'Status changed on task page');
     if (error) {
-      alert(error);
+      UI.toast(error, 'warning');
       el('pageTaskName').focus();
       return;
     }
@@ -251,7 +258,7 @@
   async function remove() {
     const task = getCurrentTask();
     if (!task) return;
-    if (!confirm(`Are you sure you want to delete task "${task.name}"? All attachments will also be removed.`)) return;
+    if (!(await window.VG.Modals.confirmDeleteTask(task))) return;
 
     window.history.replaceState(null, '', window.location.pathname + window.location.search);
     showBoard();
@@ -269,7 +276,7 @@
         await Attachments.addAttachmentToTask(task, file);
         added++;
       } catch (err) {
-        window.VG.App.showToast(`Could not attach ${file.name}: ${err.message}`, 'error', 6000);
+        UI.toast(`Could not attach ${file.name}: ${err.message}`, 'error', 6000);
       }
     }
     if (added === 0) return;
@@ -321,47 +328,38 @@
     grid.innerHTML = '';
 
     if (list.length === 0) {
-      grid.innerHTML = '<div class="attachment-empty">No files attached yet. Drop files below or use "Add files".</div>';
+      grid.innerHTML = '<div class="ui fluid message empty-message">No files attached yet. Drop files below or use "Add files".</div>';
       return;
     }
 
     list.forEach(att => {
-      const card = document.createElement('article');
-      card.className = 'page-attachment';
+      const card = document.createElement('div');
+      card.className = 'card page-attachment';
       const title = att.name && att.name !== att.filename ? att.name : '';
       card.innerHTML = `
-        <div class="page-attachment-preview" data-preview>
-          <span class="page-attachment-icon">${getFileIcon(att.filename)}</span>
+        <div class="image page-attachment-preview" data-preview>
+          <i class="huge grey ${getFileIcon(att.filename)} icon"></i>
         </div>
-        <div class="page-attachment-body">
-          ${title ? `<div class="page-attachment-title">${escapeHtml(title)}</div>` : ''}
-          <div class="attachment-filename" title="${escapeHtml(att.filename)}">${escapeHtml(att.filename)}</div>
-          ${att.description ? `<div class="attachment-desc">${escapeHtml(att.description)}</div>` : ''}
-          <div class="attachment-meta">
-            <span>${formatFileSize(att.size)}</span>
-            <span>·</span>
-            <span>${escapeHtml(att.type || 'unknown type')}</span>
-            <span>·</span>
-            <span title="${escapeHtml(new Date(att.created_at).toLocaleString())}">${formatRelativeTime(att.created_at)}</span>
-          </div>
+        <div class="content">
+          <div class="header page-attachment-title" title="${escapeHtml(att.filename)}">${escapeHtml(title || att.filename)}</div>
+          ${title ? `<div class="meta">${escapeHtml(att.filename)}</div>` : ''}
+          ${att.description ? `<div class="description">${escapeHtml(att.description)}</div>` : ''}
         </div>
-        <div class="page-attachment-actions">
-          <button type="button" class="attachment-btn" data-action="open" title="Open in a new tab">Open</button>
-          <button type="button" class="attachment-btn attachment-btn-download" data-action="download" title="Download file">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-          </button>
-          <button type="button" class="attachment-btn" data-action="edit" title="Edit name & description">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-          </button>
-          <button type="button" class="attachment-btn attachment-btn-delete" data-action="delete" title="Delete attachment">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-          </button>
+        <div class="extra content">
+          <span title="${escapeHtml(att.type || 'unknown type')}">${formatFileSize(att.size)}</span>
+          · <span title="${escapeHtml(new Date(att.created_at).toLocaleString())}">${formatRelativeTime(att.created_at)}</span>
+        </div>
+        <div class="ui bottom attached four mini basic buttons">
+          <button type="button" class="ui icon button" data-action="open" title="Open in a new tab" aria-label="Open"><i class="external alternate icon"></i></button>
+          <button type="button" class="ui icon button" data-action="download" title="Download file" aria-label="Download"><i class="download icon"></i></button>
+          <button type="button" class="ui icon button" data-action="edit" title="Edit name & description" aria-label="Edit details"><i class="pencil alternate icon"></i></button>
+          <button type="button" class="ui icon button" data-action="delete" title="Delete attachment" aria-label="Delete"><i class="red trash alternate outline icon"></i></button>
         </div>
       `;
 
       const viewType = Attachments.getSafeViewType(att);
       const openBtn = card.querySelector('[data-action="open"]');
-      if (!viewType) openBtn.hidden = true;
+      if (!viewType) openBtn.classList.add('disabled');
 
       card.addEventListener('click', async (e) => {
         const btn = e.target.closest('[data-action]');
@@ -374,15 +372,11 @@
         } else if (action === 'download') {
           Attachments.openOrDownloadAttachment(task, att, true);
         } else if (action === 'edit') {
-          const newName = prompt('Attachment display name (optional):', att.name || '');
-          if (newName === null) return;
-          const newDesc = prompt('Attachment description (optional):', att.description || '');
-          if (newDesc === null) return;
-          Attachments.updateAttachmentDetails(task, att.id, newName, newDesc);
+          if (!(await window.VG.Modals.editAttachmentDetails(task, att))) return;
           renderAttachments(task);
           window.VG.App.persistChanges('Attachment details updated');
         } else if (action === 'delete') {
-          if (!confirm(`Delete attachment "${att.filename}"?`)) return;
+          if (!(await window.VG.Modals.confirmDeleteAttachment(att))) return;
           await Attachments.deleteAttachmentFromTask(task, att.id);
           renderAttachments(task);
           renderSidebar(task);
@@ -402,7 +396,7 @@
 
     if (!blob) {
       container.classList.add('is-missing');
-      container.insertAdjacentHTML('beforeend', '<span class="page-attachment-missing">Not available locally</span>');
+      container.insertAdjacentHTML('beforeend', '<span class="ui mini basic label page-attachment-missing">Not available locally</span>');
       return;
     }
 
@@ -454,12 +448,19 @@
     const dateCell = (iso) => iso
       ? `<span title="${escapeHtml(new Date(iso).toLocaleString())}">${formatRelativeTime(iso)}</span>`
       : '—';
-    el('pageTaskMeta').innerHTML = `
-      <div><dt>Created</dt><dd>${dateCell(task.created_at)}</dd></div>
-      <div><dt>Updated</dt><dd>${dateCell(task.updated_at)}</dd></div>
-      <div><dt>Attachments</dt><dd>${(task.attachments || []).length}</dd></div>
-      <div><dt>Comments</dt><dd>${(task.comments || []).length}</dd></div>
-    `;
+    const stat = (label, value) => `
+      <div class="column">
+        <div class="ui mini statistic task-page-stat">
+          <div class="value">${value}</div>
+          <div class="label">${label}</div>
+        </div>
+      </div>`;
+    el('pageTaskMeta').innerHTML = [
+      stat('Created', dateCell(task.created_at)),
+      stat('Updated', dateCell(task.updated_at)),
+      stat('Attachments', (task.attachments || []).length),
+      stat('Comments', (task.comments || []).length)
+    ].join('');
   }
 
   /* -------------------------------------------------------------
@@ -468,7 +469,7 @@
 
   function fillSelects() {
     el('pageTaskState').innerHTML = STATES
-      .map(st => `<option value="${escapeHtml(st.id)}">${st.icon} ${escapeHtml(st.label)}</option>`)
+      .map(st => `<option value="${escapeHtml(st.id)}">${escapeHtml(st.label)}</option>`)
       .join('');
     el('pageTaskPriority').innerHTML = Object.entries(PRIORITIES)
       .map(([id, meta]) => `<option value="${escapeHtml(id)}">${escapeHtml(meta.label)}</option>`)
@@ -490,7 +491,6 @@
         }
       });
     } else {
-      el('pageTaskDesc').classList.add('form-control');
       el('pageTaskDesc').addEventListener('input', updateDirtyState);
     }
 

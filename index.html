@@ -4,96 +4,97 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>vg-task-manager</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  
+
+  <link rel="stylesheet" href="vendor/fomantic-ui/semantic.min.css" />
   <link rel="stylesheet" href="vendor/easymde/easymde.min.css" />
-  <link rel="stylesheet" href="css/style.css" />
-  <link rel="stylesheet" href="css/cards.css" />
-  <link rel="stylesheet" href="css/modals.css" />
+  <link rel="stylesheet" href="css/app.css" />
   <link rel="stylesheet" href="css/markdown.css" />
-  <link rel="stylesheet" href="css/task-page.css" />
 </head>
 <body>
 
   <!-- Application Header -->
-  <header>
-    <div class="brand-section">
-      <div class="brand-logo" aria-hidden="true">
-        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z"/></svg>
-      </div>
-      <div>
-        <div class="brand-title">vg-task-manager</div>
-        <div class="brand-subtitle" id="taskStatsCounter">0 tasks · 0 in progress · 0 blocked</div>
-      </div>
-    </div>
-
-    <!-- Toolbar -->
-    <div class="toolbar">
-      <!-- Search Input -->
-      <div class="search-box">
-        <svg viewBox="0 0 24 24"><path d="M10 18a7.952 7.952 0 0 0 4.897-1.688l4.396 4.395 1.414-1.414-4.395-4.396A7.952 7.952 0 0 0 18 10c0-4.411-3.589-8-8-8s-8 3.589-8 8 3.589 8 8 8zm0-14c3.309 0 6 2.691 6 6s-2.691 6-6 6-6-2.691-6-6 2.691-6 6-6z"/></svg>
-        <input type="text" id="searchInput" class="search-input" placeholder="Search tasks or files... ( / )" autocomplete="off" aria-label="Search tasks" />
+  <header class="app-header">
+    <div class="ui borderless stackable menu app-menu">
+      <div class="header item app-brand">
+        <i class="large tasks icon app-brand-icon"></i>
+        <div>
+          <div class="app-brand-title">vg-task-manager</div>
+          <div class="app-brand-subtitle" id="taskStatsCounter">0 tasks · 0 in progress · 0 blocked</div>
+        </div>
       </div>
 
-      <!-- Priority Filter -->
-      <select id="priorityFilter" class="filter-select" aria-label="Filter by priority">
-        <option value="all">All priorities</option>
-        <option value="blocker">⛔ Blocker</option>
-        <option value="high">🔥 High</option>
-        <option value="medium-high">⚡ Medium-High</option>
-        <option value="medium">🔹 Medium</option>
-        <option value="low">🌱 Low</option>
-      </select>
-
-      <!-- Folder Sync Status Badge -->
-      <div id="folderStatusBadge" class="folder-status-badge" title="Live synchronization status with local folder">
-        <span class="status-dot" id="folderDot"></span>
-        <span id="folderLabel">Standalone</span>
+      <div class="item board-only">
+        <div class="ui icon input">
+          <input type="text" id="searchInput" placeholder="Search tasks or files... ( / )" autocomplete="off" aria-label="Search tasks" />
+          <i class="search icon"></i>
+        </div>
       </div>
 
-      <!-- Select / Link Local Folder -->
-      <button id="btnOpenFolder" class="btn btn-secondary" title="Select a local folder with tasks.json and attachments/. Live sync in Chrome/Edge, or in any browser with the local agent (npm start)">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
-        <span>Open Folder</span>
-      </button>
+      <div class="item board-only">
+        <select id="priorityFilter" class="ui dropdown" aria-label="Filter by priority">
+          <option value="all">All priorities</option>
+          <option value="blocker">Blocker</option>
+          <option value="high">High</option>
+          <option value="medium-high">Medium-High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+      </div>
 
-      <!-- Upload (JSON or ZIP) -->
-      <input type="file" id="fileInputPicker" accept=".json,.zip" style="display:none" />
-      <button id="btnUpload" class="btn btn-secondary" title="Upload a tasks.json or tasks.zip file">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
-        <span>Upload</span>
-      </button>
+      <div class="right menu">
+        <div class="item">
+          <a id="folderStatusBadge" class="ui basic label folder-status" title="Live synchronization status with local folder" role="button" tabindex="0">
+            <span class="status-dot" id="folderDot"></span>
+            <span id="folderLabel">Standalone</span>
+          </a>
+        </div>
 
-      <!-- Download ZIP (tasks.json + attachments/) -->
-      <button id="btnDownloadZip" class="btn btn-secondary" title="Download complete package as ZIP (tasks.json and attachments/<taskId>/ folders)">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
-        <span>Download ZIP</span>
-      </button>
+        <div class="item">
+          <div class="ui small buttons">
+            <button id="btnOpenFolder" class="ui labeled icon button" title="Select a local folder with tasks.json and attachments/. Live sync in Chrome/Edge, or in any browser with the local agent (npm start)">
+              <i class="folder open outline icon"></i>
+              Open Folder
+            </button>
 
-      <!-- Download JSON (tasks.json only) -->
-      <button id="btnDownloadJson" class="btn btn-secondary" title="Download tasks.json only">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-        <span>Download JSON</span>
-      </button>
+            <input type="file" id="fileInputPicker" accept=".json,.zip" hidden />
+            <button id="btnUpload" class="ui labeled icon button" title="Upload a tasks.json or tasks.zip file">
+              <i class="upload icon"></i>
+              Upload
+            </button>
 
-      <!-- Clear Board Button -->
-      <button id="btnClearBoard" class="btn btn-secondary btn-danger-hover" title="Clear all tasks from the board">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-        <span>Clear</span>
-      </button>
+            <div class="ui floating dropdown icon button" id="downloadMenu" title="Download the board">
+              <i class="download icon"></i>
+              <i class="dropdown icon"></i>
+              <div class="menu">
+                <div class="item" id="btnDownloadZip" title="tasks.json and attachments/<taskId>/ folders">
+                  <i class="file archive outline icon"></i>
+                  Download ZIP
+                </div>
+                <div class="item" id="btnDownloadJson" title="tasks.json only">
+                  <i class="file code outline icon"></i>
+                  Download JSON
+                </div>
+              </div>
+            </div>
 
-      <!-- New Task Button -->
-      <button id="btnNewTask" class="btn btn-primary" title="Create a new task (N)">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 11h-6V5h-2v6H5v2h6v6h2v-6h6z"/></svg>
-        <span>New Task</span>
-      </button>
+            <button id="btnClearBoard" class="ui icon button" title="Clear all tasks from the board" aria-label="Clear board">
+              <i class="trash alternate outline icon"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="item">
+          <button id="btnNewTask" class="ui small primary labeled icon button" title="Create a new task (N)">
+            <i class="plus icon"></i>
+            New Task
+          </button>
+        </div>
+      </div>
     </div>
   </header>
 
   <!-- Kanban Board -->
-  <main>
+  <main class="board-view">
     <div class="board" id="kanbanBoard">
       <!-- Columns rendered dynamically -->
     </div>
@@ -101,310 +102,331 @@
 
   <!-- Task Page (route: #/task/<id>) -->
   <section class="task-page" id="taskPage" hidden aria-labelledby="pageTaskName">
-    <div class="task-page-topbar">
-      <div class="task-page-topbar-left">
-        <button type="button" class="btn btn-secondary" id="pageBackBtn" title="Back to board">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
-          <span>Board</span>
-        </button>
-        <span class="modal-task-id" id="pageTaskIdLabel"></span>
-        <span class="task-page-dirty" id="pageDirtyBadge" hidden>Unsaved changes</span>
+    <div class="ui container">
+      <div class="ui secondary stackable menu task-page-topbar">
+        <div class="item">
+          <button type="button" class="ui basic labeled icon button" id="pageBackBtn" title="Back to board">
+            <i class="arrow left icon"></i>
+            Board
+          </button>
+        </div>
+        <div class="item">
+          <span class="ui basic label task-id-label" id="pageTaskIdLabel"></span>
+          <span class="ui yellow label" id="pageDirtyBadge" hidden>
+            <i class="pencil alternate icon"></i>
+            Unsaved changes
+          </span>
+        </div>
+        <div class="right item">
+          <button type="button" class="ui basic red button" id="pageDeleteBtn">
+            <i class="trash alternate outline icon"></i>
+            Delete
+          </button>
+          <button type="button" class="ui button" id="pageRevertBtn" disabled>Discard</button>
+          <button type="button" class="ui primary button" id="pageSaveBtn" title="Save changes (Ctrl/Cmd+S)" disabled>
+            <i class="save icon"></i>
+            Save Changes
+          </button>
+        </div>
       </div>
-      <div class="task-page-topbar-right">
-        <button type="button" class="btn btn-danger" id="pageDeleteBtn">Delete Task</button>
-        <button type="button" class="btn btn-secondary" id="pageRevertBtn" disabled>Discard</button>
-        <button type="button" class="btn btn-primary" id="pageSaveBtn" title="Save changes (Ctrl/Cmd+S)" disabled>Save Changes</button>
-      </div>
-    </div>
 
-    <div class="task-page-layout">
-      <div class="task-page-main">
-        <input type="text" id="pageTaskName" class="task-page-title" placeholder="Task title" autocomplete="off" aria-label="Task title" />
+      <div class="ui stackable grid">
+        <div class="eleven wide column">
+          <div class="ui form">
+            <div class="field">
+              <div class="ui transparent fluid input task-page-title">
+                <input type="text" id="pageTaskName" placeholder="Task title" autocomplete="off" aria-label="Task title" />
+              </div>
+            </div>
+          </div>
 
-        <section class="task-page-section">
-          <h3 class="task-page-section-title">Description</h3>
-          <textarea id="pageTaskDesc" placeholder="Write the task details in Markdown..."></textarea>
-        </section>
+          <h4 class="ui dividing header">
+            <i class="align left icon"></i>
+            <div class="content">Description</div>
+          </h4>
+          <div class="ui form">
+            <textarea id="pageTaskDesc" placeholder="Write the task details in Markdown..."></textarea>
+          </div>
 
-        <section class="task-page-section">
-          <div class="task-page-section-head">
-            <h3 class="task-page-section-title" id="pageAttachmentsTitle">Attachments</h3>
-            <button type="button" class="btn btn-secondary btn-sm" id="pageAddFilesBtn">
-              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-              <span>Add files</span>
+          <h4 class="ui dividing header task-page-section-head">
+            <i class="paperclip icon"></i>
+            <div class="content" id="pageAttachmentsTitle">Attachments</div>
+            <button type="button" class="ui mini basic labeled icon button" id="pageAddFilesBtn">
+              <i class="plus icon"></i>
+              Add files
             </button>
-          </div>
+          </h4>
           <input type="file" id="pageFileInput" multiple hidden />
-          <div class="page-attachments-grid" id="pageAttachmentsGrid"></div>
-          <div class="attachment-drop-zone" id="pageDropZone">
-            <svg class="attachment-drop-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4m4-5l5-5 5 5m-5-5v12"/></svg>
-            <div class="attachment-drop-text">Drop files here to attach them, or <span>browse from computer</span></div>
+          <div class="ui three stackable doubling cards" id="pageAttachmentsGrid"></div>
+          <div class="ui placeholder segment drop-zone" id="pageDropZone" role="button" tabindex="0">
+            <div class="ui icon header">
+              <i class="cloud upload icon"></i>
+              <span class="drop-zone-text">Drop files here to attach them, or <a>browse from computer</a></span>
+            </div>
           </div>
-        </section>
 
-        <section class="task-page-section">
-          <h3 class="task-page-section-title" id="pageCommentsTitle">Comments</h3>
-          <div class="comment-list" id="pageCommentsList"></div>
-          <form id="pageCommentForm" class="comment-add-box">
-            <div class="form-row">
-              <input type="text" id="pageCommentAuthor" class="form-control" placeholder="Your name" autocomplete="off" />
+          <h4 class="ui dividing header">
+            <i class="comments outline icon"></i>
+            <div class="content" id="pageCommentsTitle">Comments</div>
+          </h4>
+          <div class="ui comments" id="pageCommentsList"></div>
+          <form id="pageCommentForm" class="ui reply form">
+            <div class="field">
+              <input type="text" id="pageCommentAuthor" placeholder="Your name" autocomplete="off" />
             </div>
-            <textarea id="pageCommentText" class="form-control" rows="2" placeholder="Write a comment... (Ctrl/Cmd+Enter to post)" required></textarea>
-            <div style="display: flex; justify-content: flex-end;">
-              <button type="submit" class="btn btn-secondary">Post Comment</button>
+            <div class="field">
+              <textarea id="pageCommentText" rows="2" placeholder="Write a comment... (Ctrl/Cmd+Enter to post)" required></textarea>
             </div>
+            <button type="submit" class="ui primary labeled icon button">
+              <i class="comment icon"></i>
+              Post Comment
+            </button>
           </form>
-        </section>
+        </div>
+
+        <div class="five wide column">
+          <div class="task-page-sidebar">
+            <div class="ui segment">
+              <div class="ui form">
+                <div class="field">
+                  <label for="pageTaskState">Status</label>
+                  <select id="pageTaskState" class="ui fluid dropdown"></select>
+                </div>
+                <div class="field">
+                  <label for="pageTaskPriority">Priority</label>
+                  <select id="pageTaskPriority" class="ui fluid dropdown"></select>
+                </div>
+                <div class="field">
+                  <label for="pageTaskOpenspecId">OpenSpec ID</label>
+                  <input type="text" id="pageTaskOpenspecId" placeholder="e.g. add-straw" autocomplete="off" />
+                </div>
+              </div>
+            </div>
+
+            <div class="ui segment">
+              <div class="ui two column grid task-page-meta" id="pageTaskMeta"></div>
+            </div>
+
+            <div class="ui segment">
+              <h4 class="ui header">
+                <i class="history icon"></i>
+                <div class="content" id="pageHistoryTitle">History</div>
+              </h4>
+              <div class="ui small feed" id="pageHistoryTimeline"></div>
+            </div>
+          </div>
+        </div>
       </div>
-
-      <aside class="task-page-sidebar">
-        <div class="task-page-card">
-          <div class="form-group">
-            <label for="pageTaskState">Status</label>
-            <select id="pageTaskState" class="form-control"></select>
-          </div>
-          <div class="form-group">
-            <label for="pageTaskPriority">Priority</label>
-            <select id="pageTaskPriority" class="form-control"></select>
-          </div>
-          <div class="form-group">
-            <label for="pageTaskOpenspecId">OpenSpec ID</label>
-            <input type="text" id="pageTaskOpenspecId" class="form-control" placeholder="e.g. add-straw" autocomplete="off" />
-          </div>
-        </div>
-
-        <dl class="task-page-card task-page-meta" id="pageTaskMeta"></dl>
-
-        <div class="task-page-card">
-          <h3 class="task-page-section-title" id="pageHistoryTitle">History</h3>
-          <div class="history-timeline" id="pageHistoryTimeline"></div>
-        </div>
-      </aside>
     </div>
   </section>
 
   <!-- MODAL: Create Task -->
-  <div class="modal-overlay" id="modalCreateOverlay">
-    <div class="modal modal-create">
-      <div class="modal-header">
-        <div class="modal-title-wrap">
-          <h2 class="modal-title">New Task</h2>
+  <div class="ui small modal" id="modalCreateOverlay">
+    <i class="close icon" id="closeCreateModalBtn"></i>
+    <div class="header">
+      <i class="plus square outline icon"></i>
+      New Task
+    </div>
+    <div class="content">
+      <form id="createTaskForm" class="ui form">
+        <div class="required field">
+          <label for="newTaskName">Task Title</label>
+          <input type="text" id="newTaskName" placeholder="e.g. Implement crafting menu" required autocomplete="off" />
         </div>
-        <button class="modal-close-btn" id="closeCreateModalBtn" aria-label="Close">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-        </button>
-      </div>
 
-      <form id="createTaskForm">
-        <div class="modal-body" style="flex-direction: column;">
-          <div class="form-group">
-            <label for="newTaskName">Task Title *</label>
-            <input type="text" id="newTaskName" class="form-control" placeholder="e.g. Implement crafting menu" required autocomplete="off" />
+        <div class="two fields">
+          <div class="field">
+            <label for="newTaskPriority">Priority</label>
+            <select id="newTaskPriority" class="ui fluid dropdown">
+              <option value="medium" selected>Medium</option>
+              <option value="low">Low</option>
+              <option value="medium-high">Medium-High</option>
+              <option value="high">High</option>
+              <option value="blocker">Blocker</option>
+            </select>
           </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label for="newTaskPriority">Priority</label>
-              <select id="newTaskPriority" class="form-control">
-                <option value="medium" selected>🔹 Medium</option>
-                <option value="low">🌱 Low</option>
-                <option value="medium-high">⚡ Medium-High</option>
-                <option value="high">🔥 High</option>
-                <option value="blocker">⛔ Blocker</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label for="newTaskState">Column / Status</label>
-              <select id="newTaskState" class="form-control">
-                <option value="planned" selected>📋 Planned</option>
-                <option value="in progress">⚡ In Progress</option>
-                <option value="in review">🔍 In Review</option>
-                <option value="done">✅ Done</option>
-                <option value="blocked">⛔ Blocked</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label for="newTaskOpenspecId">OpenSpec ID (Optional)</label>
-            <input type="text" id="newTaskOpenspecId" class="form-control" placeholder="e.g. add-crafting-menu" autocomplete="off" />
-          </div>
-
-          <div class="form-group">
-            <label for="newTaskDesc">Description (Optional)</label>
-            <textarea id="newTaskDesc" class="form-control" rows="3" placeholder="Add detailed notes or requirements..."></textarea>
+          <div class="field">
+            <label for="newTaskState">Column / Status</label>
+            <select id="newTaskState" class="ui fluid dropdown">
+              <option value="planned" selected>Planned</option>
+              <option value="in progress">In Progress</option>
+              <option value="in review">In Review</option>
+              <option value="done">Done</option>
+              <option value="blocked">Blocked</option>
+            </select>
           </div>
         </div>
 
-        <div class="modal-footer">
-          <div></div>
-          <div class="modal-footer-right">
-            <button type="button" class="btn btn-secondary" id="cancelCreateBtn">Cancel</button>
-            <button type="submit" class="btn btn-primary">Create Task</button>
-          </div>
+        <div class="field">
+          <label for="newTaskOpenspecId">OpenSpec ID (Optional)</label>
+          <input type="text" id="newTaskOpenspecId" placeholder="e.g. add-crafting-menu" autocomplete="off" />
         </div>
+
+        <div class="field">
+          <label for="newTaskDesc">Description (Optional, Markdown)</label>
+          <textarea id="newTaskDesc" rows="3" placeholder="Add detailed notes or requirements..."></textarea>
+        </div>
+        <!-- Lets Enter in the title submit the form -->
+        <button type="submit" hidden></button>
       </form>
+    </div>
+    <div class="actions">
+      <button type="button" class="ui basic button" id="cancelCreateBtn">Cancel</button>
+      <button type="submit" form="createTaskForm" class="ui primary button">
+        <i class="check icon"></i>
+        Create Task
+      </button>
     </div>
   </div>
 
   <!-- MODAL: Edit Task & Attachments -->
-  <div class="modal-overlay" id="modalEditOverlay">
-    <div class="modal">
-      <div class="modal-header">
-        <div class="modal-title-wrap">
-          <h2 class="modal-title">Edit Task</h2>
-          <span class="modal-task-id" id="editTaskIdLabel">#000000</span>
-        </div>
-        <div class="modal-header-actions">
-          <button type="button" class="btn btn-secondary btn-sm" id="btnOpenTaskPage" title="Open the full task page (unsaved edits are kept)">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
-            <span>Open page</span>
-          </button>
-          <button class="modal-close-btn" id="closeEditModalBtn" aria-label="Close">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-          </button>
-        </div>
-      </div>
+  <div class="ui large modal" id="modalEditOverlay">
+    <i class="close icon" id="closeEditModalBtn"></i>
+    <div class="header edit-modal-header">
+      <span>Edit Task</span>
+      <span class="ui basic label task-id-label" id="editTaskIdLabel">#000000</span>
+      <button type="button" class="ui mini basic labeled icon button" id="btnOpenTaskPage" title="Open the full task page (unsaved edits are kept)">
+        <i class="external alternate icon"></i>
+        Open page
+      </button>
+    </div>
 
-      <div class="modal-body">
-        <!-- Left Main Area -->
-        <div class="modal-main">
-          <div class="form-group">
-            <label for="editTaskName">Task Title</label>
-            <input type="text" id="editTaskName" class="form-control" required autocomplete="off" />
+    <div class="scrolling content">
+      <div class="ui stackable grid">
+        <div class="eleven wide column">
+          <div class="ui form">
+            <div class="field">
+              <label for="editTaskName">Task Title</label>
+              <input type="text" id="editTaskName" required autocomplete="off" />
+            </div>
+            <div class="field">
+              <label for="editTaskDesc">Description</label>
+              <textarea id="editTaskDesc" rows="3" placeholder="Task details and context..."></textarea>
+            </div>
+            <div class="field">
+              <label for="editTaskOpenspecId">OpenSpec ID</label>
+              <input type="text" id="editTaskOpenspecId" placeholder="e.g. add-straw" autocomplete="off" />
+            </div>
           </div>
 
-          <div class="form-group">
-            <label for="editTaskDesc">Description</label>
-            <textarea id="editTaskDesc" class="form-control" rows="3" placeholder="Task details and context..."></textarea>
-          </div>
-
-          <div class="form-group">
-            <label for="editTaskOpenspecId">OpenSpec ID</label>
-            <input type="text" id="editTaskOpenspecId" class="form-control" placeholder="e.g. add-straw" autocomplete="off" />
-          </div>
-
-          <!-- Tabs Header -->
-          <div class="modal-tabs">
-            <button type="button" class="tab-btn active" id="tabBtnAttachments">
-              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          <!-- Tabs -->
+          <div class="ui top attached tabular menu edit-tabs">
+            <a class="active item" id="tabBtnAttachments">
+              <i class="paperclip icon"></i>
               <span>Attachments (0)</span>
-            </button>
-            <button type="button" class="tab-btn" id="tabBtnComments">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+            </a>
+            <a class="item" id="tabBtnComments">
+              <i class="comments outline icon"></i>
               <span>Comments (0)</span>
-            </button>
-            <button type="button" class="tab-btn" id="tabBtnHistory">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+            </a>
+            <a class="item" id="tabBtnHistory">
+              <i class="history icon"></i>
               <span>History (0)</span>
-            </button>
+            </a>
           </div>
 
-          <!-- Tab Content: Attachments -->
-          <div class="tab-content active" id="tabAttachments">
-            <div class="attachments-container">
-              <div class="attachments-list" id="attachmentsList">
-                <!-- Attachment cards rendered dynamically -->
+          <!-- Tab: Attachments -->
+          <div class="ui bottom attached active tab segment" id="tabAttachments">
+            <div class="ui divided items" id="attachmentsList"></div>
+
+            <div class="ui secondary segment">
+              <input type="file" id="newAttachmentFile" hidden />
+              <div class="ui placeholder segment drop-zone compact-drop-zone" id="attachmentDropZone" role="button" tabindex="0">
+                <div class="ui icon header">
+                  <i class="cloud upload icon"></i>
+                  <span class="drop-zone-text attachment-drop-text">Drag & drop a file here or <a>browse from computer</a></span>
+                </div>
               </div>
-
-              <!-- Upload New Attachment -->
-              <div class="attachment-upload-box">
-                <div class="attachment-upload-title">
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-                  <span>Attach New File</span>
+              <div class="ui form">
+                <div class="two fields">
+                  <div class="field">
+                    <input type="text" id="newAttachmentName" placeholder="Display title (optional)" autocomplete="off" />
+                  </div>
+                  <div class="field">
+                    <input type="text" id="newAttachmentDesc" placeholder="Short description (optional)" autocomplete="off" />
+                  </div>
                 </div>
-
-                <input type="file" id="newAttachmentFile" style="display:none;" />
-                <div class="attachment-drop-zone" id="attachmentDropZone">
-                  <svg class="attachment-drop-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4m4-5l5-5 5 5m-5-5v12"/></svg>
-                  <div class="attachment-drop-text">Drag & drop a file here or <span>browse from computer</span></div>
-                </div>
-
-                <div class="form-row">
-                  <input type="text" id="newAttachmentName" class="form-control" placeholder="Display title (optional)" autocomplete="off" />
-                  <input type="text" id="newAttachmentDesc" class="form-control" placeholder="Short description (optional)" autocomplete="off" />
-                </div>
-
-                <div style="display: flex; justify-content: flex-end;">
-                  <button type="button" class="btn btn-secondary" id="btnSubmitAttachment">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
-                    <span>Attach to Task</span>
-                  </button>
-                </div>
+                <button type="button" class="ui small primary labeled icon button" id="btnSubmitAttachment">
+                  <i class="upload icon"></i>
+                  Attach to Task
+                </button>
               </div>
             </div>
           </div>
 
-          <!-- Tab Content: Comments -->
-          <div class="tab-content" id="tabComments">
-            <div class="comment-list" id="commentsList">
-              <!-- Comments rendered dynamically -->
-            </div>
-
-            <form id="addCommentForm" class="comment-add-box">
-              <div class="form-row">
-                <input type="text" id="newCommentAuthor" class="form-control" placeholder="Your name" value="OpenCode" autocomplete="off" />
+          <!-- Tab: Comments -->
+          <div class="ui bottom attached tab segment" id="tabComments">
+            <div class="ui comments" id="commentsList"></div>
+            <form id="addCommentForm" class="ui reply form">
+              <div class="field">
+                <input type="text" id="newCommentAuthor" placeholder="Your name" value="OpenCode" autocomplete="off" />
               </div>
-              <textarea id="newCommentText" class="form-control" rows="2" placeholder="Write a comment..." required></textarea>
-              <div style="display: flex; justify-content: flex-end;">
-                <button type="submit" class="btn btn-secondary">Post Comment</button>
+              <div class="field">
+                <textarea id="newCommentText" rows="2" placeholder="Write a comment..." required></textarea>
               </div>
+              <button type="submit" class="ui small primary labeled icon button">
+                <i class="comment icon"></i>
+                Post Comment
+              </button>
             </form>
           </div>
 
-          <!-- Tab Content: History -->
-          <div class="tab-content" id="tabHistory">
-            <div class="history-timeline" id="historyTimeline">
-              <!-- History entries rendered dynamically -->
+          <!-- Tab: History -->
+          <div class="ui bottom attached tab segment" id="tabHistory">
+            <div class="ui small feed" id="historyTimeline"></div>
+          </div>
+        </div>
+
+        <div class="five wide column">
+          <div class="ui form">
+            <div class="field">
+              <label for="editTaskState">Status</label>
+              <select id="editTaskState" class="ui fluid dropdown">
+                <option value="planned">Planned</option>
+                <option value="in progress">In Progress</option>
+                <option value="in review">In Review</option>
+                <option value="done">Done</option>
+                <option value="blocked">Blocked</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="editTaskPriority">Priority</label>
+              <select id="editTaskPriority" class="ui fluid dropdown">
+                <option value="blocker">Blocker</option>
+                <option value="high">High</option>
+                <option value="medium-high">Medium-High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
             </div>
           </div>
         </div>
-
-        <!-- Right Sidebar Area -->
-        <div class="modal-sidebar">
-          <div class="form-group">
-            <label for="editTaskState">Status</label>
-            <select id="editTaskState" class="form-control">
-              <option value="planned">📋 Planned</option>
-              <option value="in progress">⚡ In Progress</option>
-              <option value="in review">🔍 In Review</option>
-              <option value="done">✅ Done</option>
-              <option value="blocked">⛔ Blocked</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="editTaskPriority">Priority</label>
-            <select id="editTaskPriority" class="form-control">
-              <option value="blocker">⛔ Blocker</option>
-              <option value="high">🔥 High</option>
-              <option value="medium-high">⚡ Medium-High</option>
-              <option value="medium">🔹 Medium</option>
-              <option value="low">🌱 Low</option>
-            </select>
-          </div>
-        </div>
       </div>
+    </div>
 
-      <div class="modal-footer">
-        <button type="button" class="btn btn-danger" id="btnDeleteTask">Delete Task</button>
-        <div class="modal-footer-right">
-          <button type="button" class="btn btn-secondary" id="cancelEditBtn">Cancel</button>
-          <button type="button" class="btn btn-primary" id="btnSaveTask" title="Save changes (Ctrl/Cmd+Enter)">Save Changes</button>
-        </div>
+    <div class="actions edit-modal-actions">
+      <button type="button" class="ui basic red button" id="btnDeleteTask">
+        <i class="trash alternate outline icon"></i>
+        Delete Task
+      </button>
+      <div>
+        <button type="button" class="ui basic button" id="cancelEditBtn">Cancel</button>
+        <button type="button" class="ui primary button" id="btnSaveTask" title="Save changes (Ctrl/Cmd+Enter)">
+          <i class="save icon"></i>
+          Save Changes
+        </button>
       </div>
     </div>
   </div>
 
-  <!-- Toast Container -->
-  <div class="toast-container" id="toastContainer"></div>
-
   <!-- Scripts -->
+  <script src="vendor/jquery/jquery.min.js"></script>
+  <script src="vendor/fomantic-ui/semantic.min.js"></script>
   <script src="jszip.min.js"></script>
   <script src="vendor/dompurify/purify.min.js"></script>
   <script src="vendor/easymde/easymde.min.js"></script>
   <script src="js/constants.js"></script>
+  <script src="js/ui.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/validation.js"></script>
   <script src="js/markdown.js"></script>

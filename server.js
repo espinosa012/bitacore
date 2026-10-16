@@ -57,7 +57,10 @@ const MIME_TYPES = {
   '.pdf': 'application/pdf',
   '.txt': 'text/plain; charset=utf-8',
   '.md': 'text/markdown; charset=utf-8',
-  '.ico': 'image/x-icon'
+  '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf'
 };
 
 function openBrowser(url) {

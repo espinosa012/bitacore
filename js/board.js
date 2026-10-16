@@ -10,6 +10,8 @@
   let draggedTaskId = null;
   let isDragging = false;
 
+  const EMPTY_COLUMN_HTML = '<div class="column-empty">No tasks</div>';
+
   const dropPlaceholder = document.createElement('div');
   dropPlaceholder.className = 'card-drop-placeholder';
 
@@ -34,7 +36,7 @@
     STATES.forEach(st => {
       const isCollapsed = collapsedColumns.has(st.id);
       const colEl = document.createElement('div');
-      colEl.className = `column ${isCollapsed ? 'collapsed' : ''}`;
+      colEl.className = `ui ${st.color} segment board-column ${isCollapsed ? 'collapsed' : ''}`;
       colEl.setAttribute('data-col-state', st.id);
       if (isCollapsed) {
         colEl.setAttribute('title', `${st.label} (Collapsed - Click to expand)`);
@@ -42,25 +44,21 @@
 
       colEl.innerHTML = `
         <div class="column-header">
-          <div class="column-title-group">
-            <span class="col-icon" title="${st.label}">${st.icon}</span>
-            <span class="col-title">${st.label}</span>
-            <span class="col-badge" id="badge-${escapeCss(st.id)}">0</span>
-          </div>
+          <h4 class="ui header column-title">
+            <i class="${st.icon} ${st.color} icon"></i>
+            <div class="content">${escapeHtml(st.label)}</div>
+          </h4>
+          <span class="ui circular ${st.color} basic mini label col-badge" id="badge-${escapeCss(st.id)}">0</span>
           <div class="column-header-actions">
-            <button class="col-btn-action col-btn-add" title="Add task to ${st.label}" data-add-state="${st.id}">
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M19 11h-6V5h-2v6H5v2h6v6h2v-6h6z"/></svg>
+            <button class="ui mini basic icon button col-btn-add" title="Add task to ${escapeHtml(st.label)}" aria-label="Add task to ${escapeHtml(st.label)}">
+              <i class="plus icon"></i>
             </button>
-            <button class="col-btn-action col-btn-toggle" title="${isCollapsed ? 'Expand column' : 'Collapse column'}" data-toggle-state="${st.id}">
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
-                ${isCollapsed 
-                  ? '<path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>' 
-                  : '<path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>'}
-              </svg>
+            <button class="ui mini basic icon button col-btn-toggle" title="${isCollapsed ? 'Expand column' : 'Collapse column'}" aria-label="${isCollapsed ? 'Expand column' : 'Collapse column'}">
+              <i class="${isCollapsed ? 'angle double right' : 'angle double left'} icon"></i>
             </button>
           </div>
         </div>
-        <div class="column-cards-container" id="col-container-${escapeCss(st.id)}"></div>
+        <div class="ui one cards column-cards-container" id="col-container-${escapeCss(st.id)}"></div>
       `;
 
       // Collapse toggle on whole column if collapsed
@@ -151,7 +149,7 @@
 
       const container = document.getElementById(`col-container-${escapeCss(st.id)}`);
       if (container && container.children.length === 0) {
-        container.innerHTML = `<div class="column-empty">No tasks</div>`;
+        container.innerHTML = EMPTY_COLUMN_HTML;
       }
     });
 
@@ -189,11 +187,11 @@
     const openSpecId = task['openspec-id'];
 
     const card = document.createElement('div');
-    card.className = 'card';
+    card.className = `ui fluid card task-card prio-${prioKey}`;
     card.draggable = true;
     card.tabIndex = 0;
     card.setAttribute('role', 'button');
-    card.setAttribute('aria-label', `${task.name} (${prioMeta.label.replace(/^\S+\s/, '')} priority)`);
+    card.setAttribute('aria-label', `${task.name} (${prioMeta.label} priority)`);
     card.setAttribute('data-task-id', task.id);
 
     const commentsCount = task.comments ? task.comments.length : 0;
@@ -201,44 +199,35 @@
     const attachmentsCount = task.attachments ? task.attachments.length : 0;
     const lastUpdateStr = formatRelativeTime(task.updated_at || task.created_at);
     const descText = window.VG.Markdown.toPlainText(task.description);
+    const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
     card.innerHTML = `
-      <div class="card-top">
-        <span class="badge-prio ${prioMeta.css}">${prioMeta.label}</span>
-        <div class="card-top-right">
+      <div class="content">
+        <div class="card-top">
+          <span class="ui mini ${prioMeta.color} label">
+            <i class="${prioMeta.icon} icon"></i>${escapeHtml(prioMeta.label)}
+          </span>
           ${openSpecId ? `
-            <span class="badge-openspec" title="OpenSpec: ${escapeHtml(openSpecId)}">
-              <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
-              <span>${escapeHtml(openSpecId)}</span>
+            <span class="ui mini basic teal label card-openspec" title="OpenSpec: ${escapeHtml(openSpecId)}">
+              <i class="file alternate outline icon"></i>${escapeHtml(openSpecId)}
             </span>` : ''}
           <span class="card-id">#${escapeHtml(task.id.slice(-6))}</span>
         </div>
+        <div class="header card-title">${highlight(task.name, query)}</div>
+        ${descText ? `<div class="description card-desc">${highlight(descText, query)}</div>` : ''}
       </div>
-      <div class="card-title">${highlight(task.name, query)}</div>
-      ${descText ? `<div class="card-desc">${highlight(descText, query)}</div>` : ''}
-      <div class="card-footer">
-        <div class="card-meta-indicators">
-          ${attachmentsCount > 0 ? `
-            <span class="meta-indicator meta-indicator-attachments" title="${attachmentsCount} attachment${attachmentsCount === 1 ? '' : 's'}">
-              <svg viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-              <span>${attachmentsCount}</span>
-            </span>` : ''}
-          ${commentsCount > 0 ? `
-            <span class="meta-indicator" title="${commentsCount} comment${commentsCount === 1 ? '' : 's'}">
-              <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
-              <span>${commentsCount}</span>
-            </span>` : ''}
-          <span class="meta-indicator" title="${historyCount} transition${historyCount === 1 ? '' : 's'}">
-            <svg viewBox="0 0 24 24"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
-            <span>${historyCount}</span>
-          </span>
-        </div>
-        <div class="card-footer-right">
+      <div class="extra content card-footer">
+        <span class="card-meta">
+          ${attachmentsCount > 0 ? `<span title="${plural(attachmentsCount, 'attachment')}"><i class="paperclip icon"></i>${attachmentsCount}</span>` : ''}
+          ${commentsCount > 0 ? `<span title="${plural(commentsCount, 'comment')}"><i class="comment outline icon"></i>${commentsCount}</span>` : ''}
+          <span title="${plural(historyCount, 'transition')}"><i class="history icon"></i>${historyCount}</span>
+        </span>
+        <span class="card-footer-right">
           <span class="card-updated">${lastUpdateStr}</span>
-          <button type="button" class="card-open-page" title="Open task page" aria-label="Open task page">
-            <svg viewBox="0 0 24 24"><path d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
+          <button type="button" class="ui mini basic icon button card-open-page" title="Open task page" aria-label="Open task page">
+            <i class="external alternate icon"></i>
           </button>
-        </div>
+        </span>
       </div>
     `;
 
@@ -308,7 +297,7 @@
         if (container && dropPlaceholder.parentNode === container) {
           dropPlaceholder.remove();
           if (container.children.length === 0) {
-            container.innerHTML = '<div class="column-empty">No tasks</div>';
+            container.innerHTML = EMPTY_COLUMN_HTML;
           }
         }
       }

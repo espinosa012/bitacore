@@ -5,12 +5,14 @@
   window.VG = window.VG || {};
   const { STATES, canonicalState, canonicalPriority, escapeHtml, formatRelativeTime, formatFileSize, getFileIcon } = window.VG.Constants;
   const Attachments = window.VG.Attachments;
+  const UI = window.VG.UI;
 
   let activeEditingTaskId = null;
   let activeTab = 'tabAttachments';
   let createDescEditor = null;
   let editDescEditor = null;
   let lastFocusedCard = null;
+  let restoreFocusOnHide = true;
 
   function initModals() {
     const modalCreateOverlay = document.getElementById('modalCreateOverlay');
@@ -33,17 +35,34 @@
     if (closeEditModalBtn) closeEditModalBtn.addEventListener('click', closeEditModal);
     if (cancelEditBtn) cancelEditBtn.addEventListener('click', closeEditModal);
 
-    if (modalCreateOverlay) {
-      modalCreateOverlay.addEventListener('click', (e) => {
-        if (e.target === modalCreateOverlay) closeCreateModal();
-      });
-    }
+    UI.initModal(modalCreateOverlay, {
+      onVisible: () => {
+        if (createDescEditor) createDescEditor.codemirror.refresh();
+        document.getElementById('newTaskName').focus();
+      }
+    });
 
-    if (modalEditOverlay) {
-      modalEditOverlay.addEventListener('click', (e) => {
-        if (e.target === modalEditOverlay) closeEditModal();
-      });
-    }
+    UI.initModal(modalEditOverlay, {
+      onVisible: () => {
+        if (editDescEditor) editDescEditor.codemirror.refresh();
+        document.getElementById('editTaskName').focus();
+      },
+      // Closed by the dimmer, the close icon or Escape
+      onHide: () => {
+        activeEditingTaskId = null;
+      },
+      onHidden: () => {
+        // Return focus to the card that opened the modal (keyboard users)
+        const cardId = lastFocusedCard && lastFocusedCard.getAttribute && lastFocusedCard.getAttribute('data-task-id');
+        const restore = restoreFocusOnHide;
+        lastFocusedCard = null;
+        restoreFocusOnHide = true;
+        if (cardId && restore) {
+          const card = document.querySelector(`.task-card[data-task-id="${CSS.escape(cardId)}"]`);
+          if (card) card.focus();
+        }
+      }
+    });
 
     if (tabBtnAttachments) tabBtnAttachments.addEventListener('click', () => switchTab('tabAttachments'));
     if (tabBtnComments) tabBtnComments.addEventListener('click', () => switchTab('tabComments'));
@@ -120,7 +139,7 @@
   }
 
   function isAnyModalOpen() {
-    return !!document.querySelector('.modal-overlay.active');
+    return UI.isAnyModalVisible();
   }
 
   function openCreateModal(defaultState = 'planned') {
@@ -132,16 +151,12 @@
     if (taskStateSelect) taskStateSelect.value = defaultState;
     window.VG.Markdown.setValue(createDescEditor, document.getElementById('newTaskDesc'), '');
 
-    if (modalCreateOverlay) {
-      modalCreateOverlay.classList.add('active');
-      const nameInput = document.getElementById('newTaskName');
-      if (nameInput) setTimeout(() => nameInput.focus(), 50);
-    }
+    if (modalCreateOverlay) UI.showModal(modalCreateOverlay);
   }
 
   function closeCreateModal() {
     const modalCreateOverlay = document.getElementById('modalCreateOverlay');
-    if (modalCreateOverlay) modalCreateOverlay.classList.remove('active');
+    if (modalCreateOverlay && UI.isModalVisible(modalCreateOverlay)) UI.hideModal(modalCreateOverlay);
   }
 
   async function handleCreateTaskSubmit(e) {
@@ -212,23 +227,15 @@
     resetFileInputLabel();
 
     switchTab('tabAttachments');
-    modalEditOverlay.classList.add('active');
-    const nameInput = document.getElementById('editTaskName');
-    if (nameInput) setTimeout(() => nameInput.focus(), 50);
+    UI.showModal(modalEditOverlay);
   }
 
   function closeEditModal({ restoreFocus = true } = {}) {
     const modalEditOverlay = document.getElementById('modalEditOverlay');
-    if (!modalEditOverlay || !modalEditOverlay.classList.contains('active')) return;
-    modalEditOverlay.classList.remove('active');
     activeEditingTaskId = null;
-    // Return focus to the card that opened the modal (keyboard users)
-    const cardId = lastFocusedCard && lastFocusedCard.getAttribute && lastFocusedCard.getAttribute('data-task-id');
-    lastFocusedCard = null;
-    if (cardId && restoreFocus) {
-      const card = document.querySelector(`.card[data-task-id="${CSS.escape(cardId)}"]`);
-      if (card) card.focus();
-    }
+    if (!modalEditOverlay || !UI.isModalVisible(modalEditOverlay)) return;
+    restoreFocusOnHide = restoreFocus;
+    UI.hideModal(modalEditOverlay);
   }
 
   function switchTab(tabId) {
@@ -297,7 +304,8 @@
 
     const error = applyTaskEdits(task, readEditDraft(), 'Status changed in task details');
     if (error) {
-      alert(error);
+      UI.toast(error, 'warning');
+      document.getElementById('editTaskName').focus();
       return;
     }
 
@@ -323,14 +331,37 @@
     window.VG.Board.renderBoard();
   }
 
+  function confirmDeleteTask(task) {
+    return UI.confirm(`Delete task "${task.name}"? All its attachments will also be removed.`, {
+      title: 'Delete task',
+      okText: 'Delete',
+      danger: true
+    });
+  }
+
+  /** Edits an attachment's display name and description; resolves true when changed */
+  async function editAttachmentDetails(task, att) {
+    const values = await UI.form('Attachment details', [
+      { name: 'name', label: 'Display name (optional)', value: att.name || '' },
+      { name: 'description', label: 'Description (optional)', value: att.description || '', multiline: true }
+    ]);
+    if (!values) return false;
+    Attachments.updateAttachmentDetails(task, att.id, values.name, values.description);
+    return true;
+  }
+
+  function confirmDeleteAttachment(att) {
+    return UI.confirm(`Delete attachment "${att.filename}"?`, { title: 'Delete attachment', okText: 'Delete', danger: true });
+  }
+
   async function handleDeleteTask() {
     if (!activeEditingTaskId) return;
     const tasks = window.VG.App.getTasks();
     const task = tasks.find(t => t.id === activeEditingTaskId);
     if (!task) return;
 
-    if (confirm(`Are you sure you want to delete task "${task.name}"? All attachments will also be removed.`)) {
-      closeEditModal();
+    if (await confirmDeleteTask(task)) {
+      closeEditModal({ restoreFocus: false });
       await deleteTask(task);
     }
   }
@@ -348,84 +379,53 @@
     if (!listEl) return;
 
     if (!task.attachments || task.attachments.length === 0) {
-      listEl.innerHTML = `<div class="attachment-empty">No files attached yet. Upload images, docs, audio, or PDFs below.</div>`;
+      listEl.innerHTML = `<div class="ui message empty-message">No files attached yet. Upload images, docs, audio, or PDFs below.</div>`;
       return;
     }
 
     listEl.innerHTML = '';
     task.attachments.forEach(att => {
-      const card = document.createElement('div');
-      card.className = 'attachment-card';
-      const icon = getFileIcon(att.filename);
-      const sizeStr = formatFileSize(att.size);
-      const dateStr = formatRelativeTime(att.created_at);
-
-      card.innerHTML = `
-        <div class="attachment-left">
-          <div class="attachment-icon-wrap" title="${escapeHtml(att.type || 'file')}">${icon}</div>
-          <div class="attachment-details">
-            <div class="attachment-filename" title="${escapeHtml(att.filename)}">${escapeHtml(att.filename)}</div>
-            ${att.name ? `<div class="attachment-custom-name">${escapeHtml(att.name)}</div>` : ''}
-            ${att.description ? `<div class="attachment-desc">${escapeHtml(att.description)}</div>` : ''}
-            <div class="attachment-meta">
-              <span>${sizeStr}</span>
-              <span>·</span>
-              <span>${dateStr}</span>
+      const item = document.createElement('div');
+      item.className = 'item attachment-item';
+      item.innerHTML = `
+        <div class="attachment-item-icon"><i class="big grey ${getFileIcon(att.filename)} icon" title="${escapeHtml(att.type || 'file')}"></i></div>
+        <div class="middle aligned content">
+          <div class="header" title="${escapeHtml(att.filename)}">${escapeHtml(att.filename)}</div>
+          ${att.name ? `<div class="meta">${escapeHtml(att.name)}</div>` : ''}
+          ${att.description ? `<div class="description">${escapeHtml(att.description)}</div>` : ''}
+          <div class="extra">
+            ${formatFileSize(att.size)} · ${formatRelativeTime(att.created_at)}
+            <div class="ui right floated mini basic icon buttons">
+              <button type="button" class="ui button" data-action="open" title="Open or download file" aria-label="Open file"><i class="external alternate icon"></i></button>
+              <button type="button" class="ui button" data-action="edit" title="Edit name & description" aria-label="Edit details"><i class="pencil alternate icon"></i></button>
+              <button type="button" class="ui button" data-action="delete" title="Delete attachment" aria-label="Delete attachment"><i class="red trash alternate outline icon"></i></button>
             </div>
           </div>
         </div>
-        <div class="attachment-actions">
-          <button type="button" class="attachment-btn attachment-btn-download" title="Open or download file" data-open-att="${att.id}">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-            <span>Open</span>
-          </button>
-          <button type="button" class="attachment-btn" title="Edit name & description" data-edit-att="${att.id}">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-          </button>
-          <button type="button" class="attachment-btn attachment-btn-delete" title="Delete attachment" data-delete-att="${att.id}">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-          </button>
-        </div>
       `;
 
-      // Open / Download
-      const openBtn = card.querySelector('[data-open-att]');
-      if (openBtn) {
-        openBtn.addEventListener('click', () => {
+      item.addEventListener('click', async (e) => {
+        const btn = e.target.closest('[data-action]');
+        if (!btn) return;
+        const action = btn.getAttribute('data-action');
+        if (action === 'open') {
           Attachments.openOrDownloadAttachment(task, att);
-        });
-      }
-
-      // Edit details
-      const editBtn = card.querySelector('[data-edit-att]');
-      if (editBtn) {
-        editBtn.addEventListener('click', () => {
-          const newName = prompt('Attachment display name (optional):', att.name || '');
-          if (newName !== null) {
-            const newDesc = prompt('Attachment description (optional):', att.description || '');
-            if (newDesc !== null) {
-              Attachments.updateAttachmentDetails(task, att.id, newName, newDesc);
-              renderAttachmentsTab(task);
-              window.VG.App.persistChanges('Attachment details updated');
-            }
+        } else if (action === 'edit') {
+          if (await editAttachmentDetails(task, att)) {
+            renderAttachmentsTab(task);
+            window.VG.App.persistChanges('Attachment details updated');
           }
-        });
-      }
-
-      // Delete
-      const deleteBtn = card.querySelector('[data-delete-att]');
-      if (deleteBtn) {
-        deleteBtn.addEventListener('click', async () => {
-          if (confirm(`Delete attachment "${att.filename}"?`)) {
+        } else if (action === 'delete') {
+          if (await confirmDeleteAttachment(att)) {
             await Attachments.deleteAttachmentFromTask(task, att.id);
             renderAttachmentsTab(task);
             window.VG.Board.renderBoard();
             window.VG.App.persistChanges('Attachment deleted');
           }
-        });
-      }
+        }
+      });
 
-      listEl.appendChild(card);
+      listEl.appendChild(item);
     });
   }
 
@@ -469,7 +469,7 @@
         if (!task) return;
 
         if (!fileInput.files || fileInput.files.length === 0) {
-          alert('Please select a file to attach first.');
+          UI.toast('Select a file to attach first.', 'warning');
           return;
         }
 
@@ -490,7 +490,7 @@
           window.VG.Board.renderBoard();
           window.VG.App.persistChanges(`Attached ${file.name}`);
         } catch (err) {
-          alert('Error adding attachment: ' + err.message);
+          UI.toast('Error adding attachment: ' + err.message, 'error', 6000);
         }
       });
     }
@@ -499,14 +499,14 @@
   function updateFileInputLabel(file) {
     const label = document.querySelector('.attachment-drop-text');
     if (label && file) {
-      label.innerHTML = `Selected: <strong>${escapeHtml(file.name)}</strong> (${formatFileSize(file.size)})`;
+      label.innerHTML = `Selected: <strong>${escapeHtml(file.name)}</strong> (${formatFileSize(file.size)}) · <a>change</a>`;
     }
   }
 
   function resetFileInputLabel() {
     const label = document.querySelector('.attachment-drop-text');
     if (label) {
-      label.innerHTML = 'Drag & drop a file here or <span>browse from computer</span>';
+      label.innerHTML = 'Drag & drop a file here or <a>browse from computer</a>';
     }
   }
 
@@ -527,23 +527,22 @@
     if (!listEl) return;
 
     if (!task.comments || task.comments.length === 0) {
-      listEl.innerHTML = `<div class="attachment-empty">No comments yet. Add one below.</div>`;
+      listEl.innerHTML = `<div class="ui message empty-message">No comments yet. Add one below.</div>`;
       return;
     }
 
-    listEl.innerHTML = '';
-    task.comments.forEach(c => {
-      const card = document.createElement('div');
-      card.className = 'comment-card';
-      card.innerHTML = `
-        <div class="comment-header">
-          <span class="comment-author">${escapeHtml(c.author || 'User')}</span>
-          <span class="comment-date">${formatRelativeTime(c.timestamp)}</span>
+    listEl.innerHTML = task.comments.map(c => `
+      <div class="comment">
+        <div class="avatar comment-avatar"><i class="big grey user circle icon"></i></div>
+        <div class="content">
+          <span class="author">${escapeHtml(c.author || 'User')}</span>
+          <div class="metadata">
+            <span class="date" title="${escapeHtml(new Date(c.timestamp).toLocaleString())}">${formatRelativeTime(c.timestamp)}</span>
+          </div>
+          <div class="text">${escapeHtml(c.text)}</div>
         </div>
-        <div class="comment-body">${escapeHtml(c.text)}</div>
-      `;
-      listEl.appendChild(card);
-    });
+      </div>
+    `).join('');
   }
 
   /** Appends a comment and remembers its author for next time */
@@ -600,28 +599,28 @@
     if (!timelineEl) return;
 
     if (!task.history || task.history.length === 0) {
-      timelineEl.innerHTML = `<div class="attachment-empty">No history recorded.</div>`;
+      timelineEl.innerHTML = `<div class="ui message empty-message">No history recorded.</div>`;
       return;
     }
 
-    timelineEl.innerHTML = '';
-    task.history.forEach(h => {
-      const item = document.createElement('div');
-      item.className = 'history-item';
-      const fromLbl = h.from_status ? (STATES.find(s => s.id === h.from_status)?.label || h.from_status) : 'Created';
-      const toLbl = STATES.find(s => s.id === h.to_status)?.label || h.to_status;
-
-      item.innerHTML = `
-        <div class="history-trans">
-          <span class="history-badge">${fromLbl}</span>
-          <span class="history-arrow">→</span>
-          <span class="history-badge">${toLbl}</span>
+    const stateMeta = (id) => STATES.find(st => st.id === id);
+    timelineEl.innerHTML = task.history.slice().reverse().map(h => {
+      const from = h.from_status ? stateMeta(h.from_status) : null;
+      const to = stateMeta(h.to_status) || { label: h.to_status, icon: 'circle', color: 'grey' };
+      const fromLbl = h.from_status ? escapeHtml(from ? from.label : h.from_status) : 'Created';
+      return `
+        <div class="event">
+          <div class="label"><i class="${to.icon} ${to.color} icon"></i></div>
+          <div class="content">
+            <div class="summary">
+              ${fromLbl} <i class="long arrow alternate right icon"></i> <strong>${escapeHtml(to.label)}</strong>
+              <div class="date" title="${escapeHtml(new Date(h.timestamp).toLocaleString())}">${formatRelativeTime(h.timestamp)}</div>
+            </div>
+            ${h.reason ? `<div class="extra text">${escapeHtml(h.reason)}</div>` : ''}
+          </div>
         </div>
-        <div class="history-meta">${new Date(h.timestamp).toLocaleString()}</div>
-        ${h.reason ? `<div class="history-reason">${escapeHtml(h.reason)}</div>` : ''}
       `;
-      timelineEl.appendChild(item);
-    });
+    }).join('');
   }
 
   window.VG.Modals = {
@@ -634,6 +633,9 @@
     switchTab,
     applyTaskEdits,
     deleteTask,
+    confirmDeleteTask,
+    editAttachmentDetails,
+    confirmDeleteAttachment,
     addComment,
     getSavedCommentAuthor,
     renderCommentList,

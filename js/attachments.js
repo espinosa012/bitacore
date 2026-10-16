@@ -120,11 +120,7 @@
   async function openOrDownloadAttachment(task, attachment, forceDownload = false) {
     const blob = await Storage.getAttachmentBlob(task.id, attachment.filename);
     if (!blob) {
-      if (window.VG.App && window.VG.App.showToast) {
-        window.VG.App.showToast(`File "${attachment.filename}" is not available locally in memory/disk.`, 'warning');
-      } else {
-        alert(`File "${attachment.filename}" is not available in local storage.`);
-      }
+      window.VG.UI.toast(`File "${attachment.filename}" is not available locally.`, 'warning');
       return;
     }
 

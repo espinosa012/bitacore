@@ -4,20 +4,21 @@
 (function() {
   window.VG = window.VG || {};
 
+  // `icon` is a Fomantic-UI icon name, `color` a Fomantic-UI color
   const STATES = [
-    { id: 'planned', label: 'Planned', icon: '📋' },
-    { id: 'in progress', label: 'In Progress', icon: '⚡' },
-    { id: 'in review', label: 'In Review', icon: '🔍' },
-    { id: 'done', label: 'Done', icon: '✅' },
-    { id: 'blocked', label: 'Blocked', icon: '⛔' }
+    { id: 'planned', label: 'Planned', icon: 'clipboard list', color: 'blue' },
+    { id: 'in progress', label: 'In Progress', icon: 'bolt', color: 'orange' },
+    { id: 'in review', label: 'In Review', icon: 'search', color: 'violet' },
+    { id: 'done', label: 'Done', icon: 'check circle', color: 'green' },
+    { id: 'blocked', label: 'Blocked', icon: 'ban', color: 'red' }
   ];
 
   const PRIORITIES = {
-    'blocker': { label: '⛔ Blocker', css: 'prio-bloqueante' },
-    'high': { label: '🔥 High', css: 'prio-alta' },
-    'medium-high': { label: '⚡ Med-High', css: 'prio-media-alta' },
-    'medium': { label: '🔹 Medium', css: 'prio-media' },
-    'low': { label: '🌱 Low', css: 'prio-baja' }
+    'blocker': { label: 'Blocker', icon: 'ban', color: 'red' },
+    'high': { label: 'High', icon: 'fire', color: 'orange' },
+    'medium-high': { label: 'Med-High', icon: 'bolt', color: 'yellow' },
+    'medium': { label: 'Medium', icon: 'circle', color: 'blue' },
+    'low': { label: 'Low', icon: 'leaf', color: 'green' }
   };
 
   const STATE_MAPPINGS = {
@@ -131,51 +132,26 @@
     return `${size.toFixed(idx === 0 ? 0 : 1)} ${units[idx]}`;
   }
 
+  /** Fomantic-UI icon name for a file, from its extension */
   function getFileIcon(filename = '') {
     const ext = filename.split('.').pop().toLowerCase();
     switch (ext) {
-      case 'png':
-      case 'jpg':
-      case 'jpeg':
-      case 'gif':
-      case 'webp':
-      case 'svg':
-        return '🖼️';
+      case 'png': case 'jpg': case 'jpeg': case 'gif': case 'webp': case 'svg': case 'avif': case 'bmp':
+        return 'file image outline';
       case 'pdf':
-        return '📕';
-      case 'txt':
-      case 'md':
-      case 'markdown':
-      case 'log':
-        return '📝';
-      case 'json':
-      case 'js':
-      case 'ts':
-      case 'html':
-      case 'css':
-      case 'lua':
-      case 'py':
-      case 'sql':
-        return '💻';
-      case 'mp3':
-      case 'wav':
-      case 'ogg':
-      case 'm4a':
-      case 'flac':
-        return '🎵';
-      case 'mp4':
-      case 'webm':
-      case 'mov':
-      case 'mkv':
-        return '🎬';
-      case 'zip':
-      case 'tar':
-      case 'gz':
-      case '7z':
-      case 'rar':
-        return '📦';
+        return 'file pdf outline';
+      case 'txt': case 'md': case 'markdown': case 'log': case 'csv':
+        return 'file alternate outline';
+      case 'json': case 'js': case 'ts': case 'html': case 'css': case 'lua': case 'py': case 'sql': case 'xml': case 'yaml': case 'yml':
+        return 'file code outline';
+      case 'mp3': case 'wav': case 'ogg': case 'm4a': case 'flac':
+        return 'file audio outline';
+      case 'mp4': case 'webm': case 'mov': case 'mkv':
+        return 'file video outline';
+      case 'zip': case 'tar': case 'gz': case '7z': case 'rar':
+        return 'file archive outline';
       default:
-        return '📎';
+        return 'file outline';
     }
   }
 

@@ -1,6 +1,6 @@
 # vg-task-manager
 
-A modern, privacy-first task manager and Kanban board with task attachments, ZIP archiving, local folder synchronization, responsive dark UI, and zero external build tooling.
+A modern, privacy-first task manager and Kanban board with task attachments, ZIP archiving, local folder synchronization, a responsive [Fomantic-UI](https://fomantic-ui.com/) (Semantic UI) interface, and zero external build tooling.
 
 Live Demo (GitHub Pages): [https://espinosa012.github.io/vg-task-manager/](https://espinosa012.github.io/vg-task-manager/)
 
@@ -8,7 +8,8 @@ Live Demo (GitHub Pages): [https://espinosa012.github.io/vg-task-manager/](https
 
 ## Features
 
-- **Modular Architecture**: Organized into clean CSS components (`css/`) and JavaScript modules (`js/`).
+- **Semantic UI interface**: Built with [Fomantic-UI](https://fomantic-ui.com/), the maintained fork of Semantic UI (menus, cards, modals, forms, feeds, toasts and dialogs).
+- **Modular Architecture**: Plain JavaScript modules (`js/`) and a small stylesheet (`css/`) on top of the framework.
 - **File Attachments**:
   - Attach any file type to tasks: images, markdown, text, PDFs, audio, videos, code, etc.
   - Automatically identifies files with intuitive icons and formatted file sizes.
@@ -138,6 +139,8 @@ Vendored in the repository, no build step or CDN required:
 
 | Library | Version | License | Path |
 |---|---|---|---|
+| Fomantic-UI (Semantic UI) | 2.9.4 | MIT | `vendor/fomantic-ui/` |
+| jQuery | 3.7.1 | MIT | `vendor/jquery/` |
 | JSZip | — | MIT / GPLv3 | `jszip.min.js` |
 | EasyMDE | 2.21.0 | MIT | `vendor/easymde/` |
 | DOMPurify | 3.4.16 | MPL-2.0 / Apache-2.0 | `vendor/dompurify/` |
