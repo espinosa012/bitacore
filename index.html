@@ -1518,30 +1518,38 @@
      * INITIALIZATION AND PERSISTENCE
      * ------------------------------------------------------------- */
 
+    // Check if running on local development server
+    const isLocalServer = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+
     async function initApp() {
       setupEventListeners();
       renderBoardColumns();
 
-      // Try loading from local tasks.json (if served via HTTP)
-      let loadedFromFetch = false;
-      try {
-        const response = await fetch('./tasks.json', { cache: 'no-store' });
-        if (response.ok) {
-          const data = await response.json();
-          tasks = normalizeTasks(data);
-          loadedFromFetch = true;
-          saveToLocalStorage();
-          showToast('Tasks loaded from tasks.json', 'success');
+      let loaded = false;
+
+      // On a local Node.js server, tasks.json on disk is the live source of truth
+      if (isLocalServer) {
+        try {
+          const response = await fetch('./tasks.json', { cache: 'no-store' });
+          if (response.ok) {
+            const data = await response.json();
+            tasks = normalizeTasks(data);
+            loaded = true;
+            saveToLocalStorage();
+            showToast('Tasks loaded from tasks.json', 'success');
+          }
+        } catch (err) {
+          // fallback to localStorage
         }
-      } catch (err) {
-        // Fallback to localStorage if running from file:// or without server
       }
 
-      if (!loadedFromFetch) {
+      // If running on GitHub Pages (static host), check localStorage first to preserve user edits
+      if (!loaded) {
         const stored = localStorage.getItem('vg_task_manager_tasks') || localStorage.getItem('vg_kanban_tasks');
         if (stored) {
           try {
             tasks = normalizeTasks(JSON.parse(stored));
+            loaded = true;
             showToast('Tasks loaded from local storage', 'info');
           } catch (e) {
             tasks = [];
@@ -1549,7 +1557,23 @@
         }
       }
 
-      if (loadedFromFetch || window.location.protocol.startsWith('http')) {
+      // If still not loaded (e.g. first visit on GitHub Pages), load default tasks.json from repo
+      if (!loaded) {
+        try {
+          const response = await fetch('./tasks.json', { cache: 'no-store' });
+          if (response.ok) {
+            const data = await response.json();
+            tasks = normalizeTasks(data);
+            loaded = true;
+            saveToLocalStorage();
+            showToast('Tasks loaded from tasks.json', 'success');
+          }
+        } catch (err) {
+          tasks = [];
+        }
+      }
+
+      if (isLocalServer) {
         updateSyncBadge('server');
       } else {
         updateSyncBadge(fileHandle ? 'file' : false);
@@ -1632,8 +1656,8 @@
     async function persistChanges(notifyMessage = 'Saved') {
       saveToLocalStorage();
 
-      // If served over HTTP (e.g. make kanban), save to tasks.json on disk
-      if (window.location.protocol.startsWith('http')) {
+      // If served over local HTTP server (localhost), save to tasks.json on disk
+      if (isLocalServer) {
         try {
           const res = await fetch('./tasks.json', {
             method: 'POST',
@@ -1669,9 +1693,9 @@
     }
 
     function updateSyncBadge(mode = false) {
-      if (mode === 'server' || (mode !== false && window.location.protocol.startsWith('http'))) {
+      if (isLocalServer && (mode === 'server' || mode !== false)) {
         statusDot.classList.add('synced');
-        statusLabel.textContent = 'tasks.json synced';
+        statusLabel.textContent = 'tasks.json synced (Server)';
         btnLinkFile.classList.add('btn-sync');
         btnLinkFile.innerHTML = `
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
@@ -1687,7 +1711,7 @@
         `;
       } else {
         statusDot.classList.remove('synced');
-        statusLabel.textContent = 'Local Storage (Unlinked)';
+        statusLabel.textContent = 'Local Storage (Exportable)';
         btnLinkFile.classList.remove('btn-sync');
         btnLinkFile.innerHTML = `
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 12v7H5v-7H3v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2v9.67z"/></svg>
