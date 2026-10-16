@@ -84,18 +84,128 @@
           if (submitBtn) submitBtn.classList.remove('loading');
           if (succBox && succText) {
             succBox.style.display = 'block';
-            succText.textContent = `Connected! Loading tasks from "${res.database}"...`;
+            succText.textContent = `Connected! Accessing database "${res.database}"...`;
           }
-          await window.VG.App.loadFromMongo();
-          setTimeout(() => {
+          setTimeout(async () => {
             closeMongoModal();
-          }, 600);
+            if (window.VG.App && window.VG.App.onMongoConnected) {
+              await window.VG.App.onMongoConnected();
+            }
+          }, 450);
         } catch (err) {
           if (submitBtn) submitBtn.classList.remove('loading');
           if (errBox && errText) {
             errBox.style.display = 'block';
             errText.textContent = err.message || 'Connection failed';
           }
+        }
+      });
+    }
+
+    // Auth modal elements
+    const modalAuthOverlay = document.getElementById('modalAuthOverlay');
+    const closeAuthModalBtn = document.getElementById('closeAuthModalBtn');
+    const tabBtnLogin = document.getElementById('tabBtnLogin');
+    const tabBtnRegister = document.getElementById('tabBtnRegister');
+    const authLoginForm = document.getElementById('authLoginForm');
+    const authRegisterForm = document.getElementById('authRegisterForm');
+    const linkToRegister = document.getElementById('linkToRegister');
+    const linkToLogin = document.getElementById('linkToLogin');
+    const closeLoginErrorBtn = document.getElementById('closeLoginErrorBtn');
+    const closeRegisterErrorBtn = document.getElementById('closeRegisterErrorBtn');
+
+    if (closeAuthModalBtn) closeAuthModalBtn.addEventListener('click', closeAuthModal);
+    if (closeLoginErrorBtn) {
+      closeLoginErrorBtn.addEventListener('click', () => {
+        const el = document.getElementById('loginError');
+        if (el) el.style.display = 'none';
+      });
+    }
+    if (closeRegisterErrorBtn) {
+      closeRegisterErrorBtn.addEventListener('click', () => {
+        const el = document.getElementById('registerError');
+        if (el) el.style.display = 'none';
+      });
+    }
+
+    if (tabBtnLogin) tabBtnLogin.addEventListener('click', () => switchAuthTab('login'));
+    if (tabBtnRegister) tabBtnRegister.addEventListener('click', () => switchAuthTab('register'));
+    if (linkToRegister) linkToRegister.addEventListener('click', (e) => { e.preventDefault(); switchAuthTab('register'); });
+    if (linkToLogin) linkToLogin.addEventListener('click', (e) => { e.preventDefault(); switchAuthTab('login'); });
+
+    if (authLoginForm) {
+      authLoginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const uname = (document.getElementById('loginUsername').value || '').trim();
+        const pwd = document.getElementById('loginPassword').value;
+        const errBox = document.getElementById('loginError');
+        const errText = document.getElementById('loginErrorText');
+        const submitBtn = document.getElementById('btnLoginSubmit');
+
+        if (!uname || !pwd) return;
+        if (errBox) errBox.style.display = 'none';
+        if (submitBtn) submitBtn.classList.add('loading');
+
+        try {
+          const user = await window.VG.Auth.login(uname, pwd);
+          if (submitBtn) submitBtn.classList.remove('loading');
+          closeAuthModal();
+          if (window.VG.App && window.VG.App.onUserLoggedIn) {
+            await window.VG.App.onUserLoggedIn(user);
+          }
+        } catch (err) {
+          if (submitBtn) submitBtn.classList.remove('loading');
+          if (errBox && errText) {
+            errBox.style.display = 'block';
+            errText.textContent = err.message || 'Login failed';
+          }
+        }
+      });
+    }
+
+    if (authRegisterForm) {
+      authRegisterForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const uname = (document.getElementById('registerUsername').value || '').trim();
+        const pwd = document.getElementById('registerPassword').value;
+        const confirmPwd = document.getElementById('registerConfirmPassword').value;
+        const errBox = document.getElementById('registerError');
+        const errText = document.getElementById('registerErrorText');
+        const submitBtn = document.getElementById('btnRegisterSubmit');
+
+        if (errBox) errBox.style.display = 'none';
+
+        if (pwd !== confirmPwd) {
+          if (errBox && errText) {
+            errBox.style.display = 'block';
+            errText.textContent = 'Passwords do not match.';
+          }
+          return;
+        }
+
+        if (submitBtn) submitBtn.classList.add('loading');
+        try {
+          const user = await window.VG.Auth.register(uname, pwd);
+          if (submitBtn) submitBtn.classList.remove('loading');
+          closeAuthModal();
+          if (window.VG.App && window.VG.App.onUserLoggedIn) {
+            await window.VG.App.onUserLoggedIn(user);
+          }
+        } catch (err) {
+          if (submitBtn) submitBtn.classList.remove('loading');
+          if (errBox && errText) {
+            errBox.style.display = 'block';
+            errText.textContent = err.message || 'Registration failed';
+          }
+        }
+      });
+    }
+
+    if (modalAuthOverlay) {
+      UI.initModal(modalAuthOverlay, {
+        onVisible: () => {
+          const loginInput = document.getElementById('loginUsername');
+          if (loginInput) loginInput.focus();
         }
       });
     }
@@ -266,6 +376,84 @@
     if (modal && UI.isModalVisible(modal)) UI.hideModal(modal);
   }
 
+  function openAuthModal(defaultTab = 'login') {
+    const modal = document.getElementById('modalAuthOverlay');
+    if (!modal) return;
+    switchAuthTab(defaultTab);
+    const errL = document.getElementById('loginError');
+    const errR = document.getElementById('registerError');
+    if (errL) errL.style.display = 'none';
+    if (errR) errR.style.display = 'none';
+    UI.showModal(modal);
+  }
+
+  function closeAuthModal() {
+    const modal = document.getElementById('modalAuthOverlay');
+    if (modal && UI.isModalVisible(modal)) UI.hideModal(modal);
+  }
+
+  function switchAuthTab(tab) {
+    const tabBtnLogin = document.getElementById('tabBtnLogin');
+    const tabBtnRegister = document.getElementById('tabBtnRegister');
+    const authLoginForm = document.getElementById('authLoginForm');
+    const authRegisterForm = document.getElementById('authRegisterForm');
+
+    const isLogin = tab === 'login';
+    if (tabBtnLogin) tabBtnLogin.classList.toggle('active', isLogin);
+    if (tabBtnRegister) tabBtnRegister.classList.toggle('active', !isLogin);
+
+    if (authLoginForm) authLoginForm.style.display = isLogin ? 'block' : 'none';
+    if (authRegisterForm) authRegisterForm.style.display = isLogin ? 'none' : 'block';
+
+    if (isLogin) {
+      setTimeout(() => document.getElementById('loginUsername')?.focus(), 50);
+    } else {
+      setTimeout(() => document.getElementById('registerUsername')?.focus(), 50);
+    }
+  }
+
+  function populateUserDropdowns(usersList) {
+    const users = usersList || (window.VG.Auth ? window.VG.Auth.getCachedUsers() : []);
+    const sorted = users.slice().sort((a, b) => a.username.localeCompare(b.username));
+
+    // 1. userFilter
+    const userFilter = document.getElementById('userFilter');
+    if (userFilter) {
+      const current = userFilter.value;
+      userFilter.innerHTML = '<option value="all">All users</option>' +
+        sorted.map(u => `<option value="${escapeHtml(u.username)}">${escapeHtml(u.username)}</option>`).join('');
+      userFilter.value = sorted.some(u => u.username === current) ? current : 'all';
+      userFilter.disabled = sorted.length === 0;
+    }
+
+    // 2. newTaskAssignee
+    const newTaskAssignee = document.getElementById('newTaskAssignee');
+    if (newTaskAssignee) {
+      const current = newTaskAssignee.value;
+      newTaskAssignee.innerHTML = '<option value="">Unassigned</option>' +
+        sorted.map(u => `<option value="${escapeHtml(u.username)}">${escapeHtml(u.username)}</option>`).join('');
+      newTaskAssignee.value = current;
+    }
+
+    // 3. editTaskAssignee
+    const editTaskAssignee = document.getElementById('editTaskAssignee');
+    if (editTaskAssignee) {
+      const current = editTaskAssignee.value;
+      editTaskAssignee.innerHTML = '<option value="">Unassigned</option>' +
+        sorted.map(u => `<option value="${escapeHtml(u.username)}">${escapeHtml(u.username)}</option>`).join('');
+      editTaskAssignee.value = current;
+    }
+
+    // 4. pageTaskAssignee
+    const pageTaskAssignee = document.getElementById('pageTaskAssignee');
+    if (pageTaskAssignee) {
+      const current = pageTaskAssignee.value;
+      pageTaskAssignee.innerHTML = '<option value="">Unassigned</option>' +
+        sorted.map(u => `<option value="${escapeHtml(u.username)}">${escapeHtml(u.username)}</option>`).join('');
+      pageTaskAssignee.value = current;
+    }
+  }
+
   async function handleCreateTaskSubmit(e) {
     e.preventDefault();
     const nameInput = document.getElementById('newTaskName');
@@ -273,6 +461,7 @@
     const openspecInput = document.getElementById('newTaskOpenspecId');
     const prioInput = document.getElementById('newTaskPriority');
     const stateInput = document.getElementById('newTaskState');
+    const assigneeInput = document.getElementById('newTaskAssignee');
 
     const name = nameInput.value.trim();
     if (!name) return;
@@ -281,6 +470,10 @@
     const now = new Date().toISOString();
     const targetState = canonicalState(stateInput.value);
 
+    const currentUser = window.VG.Auth && window.VG.Auth.getCurrentUser();
+    const reporter = (currentUser && currentUser.username) ? currentUser.username : 'User';
+    const assignee = assigneeInput && assigneeInput.value ? assigneeInput.value.trim() : null;
+
     const newTask = {
       id,
       name,
@@ -288,6 +481,8 @@
       'openspec-id': openspecInput.value.trim(),
       priority: canonicalPriority(prioInput.value),
       status: targetState,
+      assignee,
+      reporter,
       tags: window.VG.Tags.ensure(createTagPicker ? createTagPicker.getValue() : []),
       created_at: now,
       updated_at: now,
@@ -296,7 +491,8 @@
           from_status: null,
           to_status: targetState,
           timestamp: now,
-          reason: 'Initial task creation'
+          reason: `Initial task creation by ${reporter}`,
+          user: (currentUser && currentUser.username) ? currentUser.username : null
         }
       ],
       comments: [],
@@ -325,6 +521,11 @@
     document.getElementById('editTaskPriority').value = canonicalPriority(task.priority);
     document.getElementById('editTaskState').value = canonicalState(task.status);
     if (editTagPicker) editTagPicker.setValue(task.tags || []);
+
+    const editAssigneeSelect = document.getElementById('editTaskAssignee');
+    if (editAssigneeSelect) editAssigneeSelect.value = task.assignee || '';
+    const editReporterEl = document.getElementById('editTaskReporter');
+    if (editReporterEl) editReporterEl.textContent = task.reporter || 'None';
 
     renderAttachmentsTab(task);
     renderCommentsTab(task);
@@ -369,12 +570,14 @@
 
   /** Current (possibly unsaved) values of the edit modal's task fields */
   function readEditDraft() {
+    const editAssigneeSelect = document.getElementById('editTaskAssignee');
     return {
       name: document.getElementById('editTaskName').value,
       description: window.VG.Markdown.getValue(editDescEditor, document.getElementById('editTaskDesc')),
       'openspec-id': document.getElementById('editTaskOpenspecId').value,
       priority: document.getElementById('editTaskPriority').value,
       status: document.getElementById('editTaskState').value,
+      assignee: editAssigneeSelect ? editAssigneeSelect.value : undefined,
       tags: editTagPicker ? editTagPicker.getValue() : undefined
     };
   }
@@ -392,17 +595,29 @@
     const newStatus = canonicalState(fields.status);
     const now = new Date().toISOString();
 
+    const currentUser = window.VG.Auth && window.VG.Auth.getCurrentUser();
+    const currentUname = (currentUser && currentUser.username) ? currentUser.username : null;
+
     task.name = name;
     task.description = (fields.description || '').trim();
     task['openspec-id'] = (fields['openspec-id'] || '').trim();
     task.priority = canonicalPriority(fields.priority);
     task.status = newStatus;
+    if (fields.assignee !== undefined) {
+      task.assignee = (fields.assignee && fields.assignee.trim()) ? fields.assignee.trim() : null;
+    }
     if (fields.tags !== undefined) task.tags = window.VG.Tags.ensure(fields.tags);
     task.updated_at = now;
 
     if (prevStatus !== newStatus) {
       task.history = task.history || [];
-      task.history.push({ from_status: prevStatus, to_status: newStatus, timestamp: now, reason });
+      task.history.push({
+        from_status: prevStatus,
+        to_status: newStatus,
+        timestamp: now,
+        reason,
+        user: currentUname
+      });
     }
     return null;
   }
@@ -503,7 +718,7 @@
           ${att.name ? `<div class="meta">${escapeHtml(att.name)}</div>` : ''}
           ${att.description ? `<div class="description">${escapeHtml(att.description)}</div>` : ''}
           <div class="extra">
-            ${formatFileSize(att.size)} · ${formatRelativeTime(att.created_at)}
+            ${att.uploader ? `<span style="color:#8be9fd; margin-right:4px;"><i class="user outline icon"></i>${escapeHtml(att.uploader)}</span> · ` : ''}${formatFileSize(att.size)} · ${formatRelativeTime(att.created_at)}
             <div class="ui right floated mini basic inverted icon buttons">
               <button type="button" class="ui button" data-action="open" title="Open or download file" aria-label="Open file"><i class="external alternate icon"></i></button>
               <button type="button" class="ui button" data-action="edit" title="Edit name & description" aria-label="Edit details"><i class="pencil alternate icon"></i></button>
@@ -656,14 +871,16 @@
 
   /** Appends a comment and remembers its author for next time */
   function addComment(task, author, text) {
-    const authorName = (author || '').trim();
+    const currentUser = window.VG.Auth && window.VG.Auth.getCurrentUser();
+    const currentUname = (currentUser && currentUser.username) ? currentUser.username : '';
+    const authorName = currentUname || (author || '').trim() || 'User';
     try { localStorage.setItem(COMMENT_AUTHOR_KEY, authorName); } catch (err) { /* ignore */ }
 
     const now = new Date().toISOString();
     task.comments = task.comments || [];
     task.comments.push({
       id: window.VG.Constants.generateId('comm'),
-      author: authorName || 'User',
+      author: authorName,
       text: text.trim(),
       timestamp: now
     });
@@ -671,6 +888,8 @@
   }
 
   function getSavedCommentAuthor() {
+    const currentUser = window.VG.Auth && window.VG.Auth.getCurrentUser();
+    if (currentUser && currentUser.username) return currentUser.username;
     try { return localStorage.getItem(COMMENT_AUTHOR_KEY) || ''; } catch (e) { return ''; }
   }
 
@@ -717,12 +936,13 @@
       const from = h.from_status ? stateMeta(h.from_status) : null;
       const to = stateMeta(h.to_status) || { label: h.to_status, icon: 'circle', color: 'grey' };
       const fromLbl = h.from_status ? escapeHtml(from ? from.label : h.from_status) : 'Created';
+      const userBadge = h.user ? `<span class="history-user-badge"><i class="user outline icon"></i>${escapeHtml(h.user)}</span>` : '';
       return `
         <div class="event">
           <div class="label"><i class="${to.icon} ${to.color} icon"></i></div>
           <div class="content">
             <div class="summary">
-              ${fromLbl} <i class="long arrow alternate right icon"></i> <strong>${escapeHtml(to.label)}</strong>
+              ${fromLbl} <i class="long arrow alternate right icon"></i> <strong>${escapeHtml(to.label)}</strong> ${userBadge}
               <div class="date" title="${escapeHtml(new Date(h.timestamp).toLocaleString())}">${formatRelativeTime(h.timestamp)}</div>
             </div>
             ${h.reason ? `<div class="extra text">${escapeHtml(h.reason)}</div>` : ''}
@@ -740,6 +960,10 @@
     closeEditModal,
     openMongoModal,
     closeMongoModal,
+    openAuthModal,
+    closeAuthModal,
+    switchAuthTab,
+    populateUserDropdowns,
     isAnyModalOpen,
     switchTab,
     applyTaskEdits,

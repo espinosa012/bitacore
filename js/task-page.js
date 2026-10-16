@@ -58,6 +58,7 @@
       'openspec-id': el('pageTaskOpenspecId').value,
       priority: el('pageTaskPriority').value,
       status: el('pageTaskState').value,
+      assignee: el('pageTaskAssignee') ? el('pageTaskAssignee').value : '',
       tags: tagPicker ? tagPicker.getValue() : undefined
     };
   }
@@ -69,6 +70,7 @@
       'openspec-id': (f['openspec-id'] || '').trim(),
       priority: canonicalPriority(f.priority),
       status: canonicalState(f.status),
+      assignee: (f.assignee && f.assignee.trim()) || '',
       tags: (f.tags || []).map(t => t.toLowerCase()).join('\n')
     };
   }
@@ -93,6 +95,8 @@
     el('pageTaskOpenspecId').value = fields['openspec-id'] || '';
     el('pageTaskPriority').value = canonicalPriority(fields.priority);
     el('pageTaskState').value = canonicalState(fields.status);
+    if (el('pageTaskAssignee')) el('pageTaskAssignee').value = fields.assignee || '';
+    if (el('pageTaskReporterLabel')) el('pageTaskReporterLabel').textContent = fields.reporter || '—';
     if (tagPicker) tagPicker.setValue(fields.tags || []);
     Markdown.setValue(descEditor, el('pageTaskDesc'), fields.description || '');
 
@@ -297,7 +301,10 @@
     const text = textInput.value.trim();
     if (!task || !text) return;
 
-    window.VG.Modals.addComment(task, el('pageCommentAuthor').value, text);
+    const currentUser = window.VG.Auth && window.VG.Auth.getCurrentUser();
+    const authorName = (currentUser && currentUser.username) ? currentUser.username : (el('pageCommentAuthor').value || 'User');
+
+    window.VG.Modals.addComment(task, authorName, text);
     textInput.value = '';
     renderComments(task);
     renderSidebar(task);
@@ -350,7 +357,7 @@
           ${att.description ? `<div class="description">${escapeHtml(att.description)}</div>` : ''}
         </div>
         <div class="extra content">
-          <span title="${escapeHtml(att.type || 'unknown type')}">${formatFileSize(att.size)}</span>
+          ${att.uploader ? `<span style="color:#8be9fd; margin-right:4px;"><i class="user outline icon"></i>${escapeHtml(att.uploader)}</span> · ` : ''}<span title="${escapeHtml(att.type || 'unknown type')}">${formatFileSize(att.size)}</span>
           · <span title="${escapeHtml(new Date(att.created_at).toLocaleString())}">${formatRelativeTime(att.created_at)}</span>
         </div>
         <div class="ui bottom attached four mini basic inverted buttons">
@@ -462,6 +469,7 @@
     el('pageTaskMeta').innerHTML = [
       stat('Created', dateCell(task.created_at)),
       stat('Updated', dateCell(task.updated_at)),
+      stat('Reporter', task.reporter ? escapeHtml(task.reporter) : '—'),
       stat('Attachments', (task.attachments || []).length),
       stat('Comments', (task.comments || []).length)
     ].join('');
@@ -500,8 +508,14 @@
 
     tagPicker = window.VG.Tags.createPicker(el('pageTaskTags'), { onChange: updateDirtyState });
 
-    ['pageTaskName', 'pageTaskOpenspecId'].forEach(id => el(id).addEventListener('input', updateDirtyState));
-    ['pageTaskState', 'pageTaskPriority'].forEach(id => el(id).addEventListener('change', updateDirtyState));
+    ['pageTaskName', 'pageTaskOpenspecId'].forEach(id => {
+      const element = el(id);
+      if (element) element.addEventListener('input', updateDirtyState);
+    });
+    ['pageTaskState', 'pageTaskPriority', 'pageTaskAssignee'].forEach(id => {
+      const element = el(id);
+      if (element) element.addEventListener('change', updateDirtyState);
+    });
 
     el('pageBackBtn').addEventListener('click', close);
     el('pageSaveBtn').addEventListener('click', save);

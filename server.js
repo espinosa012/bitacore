@@ -23,6 +23,7 @@ const path = require('path');
 const net = require('net');
 const { exec } = require('child_process');
 const { MongoClient } = require('mongodb');
+const crypto = require('crypto');
 
 const APP_DIR = __dirname;
 const INDEX_FILE = path.join(APP_DIR, 'index.html');
@@ -64,6 +65,26 @@ const MIME_TYPES = {
   '.ttf': 'font/ttf'
 };
 
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.scryptSync(password, salt, 64).toString('hex');
+  return `${salt}:${hash}`;
+}
+
+function verifyPassword(password, stored) {
+  try {
+    if (!stored || typeof stored !== 'string' || !stored.includes(':')) return false;
+    const [salt, key] = stored.split(':');
+    const hash = crypto.scryptSync(password, salt, 64).toString('hex');
+    const keyBuf = Buffer.from(key, 'hex');
+    const hashBuf = Buffer.from(hash, 'hex');
+    if (keyBuf.length !== hashBuf.length) return false;
+    return crypto.timingSafeEqual(hashBuf, keyBuf);
+  } catch (e) {
+    return false;
+  }
+}
+
 async function connectMongo(uri) {
   if (!uri || typeof uri !== 'string') {
     throw new Error('A valid MongoDB connection URI is required');
@@ -94,9 +115,10 @@ async function connectMongo(uri) {
   mongoDb = db;
   activeUri = cleanUri;
 
-  const taskCount = await db.collection('tasks').countDocuments();
-  console.log(`[MongoDB] Connected to database "${DB_NAME}". Total tasks: ${taskCount}`);
-  return { ok: true, database: DB_NAME, taskCount };
+  const taskCount = await db.collection('tasks').countDocuments().catch(() => 0);
+  const userCount = await db.collection('users').countDocuments().catch(() => 0);
+  console.log(`[MongoDB] Connected to database "${DB_NAME}". Total tasks: ${taskCount}, Total users: ${userCount}`);
+  return { ok: true, database: DB_NAME, taskCount, userCount };
 }
 
 async function disconnectMongo() {
@@ -215,9 +237,11 @@ async function handleApi(req, res, pathname, cors) {
   if ((pathname === '/api/status' || pathname === '/api/mongo/status') && req.method === 'GET') {
     const isConnected = !!mongoDb;
     let count = 0;
+    let userCount = 0;
     if (isConnected) {
       try {
         count = await mongoDb.collection('tasks').countDocuments();
+        userCount = await mongoDb.collection('users').countDocuments().catch(() => 0);
       } catch (e) {
         // ignore
       }
@@ -228,6 +252,7 @@ async function handleApi(req, res, pathname, cors) {
       connected: isConnected,
       database: isConnected ? DB_NAME : null,
       taskCount: count,
+      userCount,
       maskedUri: maskUri(activeUri)
     }, cors);
   }
@@ -250,6 +275,7 @@ async function handleApi(req, res, pathname, cors) {
         ok: true,
         database: DB_NAME,
         taskCount: stats.taskCount,
+        userCount: stats.userCount,
         maskedUri: maskUri(activeUri)
       }, cors);
     } catch (err) {
@@ -261,6 +287,121 @@ async function handleApi(req, res, pathname, cors) {
   if (pathname === '/api/mongo/disconnect' && req.method === 'POST') {
     await disconnectMongo();
     return sendJson(res, 200, { ok: true, connected: false }, cors);
+  }
+
+  // 3.1 Register User: POST /api/auth/register
+  if (pathname === '/api/auth/register' && req.method === 'POST') {
+    if (!mongoDb) {
+      return sendJson(res, 403, { ok: false, error: 'Not connected to MongoDB. Please connect first.' }, cors);
+    }
+    const body = await readBody(req);
+    let parsed;
+    try {
+      parsed = JSON.parse(body.toString('utf8'));
+    } catch (err) {
+      return sendJson(res, 400, { ok: false, error: 'Invalid JSON: ' + err.message }, cors);
+    }
+    const username = (parsed && parsed.username ? String(parsed.username) : '').trim();
+    const password = parsed && parsed.password ? String(parsed.password) : '';
+
+    if (!username || username.length < 2 || username.length > 40) {
+      return sendJson(res, 400, { ok: false, error: 'Username must be between 2 and 40 characters.' }, cors);
+    }
+    if (!/^[\w.-]+$/.test(username)) {
+      return sendJson(res, 400, { ok: false, error: 'Username can only contain letters, numbers, underscores, dots, and hyphens.' }, cors);
+    }
+    if (!password || password.length < 3) {
+      return sendJson(res, 400, { ok: false, error: 'Password must be at least 3 characters long.' }, cors);
+    }
+
+    try {
+      const usersCol = mongoDb.collection('users');
+      const lower = username.toLowerCase();
+      const escaped = username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const existing = await usersCol.findOne({
+        $or: [
+          { usernameLower: lower },
+          { username: { $regex: new RegExp(`^${escaped}$`, 'i') } }
+        ]
+      });
+      if (existing) {
+        return sendJson(res, 409, { ok: false, error: 'Username is already taken. Please choose another or log in.' }, cors);
+      }
+
+      const passwordHash = hashPassword(password);
+      const userDoc = {
+        username,
+        usernameLower: lower,
+        password: passwordHash,
+        createdAt: new Date().toISOString()
+      };
+      await usersCol.insertOne(userDoc);
+      return sendJson(res, 201, {
+        ok: true,
+        user: { username, createdAt: userDoc.createdAt }
+      }, cors);
+    } catch (err) {
+      return sendJson(res, 500, { ok: false, error: 'Failed to register user: ' + err.message }, cors);
+    }
+  }
+
+  // 3.2 Login User: POST /api/auth/login
+  if (pathname === '/api/auth/login' && req.method === 'POST') {
+    if (!mongoDb) {
+      return sendJson(res, 403, { ok: false, error: 'Not connected to MongoDB. Please connect first.' }, cors);
+    }
+    const body = await readBody(req);
+    let parsed;
+    try {
+      parsed = JSON.parse(body.toString('utf8'));
+    } catch (err) {
+      return sendJson(res, 400, { ok: false, error: 'Invalid JSON: ' + err.message }, cors);
+    }
+    const username = (parsed && parsed.username ? String(parsed.username) : '').trim();
+    const password = parsed && parsed.password ? String(parsed.password) : '';
+
+    if (!username || !password) {
+      return sendJson(res, 400, { ok: false, error: 'Username and password are required.' }, cors);
+    }
+
+    try {
+      const usersCol = mongoDb.collection('users');
+      const lower = username.toLowerCase();
+      const escaped = username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const userDoc = await usersCol.findOne({
+        $or: [
+          { usernameLower: lower },
+          { username: { $regex: new RegExp(`^${escaped}$`, 'i') } }
+        ]
+      });
+      if (!userDoc || !verifyPassword(password, userDoc.password)) {
+        return sendJson(res, 401, { ok: false, error: 'Invalid username or password.' }, cors);
+      }
+
+      return sendJson(res, 200, {
+        ok: true,
+        user: { username: userDoc.username, createdAt: userDoc.createdAt }
+      }, cors);
+    } catch (err) {
+      return sendJson(res, 500, { ok: false, error: 'Failed to authenticate: ' + err.message }, cors);
+    }
+  }
+
+  // 3.3 List Users: GET /api/users
+  if (pathname === '/api/users' && req.method === 'GET') {
+    if (!mongoDb) {
+      return sendJson(res, 403, { ok: false, error: 'Not connected to MongoDB' }, cors);
+    }
+    try {
+      const list = await mongoDb.collection('users')
+        .find({}, { projection: { password: 0 } })
+        .sort({ username: 1 })
+        .toArray();
+      const users = list.map(u => ({ username: u.username, createdAt: u.createdAt }));
+      return sendJson(res, 200, { ok: true, users }, cors);
+    } catch (err) {
+      return sendJson(res, 500, { ok: false, error: err.message }, cors);
+    }
   }
 
   // 4. Tasks endpoints: GET / PUT / POST /api/tasks

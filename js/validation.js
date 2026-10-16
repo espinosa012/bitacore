@@ -153,17 +153,26 @@
       const createdAt = t.created_at || t.creada_en || new Date().toISOString();
       const updatedAt = t.updated_at || t.actualizada_en || new Date().toISOString();
 
+      // Assignee and Reporter normalization
+      const rawAssignee = t.assignee !== undefined ? t.assignee : (t.asignado_a !== undefined ? t.asignado_a : (t.asignado !== undefined ? t.asignado : null));
+      const assignee = (typeof rawAssignee === 'string' && rawAssignee.trim().length > 0) ? rawAssignee.trim() : null;
+
+      const rawReporter = t.reporter !== undefined ? t.reporter : (t.informante !== undefined ? t.informante : (t.creador !== undefined ? t.creador : ''));
+      const reporter = (typeof rawReporter === 'string' && rawReporter.trim().length > 0) ? rawReporter.trim() : '';
+
       // History normalization
       const rawHistory = Array.isArray(t.history) ? t.history : (Array.isArray(t.historial) ? t.historial : []);
       const history = rawHistory.map(h => {
         const fromRaw = h.from_status !== undefined ? h.from_status : (h.previous_status !== undefined ? h.previous_status : h.estado_anterior);
         const toRaw = h.to_status !== undefined ? h.to_status : (h.new_status !== undefined ? h.new_status : h.estado_nuevo);
         const reasonRaw = h.reason !== undefined ? h.reason : (h.motivo || '');
+        const userRaw = h.user !== undefined ? h.user : (h.usuario !== undefined ? h.usuario : (h.author || null));
         return {
           from_status: fromRaw ? canonicalState(fromRaw) : null,
           to_status: canonicalState(toRaw),
           timestamp: h.timestamp || new Date().toISOString(),
-          reason: reasonRaw
+          reason: reasonRaw,
+          user: (userRaw && typeof userRaw === 'string') ? userRaw.trim() : null
         };
       });
 
@@ -178,12 +187,14 @@
 
       const tags = window.VG.Tags.normalizeList(t.tags !== undefined ? t.tags : t.etiquetas);
 
-      // Attachments normalization (filename, name, description, size, type, created_at)
+      // Attachments normalization (filename, name, description, size, type, created_at, uploader)
       const rawAttachments = Array.isArray(t.attachments) ? t.attachments : (Array.isArray(t.adjuntos) ? t.adjuntos : []);
       const attachments = rawAttachments.map(a => {
         const filename = (a.filename || a.nombre_archivo || 'file.bin').trim();
         const customName = (a.name !== undefined ? a.name : (a.nombre || '')).trim();
         const customDesc = (a.description !== undefined ? a.description : (a.descripcion || '')).trim();
+        const uploaderRaw = a.uploader !== undefined ? a.uploader : (a.uploaded_by !== undefined ? a.uploaded_by : (a.subido_por || ''));
+        const uploader = (typeof uploaderRaw === 'string' && uploaderRaw.trim().length > 0) ? uploaderRaw.trim() : '';
         return {
           id: a.id || window.VG.Constants.generateId('att'),
           filename: filename,
@@ -191,7 +202,8 @@
           description: customDesc,
           size: typeof a.size === 'number' ? a.size : 0,
           type: a.type || 'application/octet-stream',
-          created_at: a.created_at || a.creado_en || new Date().toISOString()
+          created_at: a.created_at || a.creado_en || new Date().toISOString(),
+          uploader
         };
       });
 
@@ -202,6 +214,8 @@
         'openspec-id': openspecId,
         priority,
         status,
+        assignee,
+        reporter,
         tags,
         created_at: createdAt,
         updated_at: updatedAt,

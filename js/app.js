@@ -91,14 +91,36 @@
     const mongoStatusDot = document.getElementById('mongoStatusDot');
     const mongoStatusLabel = document.getElementById('mongoStatusLabel');
     const mongoEmptyState = document.getElementById('mongoEmptyState');
+    const authEmptyState = document.getElementById('authEmptyState');
     const kanbanBoard = document.getElementById('kanbanBoard');
     const priorityFilter = document.getElementById('priorityFilter');
     const tagFilter = document.getElementById('tagFilter');
+    const userFilter = document.getElementById('userFilter');
     const searchInput = document.getElementById('searchInput');
+    const headerUserLabel = document.getElementById('headerUserLabel');
+    const sessionUserName = document.getElementById('sessionUserName');
+    const btnOpenAuth = document.getElementById('btnOpenAuth');
 
     if (!btnMongoStatus || !mongoStatusLabel) return;
 
     const isConnected = MongoSync && MongoSync.isConnected();
+    const currentUser = window.VG.Auth && window.VG.Auth.getCurrentUser();
+    const isLoggedIn = !!currentUser;
+
+    // Update user button in header
+    if (headerUserLabel && btnOpenAuth) {
+      if (isLoggedIn) {
+        headerUserLabel.textContent = currentUser.username;
+        btnOpenAuth.classList.add('is-authenticated');
+        btnOpenAuth.title = `Logged in as "${currentUser.username}". Click to manage account.`;
+        if (sessionUserName) sessionUserName.textContent = currentUser.username;
+      } else {
+        headerUserLabel.textContent = 'Log In';
+        btnOpenAuth.classList.remove('is-authenticated');
+        btnOpenAuth.title = 'Click to log in or register';
+        if (sessionUserName) sessionUserName.textContent = 'Guest';
+      }
+    }
 
     if (isConnected) {
       btnMongoStatus.classList.add('green');
@@ -107,13 +129,24 @@
         mongoStatusDot.className = 'status-dot synced';
       }
       const dbName = MongoSync.getCurrentDb() || 'vg-task-manager';
-      mongoStatusLabel.textContent = `MongoDB: ${dbName} (${tasks.length})`;
+      mongoStatusLabel.textContent = `MongoDB: ${dbName}${isLoggedIn ? ` (${tasks.length})` : ''}`;
       btnMongoStatus.title = `Connected to database "${dbName}". Click to manage connection or disconnect.`;
 
       if (mongoEmptyState) mongoEmptyState.style.display = 'none';
-      if (kanbanBoard) kanbanBoard.style.display = 'flex';
-      if (priorityFilter) priorityFilter.disabled = false;
-      if (searchInput) searchInput.disabled = false;
+
+      if (isLoggedIn) {
+        if (authEmptyState) authEmptyState.style.display = 'none';
+        if (kanbanBoard) kanbanBoard.style.display = 'flex';
+        if (priorityFilter) priorityFilter.disabled = false;
+        if (searchInput) searchInput.disabled = false;
+        if (userFilter) userFilter.disabled = false;
+      } else {
+        if (authEmptyState) authEmptyState.style.display = 'block';
+        if (kanbanBoard) kanbanBoard.style.display = 'none';
+        if (priorityFilter) priorityFilter.disabled = true;
+        if (searchInput) searchInput.disabled = true;
+        if (userFilter) userFilter.disabled = true;
+      }
     } else {
       btnMongoStatus.classList.remove('green');
       btnMongoStatus.classList.add('orange');
@@ -124,10 +157,69 @@
       btnMongoStatus.title = 'Click to enter your MongoDB connection string';
 
       if (mongoEmptyState) mongoEmptyState.style.display = 'block';
+      if (authEmptyState) authEmptyState.style.display = 'none';
       if (kanbanBoard) kanbanBoard.style.display = 'none';
       if (priorityFilter) priorityFilter.disabled = true;
       if (searchInput) searchInput.disabled = true;
+      if (userFilter) userFilter.disabled = true;
     }
+  }
+
+  function toggleCriteriaPopover(force) {
+    const popover = document.getElementById('userCriteriaPopover');
+    if (!popover) return;
+    const isShowing = popover.style.display !== 'none';
+    const show = force !== undefined ? force : !isShowing;
+    popover.style.display = show ? 'flex' : 'none';
+    const btn = document.getElementById('btnUserCriteria');
+    if (btn) btn.setAttribute('aria-expanded', String(show));
+  }
+
+  function toggleUserSessionPopover(force) {
+    const popover = document.getElementById('userSessionPopover');
+    if (!popover) return;
+    const isShowing = popover.style.display !== 'none';
+    const show = force !== undefined ? force : !isShowing;
+    popover.style.display = show ? 'block' : 'none';
+  }
+
+  function closeAllPopovers() {
+    toggleCriteriaPopover(false);
+    toggleUserSessionPopover(false);
+  }
+
+  async function onUserLoggedIn(user) {
+    updateMongoBadge();
+    const users = await window.VG.Auth.fetchUsers();
+    Modals.populateUserDropdowns(users);
+    await loadFromMongo();
+    showToast(`Welcome back, ${user.username}!`, 'success');
+  }
+
+  async function onMongoConnected() {
+    updateMongoBadge();
+    const users = await window.VG.Auth.fetchUsers();
+    Modals.populateUserDropdowns(users);
+    const currentUser = window.VG.Auth.getCurrentUser();
+    if (currentUser) {
+      await loadFromMongo();
+    } else {
+      updateMongoBadge();
+      setTimeout(() => {
+        Modals.openAuthModal('login');
+      }, 350);
+    }
+  }
+
+  function logoutUser() {
+    window.VG.Auth.logout();
+    replaceBoard([], []);
+    updateMongoBadge();
+    Board.renderBoard();
+    showToast('Logged out successfully', 'info');
+    setTimeout(() => {
+      Modals.openAuthModal('login');
+    }, 350);
   }
 
   async function loadFromMongo() {
@@ -158,17 +250,117 @@
     const btnNewTask = document.getElementById('btnNewTask');
     const btnMongoStatus = document.getElementById('btnMongoStatus');
     const btnConnectEmptyState = document.getElementById('btnConnectEmptyState');
+    const btnLoginEmptyState = document.getElementById('btnLoginEmptyState');
     const tagFilter = document.getElementById('tagFilter');
+    const userFilter = document.getElementById('userFilter');
+    const btnUserCriteria = document.getElementById('btnUserCriteria');
+    const chkCriteriaAssignee = document.getElementById('chkCriteriaAssignee');
+    const chkCriteriaCreator = document.getElementById('chkCriteriaCreator');
+    const chkCriteriaCommenter = document.getElementById('chkCriteriaCommenter');
+    const chkCriteriaUploader = document.getElementById('chkCriteriaUploader');
+    const btnCriteriaSelectAll = document.getElementById('btnCriteriaSelectAll');
+    const btnCriteriaClear = document.getElementById('btnCriteriaClear');
+    const btnOpenAuth = document.getElementById('btnOpenAuth');
+    const btnSwitchUser = document.getElementById('btnSwitchUser');
+    const btnLogoutUser = document.getElementById('btnLogoutUser');
 
     if (searchInput) searchInput.addEventListener('input', () => Board.renderBoard());
     if (priorityFilter) priorityFilter.addEventListener('change', () => Board.renderBoard());
     if (tagFilter) tagFilter.addEventListener('change', () => Board.renderBoard());
+    if (userFilter) userFilter.addEventListener('change', () => Board.renderBoard());
+
+    if (btnUserCriteria) {
+      btnUserCriteria.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleUserSessionPopover(false);
+        toggleCriteriaPopover();
+      });
+    }
+
+    [chkCriteriaAssignee, chkCriteriaCreator, chkCriteriaCommenter, chkCriteriaUploader].forEach(chk => {
+      if (chk) chk.addEventListener('change', () => Board.renderBoard());
+    });
+
+    if (btnCriteriaSelectAll) {
+      btnCriteriaSelectAll.addEventListener('click', (e) => {
+        e.stopPropagation();
+        [chkCriteriaAssignee, chkCriteriaCreator, chkCriteriaCommenter, chkCriteriaUploader].forEach(c => {
+          if (c) c.checked = true;
+        });
+        Board.renderBoard();
+      });
+    }
+
+    if (btnCriteriaClear) {
+      btnCriteriaClear.addEventListener('click', (e) => {
+        e.stopPropagation();
+        [chkCriteriaAssignee, chkCriteriaCreator, chkCriteriaCommenter, chkCriteriaUploader].forEach(c => {
+          if (c) c.checked = false;
+        });
+        Board.renderBoard();
+      });
+    }
+
+    if (btnOpenAuth) {
+      btnOpenAuth.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleCriteriaPopover(false);
+        if (!MongoSync.isConnected()) {
+          Modals.openMongoModal();
+          return;
+        }
+        if (window.VG.Auth && window.VG.Auth.getCurrentUser()) {
+          toggleUserSessionPopover();
+        } else {
+          Modals.openAuthModal('login');
+        }
+      });
+    }
+
+    if (btnSwitchUser) {
+      btnSwitchUser.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAllPopovers();
+        Modals.openAuthModal('login');
+      });
+    }
+
+    if (btnLogoutUser) {
+      btnLogoutUser.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAllPopovers();
+        logoutUser();
+      });
+    }
+
+    if (btnLoginEmptyState) {
+      btnLoginEmptyState.addEventListener('click', () => {
+        Modals.openAuthModal('login');
+      });
+    }
+
+    // Dismiss popovers when clicking outside
+    document.addEventListener('click', (e) => {
+      const criteriaWrapper = document.querySelector('.user-criteria-wrapper');
+      if (criteriaWrapper && !criteriaWrapper.contains(e.target)) {
+        toggleCriteriaPopover(false);
+      }
+      const sessionContainer = document.querySelector('.user-session-container');
+      if (sessionContainer && !sessionContainer.contains(e.target)) {
+        toggleUserSessionPopover(false);
+      }
+    });
 
     if (btnNewTask) {
       btnNewTask.addEventListener('click', () => {
         if (!MongoSync.isConnected()) {
           showToast('Please connect to MongoDB first', 'warning');
           Modals.openMongoModal();
+          return;
+        }
+        if (!window.VG.Auth || !window.VG.Auth.getCurrentUser()) {
+          showToast('Please log in first to create tasks', 'warning');
+          Modals.openAuthModal('login');
           return;
         }
         Modals.openCreateModal('planned');
@@ -196,6 +388,10 @@
           Modals.openMongoModal();
           return;
         }
+        if (!window.VG.Auth || !window.VG.Auth.getCurrentUser()) {
+          Modals.openAuthModal('login');
+          return;
+        }
         Board.openBulkTagDialog();
       });
     }
@@ -215,6 +411,7 @@
     // Keyboard shortcuts
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
+        closeAllPopovers();
         if (Board && Board.getSelectedTaskIds && Board.getSelectedTaskIds().length > 0) {
           Board.clearSelection();
           return;
@@ -227,6 +424,7 @@
         Modals.closeCreateModal();
         Modals.closeEditModal();
         Modals.closeMongoModal();
+        Modals.closeAuthModal();
         return;
       }
 
@@ -244,6 +442,8 @@
         e.preventDefault();
         if (!MongoSync.isConnected()) {
           Modals.openMongoModal();
+        } else if (!window.VG.Auth || !window.VG.Auth.getCurrentUser()) {
+          Modals.openAuthModal('login');
         } else {
           Modals.openCreateModal('planned');
         }
@@ -251,6 +451,8 @@
         e.preventDefault();
         if (!MongoSync.isConnected()) {
           Modals.openMongoModal();
+        } else if (!window.VG.Auth || !window.VG.Auth.getCurrentUser()) {
+          Modals.openAuthModal('login');
         } else {
           Board.openBulkTagDialog();
         }
@@ -281,7 +483,7 @@
     // 4. Setup listeners
     setupEventListeners();
 
-    // 5. Start with empty board - NO tasks visible until MongoDB connection is provided
+    // 5. Start with empty board - NO tasks visible until MongoDB connection and login
     replaceBoard([], []);
     Storage.clearLocalTasks();
 
@@ -292,12 +494,22 @@
     updateMongoBadge();
     Board.renderBoard();
 
-    // 8. If already connected on backend, load tasks automatically
+    // 8. If already connected on backend, check authentication
     if (status && status.connected) {
-      await loadFromMongo();
+      const users = await window.VG.Auth.fetchUsers();
+      Modals.populateUserDropdowns(users);
+
+      const currentUser = window.VG.Auth.getCurrentUser();
+      if (currentUser) {
+        await loadFromMongo();
+      } else {
+        updateMongoBadge();
+        setTimeout(() => {
+          Modals.openAuthModal('login');
+        }, 350);
+      }
     } else {
       // Not connected: automatically open the MongoDB connection modal
-      // so the user can enter the connection string immediately
       setTimeout(() => {
         Modals.openMongoModal();
       }, 350);
@@ -314,7 +526,10 @@
     persistChanges,
     showToast,
     updateMongoBadge,
-    loadFromMongo
+    loadFromMongo,
+    onMongoConnected,
+    onUserLoggedIn,
+    logoutUser
   };
 
   document.addEventListener('DOMContentLoaded', initApp);

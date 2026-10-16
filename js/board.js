@@ -105,6 +105,29 @@
     const tagFilter = tagFilterEl && !tagFilterEl.disabled ? tagFilterEl.value : 'all';
     const tagFilterKey = tagFilter.toLowerCase();
 
+    // User filter and checkboxes criteria
+    const userFilterEl = document.getElementById('userFilter');
+    const userFilter = userFilterEl && !userFilterEl.disabled ? userFilterEl.value : 'all';
+    const userFilterKey = userFilter.toLowerCase();
+
+    const chkAssignee = document.getElementById('chkCriteriaAssignee');
+    const chkCreator = document.getElementById('chkCriteriaCreator');
+    const chkCommenter = document.getElementById('chkCriteriaCommenter');
+    const chkUploader = document.getElementById('chkCriteriaUploader');
+
+    const criteria = {
+      assignee: !chkAssignee || chkAssignee.checked,
+      creator: !chkCreator || chkCreator.checked,
+      commenter: !chkCommenter || chkCommenter.checked,
+      uploader: !chkUploader || chkUploader.checked
+    };
+
+    const criteriaCount = (criteria.assignee ? 1 : 0) + (criteria.creator ? 1 : 0) + (criteria.commenter ? 1 : 0) + (criteria.uploader ? 1 : 0);
+    const userCriteriaBadge = document.getElementById('userCriteriaBadge');
+    if (userCriteriaBadge) {
+      userCriteriaBadge.textContent = `Criteria (${criteriaCount}/4)`;
+    }
+
     // Clear card containers
     STATES.forEach(st => {
       const container = document.getElementById(`col-container-${escapeCss(st.id)}`);
@@ -129,7 +152,7 @@
       }
       counts.total++;
 
-      // Check query match (title, desc, openspec, or attachment filenames)
+      // Check query match (title, desc, openspec, assignee, reporter, tags, or attachment filenames)
       const matchesAttachment = t.attachments && t.attachments.some(a => 
         a.filename.toLowerCase().includes(query) || (a.name && a.name.toLowerCase().includes(query))
       );
@@ -139,12 +162,32 @@
         t.description.toLowerCase().includes(query) ||
         (t['openspec-id'] && t['openspec-id'].toLowerCase().includes(query)) ||
         (t.tags || []).some(tag => tag.toLowerCase().includes(query)) ||
+        (t.assignee && t.assignee.toLowerCase().includes(query)) ||
+        (t.reporter && t.reporter.toLowerCase().includes(query)) ||
         matchesAttachment;
 
       const matchesPriority = prioFilter === 'all' || t.priority === prioFilter;
       const matchesTag = tagFilter === 'all' || (t.tags || []).some(tag => tag.toLowerCase() === tagFilterKey);
 
-      if (matchesQuery && matchesPriority && matchesTag) {
+      // User filter evaluation against active checkboxes
+      let matchesUser = true;
+      if (userFilter !== 'all') {
+        matchesUser = false;
+        if (criteria.assignee && (t.assignee || '').toLowerCase() === userFilterKey) {
+          matchesUser = true;
+        }
+        if (criteria.creator && (t.reporter || '').toLowerCase() === userFilterKey) {
+          matchesUser = true;
+        }
+        if (criteria.commenter && (t.comments || []).some(c => (c.author || '').toLowerCase() === userFilterKey)) {
+          matchesUser = true;
+        }
+        if (criteria.uploader && (t.attachments || []).some(a => (a.uploader || '').toLowerCase() === userFilterKey)) {
+          matchesUser = true;
+        }
+      }
+
+      if (matchesQuery && matchesPriority && matchesTag && matchesUser) {
         visibleTasks.push(t);
         renderTaskCard(t, query);
         counts.shown++;
@@ -174,7 +217,7 @@
 
     // Update header statistics
     if (taskStatsCounter) {
-      const isFiltered = query || prioFilter !== 'all' || tagFilter !== 'all';
+      const isFiltered = query || prioFilter !== 'all' || tagFilter !== 'all' || userFilter !== 'all';
       const shownStr = isFiltered ? ` (${counts.shown} shown)` : '';
       taskStatsCounter.textContent = `${counts.total} tasks${shownStr} · ${counts['in progress']} in progress · ${counts.blocked} blocked`;
     }
@@ -228,6 +271,10 @@
           <span class="ui mini ${prioMeta.color} label">
             <i class="${prioMeta.icon} icon"></i>${escapeHtml(prioMeta.label)}
           </span>
+          ${task.assignee ? `
+            <span class="card-assignee" title="Assigned to ${escapeHtml(task.assignee)}">
+              <i class="user outline icon"></i>${escapeHtml(task.assignee)}
+            </span>` : ''}
           ${openSpecId ? `
             <span class="ui mini basic inverted teal label card-openspec" title="OpenSpec: ${escapeHtml(openSpecId)}">
               <i class="file alternate outline icon"></i>${escapeHtml(openSpecId)}
@@ -399,12 +446,15 @@
       movedTask.updated_at = new Date().toISOString();
 
       if (canonicalState(prevStatus) !== targetState) {
+        const currentUser = window.VG.Auth && window.VG.Auth.getCurrentUser();
+        const currentUname = (currentUser && currentUser.username) ? currentUser.username : null;
         movedTask.history = movedTask.history || [];
         movedTask.history.push({
           from_status: canonicalState(prevStatus),
           to_status: targetState,
           timestamp: new Date().toISOString(),
-          reason: 'Moved via drag and drop'
+          reason: 'Moved via drag and drop',
+          user: currentUname
         });
       }
 

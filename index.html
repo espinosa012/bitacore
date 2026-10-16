@@ -47,6 +47,47 @@
         </select>
       </div>
 
+      <!-- User Filter & Criteria Checkboxes -->
+      <div class="item board-only user-filter-container">
+        <select id="userFilter" class="ui dropdown" aria-label="Filter by user" disabled>
+          <option value="all">All users</option>
+        </select>
+        <div class="user-criteria-wrapper">
+          <button type="button" class="ui mini basic inverted button user-criteria-btn" id="btnUserCriteria" title="Filter criteria for selected user" aria-haspopup="true" aria-expanded="false">
+            <i class="filter icon"></i>
+            <span id="userCriteriaBadge">Criteria (4/4)</span>
+            <i class="dropdown icon"></i>
+          </button>
+          <div class="user-criteria-popover" id="userCriteriaPopover" style="display: none;">
+            <div class="criteria-header">
+              <i class="user check icon"></i> User Filter Criteria
+            </div>
+            <div class="criteria-list">
+              <label class="criteria-checkbox-label">
+                <input type="checkbox" id="chkCriteriaAssignee" checked />
+                <span><i class="user icon"></i> Assigned to task</span>
+              </label>
+              <label class="criteria-checkbox-label">
+                <input type="checkbox" id="chkCriteriaCreator" checked />
+                <span><i class="paper plane icon"></i> Task reporter / creator</span>
+              </label>
+              <label class="criteria-checkbox-label">
+                <input type="checkbox" id="chkCriteriaCommenter" checked />
+                <span><i class="comment alternate icon"></i> Has commented</span>
+              </label>
+              <label class="criteria-checkbox-label">
+                <input type="checkbox" id="chkCriteriaUploader" checked />
+                <span><i class="paperclip icon"></i> Has attached files</span>
+              </label>
+            </div>
+            <div class="criteria-footer">
+              <button type="button" class="ui mini basic inverted compact button" id="btnCriteriaSelectAll">All</button>
+              <button type="button" class="ui mini basic inverted compact button" id="btnCriteriaClear">Clear</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="item board-only">
         <button id="btnBulkTag" class="ui small basic inverted button" title="Bulk assign tags to tasks (T)">
           <i class="tags icon"></i>
@@ -62,6 +103,30 @@
             <i class="database icon"></i>
             <span id="mongoStatusLabel">Connect MongoDB</span>
           </button>
+        </div>
+
+        <!-- User Session / Log In Header Item -->
+        <div class="item user-session-container">
+          <button id="btnOpenAuth" class="ui basic inverted button user-session-btn" title="User account">
+            <i class="user circle icon"></i>
+            <span id="headerUserLabel">Log In</span>
+          </button>
+          <div class="user-session-popover" id="userSessionPopover" style="display: none;">
+            <div class="user-info-row">
+              <i class="user circle large teal icon"></i>
+              <div>
+                <div class="user-info-name" id="sessionUserName">User</div>
+                <div class="user-info-status">Authenticated</div>
+              </div>
+            </div>
+            <div class="ui divider user-popover-divider"></div>
+            <button type="button" class="ui mini basic inverted fluid button" id="btnSwitchUser">
+              <i class="exchange icon"></i> Switch / Register Account
+            </button>
+            <button type="button" class="ui mini red basic inverted fluid button" id="btnLogoutUser" style="margin-top: 6px;">
+              <i class="sign-out icon"></i> Log out
+            </button>
+          </div>
         </div>
 
         <div class="item">
@@ -89,6 +154,22 @@
       <button class="ui teal large labeled icon button" id="btnConnectEmptyState">
         <i class="plug icon"></i>
         Connect to MongoDB Atlas
+      </button>
+    </div>
+
+    <div class="ui inverted placeholder segment auth-empty-state" id="authEmptyState" style="display: none;">
+      <div class="ui icon header">
+        <i class="user shield icon" style="font-size: 3.5rem; color: #4f8fe6; margin-bottom: 0.5rem;"></i>
+        <div class="content" style="font-size: 1.4rem; font-weight: 700; margin-top: 0.5rem;">
+          User Authentication Required
+          <div class="sub header" style="color: #9ab; max-width: 520px; margin: 0.75rem auto 1.5rem; line-height: 1.5;">
+            Connected to MongoDB Atlas. Please log in or register an account to access tasks, create or assign tasks, post comments, and upload files.
+          </div>
+        </div>
+      </div>
+      <button class="ui primary large labeled icon button" id="btnLoginEmptyState">
+        <i class="sign-in icon"></i>
+        Log In / Register
       </button>
     </div>
 
@@ -194,6 +275,19 @@
                   <select id="pageTaskPriority" class="ui fluid dropdown"></select>
                 </div>
                 <div class="field">
+                  <label for="pageTaskAssignee">Assignee</label>
+                  <select id="pageTaskAssignee" class="ui fluid dropdown">
+                    <option value="">Unassigned</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Reporter (Creator)</label>
+                  <div class="compact-reporter-chip" id="pageTaskReporterChip">
+                    <i class="user outline icon"></i>
+                    <span id="pageTaskReporterLabel">—</span>
+                  </div>
+                </div>
+                <div class="field">
                   <label>Tags</label>
                   <div id="pageTaskTags"></div>
                 </div>
@@ -279,6 +373,13 @@
               <option value="blocked">Blocked</option>
             </select>
           </div>
+        </div>
+
+        <div class="field">
+          <label for="newTaskAssignee">Assignee (Optional)</label>
+          <select id="newTaskAssignee" class="ui fluid dropdown">
+            <option value="">Unassigned</option>
+          </select>
         </div>
 
         <div class="field">
@@ -429,6 +530,19 @@
               </select>
             </div>
             <div class="field">
+              <label for="editTaskAssignee">Assignee</label>
+              <select id="editTaskAssignee" class="ui fluid dropdown">
+                <option value="">Unassigned</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Reporter (Creator)</label>
+              <div class="compact-reporter-chip" id="editTaskReporterContainer">
+                <i class="user outline icon"></i>
+                <span id="editTaskReporter">None</span>
+              </div>
+            </div>
+            <div class="field">
               <label>Tags</label>
               <div id="editTaskTags"></div>
             </div>
@@ -514,6 +628,110 @@
     </div>
   </div>
 
+  <!-- MODAL: User Authentication (Login & Register) -->
+  <div class="ui tiny inverted modal" id="modalAuthOverlay">
+    <i class="close icon" id="closeAuthModalBtn"></i>
+    <div class="header auth-modal-header">
+      <div class="ui secondary pointing inverted menu auth-tabs" id="authTabsMenu">
+        <a class="active item" id="tabBtnLogin" data-auth-tab="login">
+          <i class="sign-in icon"></i> Log In
+        </a>
+        <a class="item" id="tabBtnRegister" data-auth-tab="register">
+          <i class="user plus icon"></i> Register User
+        </a>
+      </div>
+    </div>
+    <div class="content auth-modal-content">
+      <!-- Login Form -->
+      <form id="authLoginForm" class="ui inverted form auth-panel-form active">
+        <p class="auth-helper-text">
+          Enter your username and password to log in. Your actions, status changes, comments, and attachments will be recorded to your user.
+        </p>
+
+        <div class="required field">
+          <label for="loginUsername">Username</label>
+          <div class="ui inverted fluid icon input">
+            <input type="text" id="loginUsername" placeholder="e.g. adrian" autocomplete="username" required spellcheck="false" />
+            <i class="user icon"></i>
+          </div>
+        </div>
+
+        <div class="required field">
+          <label for="loginPassword">Password</label>
+          <div class="ui inverted fluid icon input">
+            <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" required />
+            <i class="lock icon"></i>
+          </div>
+        </div>
+
+        <div class="ui negative message" id="loginError" style="display: none; margin-top: 1rem;">
+          <i class="close icon" id="closeLoginErrorBtn"></i>
+          <div class="header">Login Failed</div>
+          <p id="loginErrorText"></p>
+        </div>
+
+        <div style="margin-top: 1.5rem;">
+          <button type="submit" class="ui fluid teal button" id="btnLoginSubmit">
+            <i class="sign-in icon"></i> Log In
+          </button>
+        </div>
+
+        <div class="auth-toggle-prompt">
+          Don't have an account yet? <a href="#" id="linkToRegister">Create a new user</a>
+        </div>
+      </form>
+
+      <!-- Register Form -->
+      <form id="authRegisterForm" class="ui inverted form auth-panel-form" style="display: none;">
+        <p class="auth-helper-text">
+          Register a new user. Passwords are securely encrypted using scrypt hashing and stored in the <code>users</code> collection.
+        </p>
+
+        <div class="required field">
+          <label for="registerUsername">Username</label>
+          <div class="ui inverted fluid icon input">
+            <input type="text" id="registerUsername" placeholder="e.g. adrian" autocomplete="username" required spellcheck="false" />
+            <i class="user plus icon"></i>
+          </div>
+          <small class="auth-field-note">2 to 40 characters (letters, numbers, underscores, dots, hyphens)</small>
+        </div>
+
+        <div class="required field">
+          <label for="registerPassword">Password</label>
+          <div class="ui inverted fluid icon input">
+            <input type="password" id="registerPassword" placeholder="••••••••" autocomplete="new-password" required />
+            <i class="lock icon"></i>
+          </div>
+          <small class="auth-field-note">Minimum 3 characters (encrypted with cryptographic salt)</small>
+        </div>
+
+        <div class="required field">
+          <label for="registerConfirmPassword">Confirm Password</label>
+          <div class="ui inverted fluid icon input">
+            <input type="password" id="registerConfirmPassword" placeholder="••••••••" autocomplete="new-password" required />
+            <i class="check circle outline icon"></i>
+          </div>
+        </div>
+
+        <div class="ui negative message" id="registerError" style="display: none; margin-top: 1rem;">
+          <i class="close icon" id="closeRegisterErrorBtn"></i>
+          <div class="header">Registration Failed</div>
+          <p id="registerErrorText"></p>
+        </div>
+
+        <div style="margin-top: 1.5rem;">
+          <button type="submit" class="ui fluid primary button" id="btnRegisterSubmit">
+            <i class="user plus icon"></i> Register & Log In
+          </button>
+        </div>
+
+        <div class="auth-toggle-prompt">
+          Already have an account? <a href="#" id="linkToLogin">Log in here</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Scripts -->
   <script src="vendor/jquery/jquery.min.js"></script>
   <script src="vendor/fomantic-ui/semantic.min.js"></script>
@@ -527,6 +745,7 @@
   <script src="js/markdown.js"></script>
   <script src="js/attachments.js"></script>
   <script src="js/mongo-sync.js"></script>
+  <script src="js/auth.js"></script>
   <script src="js/board.js"></script>
   <script src="js/modals.js"></script>
   <script src="js/task-page.js"></script>

@@ -37,6 +37,9 @@
     const filename = getUniqueFilename(task.attachments, file.name);
     const id = window.VG.Constants.generateId('att');
 
+    const currentUser = window.VG.Auth && window.VG.Auth.getCurrentUser();
+    const uploader = (currentUser && currentUser.username) ? currentUser.username : '';
+
     const attachmentRecord = {
       id,
       filename,
@@ -44,7 +47,8 @@
       description: (customDesc || '').trim(),
       size: file.size,
       type: file.type || 'application/octet-stream',
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      uploader
     };
 
     // Save blob to IndexedDB for quick local caching/preview
