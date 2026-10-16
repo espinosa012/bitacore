@@ -224,10 +224,7 @@
     card.innerHTML = `
       <div class="content">
         <div class="card-top">
-          <label class="card-select-label" title="Select task for bulk actions" onclick="event.stopPropagation();">
-            <input type="checkbox" class="card-select-checkbox" data-task-id="${escapeHtml(task.id)}" ${isSelected ? 'checked' : ''} aria-label="Select task ${escapeHtml(task.name)}" />
-            <span class="card-checkbox-custom"></span>
-          </label>
+          <input type="checkbox" class="card-select-checkbox" data-task-id="${escapeHtml(task.id)}" ${isSelected ? 'checked' : ''} title="Select task for bulk actions" aria-label="Select task ${escapeHtml(task.name)}" />
           <span class="ui mini ${prioMeta.color} label">
             <i class="${prioMeta.icon} icon"></i>${escapeHtml(prioMeta.label)}
           </span>
@@ -274,7 +271,7 @@
     // Click to edit (the corner button opens the full task page)
     card.addEventListener('click', (e) => {
       if (isDragging) return;
-      if (e.target.closest('.card-select-label') || e.target.closest('.card-select-checkbox')) {
+      if (e.target.closest('.card-select-checkbox')) {
         return;
       }
       if (e.target.closest('.card-open-page')) {
@@ -479,7 +476,7 @@
     } else {
       selectedTaskIds.delete(taskId);
     }
-    const card = document.querySelector(`.task-card[data-task-id="${escapeCss(taskId)}"]`);
+    const card = document.querySelector(`.task-card[data-task-id="${CSS.escape(taskId)}"]`);
     if (card) {
       card.classList.toggle('is-selected', isSelected);
       const cb = card.querySelector('.card-select-checkbox');
@@ -491,7 +488,7 @@
   function selectAllVisible() {
     visibleTasks.forEach(t => {
       selectedTaskIds.add(t.id);
-      const card = document.querySelector(`.task-card[data-task-id="${escapeCss(t.id)}"]`);
+      const card = document.querySelector(`.task-card[data-task-id="${CSS.escape(t.id)}"]`);
       if (card) {
         card.classList.add('is-selected');
         const cb = card.querySelector('.card-select-checkbox');
@@ -537,6 +534,7 @@
     const bulkActionBar = document.getElementById('bulkActionBar');
     const bulkBarCount = document.getElementById('bulkBarCount');
     const bulkBarLabel = document.getElementById('bulkBarLabel');
+    const btnBulkBarTag = document.getElementById('btnBulkBarTag');
 
     const selectedCount = selectedTaskIds.size;
     const visibleCount = visibleTasks.length;
@@ -545,32 +543,21 @@
     if (btnBulkTag) {
       if (selectedCount > 0) {
         btnBulkTag.disabled = false;
-        if (btnBulkTagText) btnBulkTagText.textContent = 'Tag Selected';
-        if (btnBulkTagBadge) {
-          btnBulkTagBadge.textContent = selectedCount;
-          btnBulkTagBadge.style.display = 'inline-block';
-        }
-        btnBulkTag.classList.remove('basic');
-        btnBulkTag.classList.add('teal');
+        btnBulkTag.className = 'ui small teal button';
+        if (btnBulkTagText) btnBulkTagText.textContent = `Tag Selected (${selectedCount})`;
+        if (btnBulkTagBadge) btnBulkTagBadge.style.display = 'none';
         btnBulkTag.title = `Assign tags to ${selectedCount} selected tasks (T)`;
       } else if (isFiltered) {
         btnBulkTag.disabled = visibleCount === 0;
-        if (btnBulkTagText) btnBulkTagText.textContent = 'Tag Filtered';
-        if (btnBulkTagBadge) {
-          btnBulkTagBadge.textContent = visibleCount;
-          btnBulkTagBadge.style.display = 'inline-block';
-        }
-        btnBulkTag.classList.add('basic');
-        btnBulkTag.classList.remove('teal');
+        btnBulkTag.className = visibleCount > 0 ? 'ui small teal button' : 'ui small basic inverted button';
+        if (btnBulkTagText) btnBulkTagText.textContent = `Tag Filtered (${visibleCount})`;
+        if (btnBulkTagBadge) btnBulkTagBadge.style.display = 'none';
         btnBulkTag.title = `Assign tags to all ${visibleCount} filtered tasks (T)`;
       } else {
         btnBulkTag.disabled = tasks.length === 0;
+        btnBulkTag.className = 'ui small basic inverted button';
         if (btnBulkTagText) btnBulkTagText.textContent = 'Bulk Tag';
-        if (btnBulkTagBadge) {
-          btnBulkTagBadge.style.display = 'none';
-        }
-        btnBulkTag.classList.add('basic');
-        btnBulkTag.classList.remove('teal');
+        if (btnBulkTagBadge) btnBulkTagBadge.style.display = 'none';
         btnBulkTag.title = 'Assign tags to tasks (T)';
       }
     }
@@ -581,6 +568,13 @@
         bulkActionBar.hidden = false;
         if (bulkBarCount) bulkBarCount.textContent = selectedCount;
         if (bulkBarLabel) bulkBarLabel.textContent = selectedCount === 1 ? 'task selected' : 'tasks selected';
+        if (btnBulkBarTag) btnBulkBarTag.innerHTML = '<i class="tags icon"></i> Assign Tags...';
+      } else if (isFiltered && visibleCount > 0) {
+        // Also display the bar when filtered so bulk action is immediately accessible
+        bulkActionBar.hidden = false;
+        if (bulkBarCount) bulkBarCount.textContent = visibleCount;
+        if (bulkBarLabel) bulkBarLabel.textContent = visibleCount === 1 ? 'filtered task' : 'filtered tasks';
+        if (btnBulkBarTag) btnBulkBarTag.innerHTML = `<i class="tags icon"></i> Assign Tags (${visibleCount})...`;
       } else {
         bulkActionBar.hidden = true;
       }

@@ -267,59 +267,46 @@ main[hidden],
 }
 
 /* Card Selection Checkbox */
-.card-select-label {
-  display: inline-flex;
-  align-items: center;
-  cursor: pointer;
-  margin: 0 2px 0 0;
-  padding: 0;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
 .card-select-checkbox {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-  pointer-events: none;
-}
-
-.card-checkbox-custom {
-  width: 15px;
-  height: 15px;
-  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
   border-radius: 4px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  margin: 0 4px 0 0;
+  display: inline-grid;
+  place-content: center;
+  flex-shrink: 0;
+  opacity: 0.55;
   transition: all 0.15s ease;
-  opacity: 0.4;
+  vertical-align: middle;
 }
 
-.task-card:hover .card-checkbox-custom,
-.task-card:focus-within .card-checkbox-custom,
-.card-select-checkbox:focus + .card-checkbox-custom {
+.task-card:hover .card-select-checkbox,
+.task-card:focus-within .card-select-checkbox,
+.card-select-checkbox:focus {
   opacity: 1;
-  border-color: rgba(255, 255, 255, 0.7);
+  border-color: rgba(255, 255, 255, 0.85);
 }
 
-.card-select-checkbox:checked + .card-checkbox-custom {
+.card-select-checkbox:checked {
   opacity: 1;
-  background: #00b5ad;
+  background-color: #00b5ad;
   border-color: #00b5ad;
   box-shadow: 0 0 6px rgba(0, 181, 173, 0.5);
 }
 
-.card-select-checkbox:checked + .card-checkbox-custom::after {
-  content: '';
+.card-select-checkbox:checked::before {
+  content: "";
   width: 4px;
   height: 8px;
-  border: solid #fff;
+  border: solid white;
   border-width: 0 2px 2px 0;
-  transform: rotate(45deg) translate(-0.5px, -0.5px);
-  display: block;
+  transform: rotate(45deg);
+  margin-top: -2px;
 }
 
 .task-card .card-top .ui.label {
@@ -1089,6 +1076,10 @@ select.ui.dropdown option {
   border-radius: 50px !important;
   box-shadow: 0 10px 32px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.25) !important;
   animation: bulkBarSlideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.bulk-action-bar[hidden] {
+  display: none !important;
 }
 
 @keyframes bulkBarSlideUp {

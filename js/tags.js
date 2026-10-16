@@ -175,7 +175,15 @@
 
     function getValue() {
       const raw = $el.dropdown('get values');
-      return normalizeList(Array.isArray(raw) ? raw : String(raw || '').split(','));
+      const list = normalizeList(Array.isArray(raw) ? raw : String(raw || '').split(','));
+      const searchInput = el.querySelector('input.search');
+      if (searchInput && searchInput.value && searchInput.value.trim()) {
+        const pending = normalizeName(searchInput.value.trim());
+        if (pending && !list.some(n => n.toLowerCase() === pending.toLowerCase())) {
+          list.push(pending);
+        }
+      }
+      return list;
     }
 
     function setValue(names) {
