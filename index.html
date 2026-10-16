@@ -272,18 +272,6 @@
       border-color: rgba(255, 255, 255, 0.18);
     }
 
-    .btn-sync {
-      background: rgba(16, 185, 129, 0.12);
-      border-color: rgba(16, 185, 129, 0.3);
-      color: #34d399;
-    }
-
-    .btn-sync:hover {
-      background: rgba(16, 185, 129, 0.2);
-      border-color: rgba(16, 185, 129, 0.5);
-      color: #6ee7b7;
-    }
-
     .btn-danger {
       background: rgba(239, 68, 68, 0.15);
       border-color: rgba(239, 68, 68, 0.3);
@@ -296,61 +284,15 @@
       color: #fca5a5;
     }
 
+    .btn-danger-hover:hover {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: rgba(239, 68, 68, 0.4);
+      color: #f87171;
+    }
+
     .btn-icon-only {
       padding: 8px;
       border-radius: var(--radius-md);
-    }
-
-    /* File synchronization badge */
-    .file-status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.78rem;
-      padding: 6px 12px;
-      border-radius: 999px;
-      background: rgba(30, 41, 59, 0.6);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-muted);
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .file-status-badge:hover {
-      border-color: rgba(255, 255, 255, 0.2);
-      color: var(--text-main);
-    }
-
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #f59e0b;
-      position: relative;
-    }
-
-    .status-dot.synced {
-      background: #10b981;
-      box-shadow: 0 0 8px #10b981;
-    }
-
-    .status-dot.synced::after {
-      content: '';
-      position: absolute;
-      top: -2px;
-      left: -2px;
-      right: -2px;
-      bottom: -2px;
-      border-radius: 50%;
-      border: 1.5px solid #10b981;
-      animation: pulse 2s infinite;
-      opacity: 0.7;
-    }
-
-    @keyframes pulse {
-      0% { transform: scale(0.9); opacity: 0.8; }
-      50% { transform: scale(1.6); opacity: 0; }
-      100% { transform: scale(0.9); opacity: 0; }
     }
 
     /* Main Container / Board */
@@ -1211,29 +1153,27 @@
         <option value="low">🌱 Low</option>
       </select>
 
-      <!-- File sync status badge -->
-      <div id="fileStatusBadge" class="file-status-badge" title="Click to sync or select tasks.json on disk">
-        <span class="status-dot" id="statusDot"></span>
-        <span id="statusLabel">Local Storage</span>
-      </div>
-
-      <!-- File Actions -->
-      <button id="btnLinkFile" class="btn btn-secondary" title="Link to local tasks.json file for continuous auto-save">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 12v7H5v-7H3v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2v9.67z"/></svg>
-        <span>Link tasks.json</span>
-      </button>
-
-      <button id="btnDownloadJson" class="btn btn-secondary btn-icon-only" title="Download tasks.json now">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
-      </button>
-
+      <!-- Upload JSON -->
       <input type="file" id="fileInputPicker" accept=".json" style="display:none" />
-      <button id="btnImportJson" class="btn btn-secondary btn-icon-only" title="Import from another JSON file">
+      <button id="btnUploadJson" class="btn btn-secondary" title="Upload a JSON file of tasks">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
+        <span>Upload JSON</span>
+      </button>
+
+      <!-- Download JSON -->
+      <button id="btnDownloadJson" class="btn btn-secondary" title="Download tasks as JSON file">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+        <span>Download JSON</span>
+      </button>
+
+      <!-- Clear Board Button -->
+      <button id="btnClearBoard" class="btn btn-secondary btn-danger-hover" title="Clear all tasks from the board">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+        <span>Clear</span>
       </button>
 
       <!-- New Task Button -->
-      <button id="btnNewTask" class="btn btn-primary">
+      <button id="btnNewTask" class="btn btn-primary" title="Create a new task">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 11h-6V5h-2v6H5v2h6v6h2v-6h6z"/></svg>
         <span>New Task</span>
       </button>
@@ -1472,7 +1412,6 @@
     // In-Memory State
     let tasks = [];
     let activeEditingTaskId = null;
-    let fileHandle = null; // File System Access API handle
     let draggedTaskId = null;
     let isDragging = false;
 
@@ -1485,9 +1424,6 @@
     const searchInput = document.getElementById('searchInput');
     const priorityFilter = document.getElementById('priorityFilter');
     const taskStatsCounter = document.getElementById('taskStatsCounter');
-    const fileStatusBadge = document.getElementById('fileStatusBadge');
-    const statusDot = document.getElementById('statusDot');
-    const statusLabel = document.getElementById('statusLabel');
 
     // Modals
     const modalCreateOverlay = document.getElementById('modalCreateOverlay');
@@ -1503,9 +1439,9 @@
     const cancelEditBtn = document.getElementById('cancelEditBtn');
     const btnSaveTask = document.getElementById('btnSaveTask');
     const btnDeleteTask = document.getElementById('btnDeleteTask');
-    const btnLinkFile = document.getElementById('btnLinkFile');
+    const btnUploadJson = document.getElementById('btnUploadJson');
     const btnDownloadJson = document.getElementById('btnDownloadJson');
-    const btnImportJson = document.getElementById('btnImportJson');
+    const btnClearBoard = document.getElementById('btnClearBoard');
     const fileInputPicker = document.getElementById('fileInputPicker');
 
     // Edit Modal Tabs
@@ -1515,69 +1451,107 @@
     const tabHistory = document.getElementById('tabHistory');
 
     /* -------------------------------------------------------------
-     * INITIALIZATION AND PERSISTENCE
+     * STRICT TASK JSON VALIDATION
      * ------------------------------------------------------------- */
 
-    // Check if running on local development server
-    const isLocalServer = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+    function validateTasksJson(parsed) {
+      if (!parsed) {
+        return { valid: false, error: 'Empty content: JSON is null or undefined.' };
+      }
+
+      let list = null;
+      if (Array.isArray(parsed)) {
+        list = parsed;
+      } else if (typeof parsed === 'object' && Array.isArray(parsed.tasks)) {
+        list = parsed.tasks;
+      } else {
+        return {
+          valid: false,
+          error: 'Invalid format: JSON root must be an array of task objects (e.g. [ { "name": "..." } ]) or an object with a "tasks" array property.'
+        };
+      }
+
+      for (let i = 0; i < list.length; i++) {
+        const item = list[i];
+        const num = i + 1;
+
+        if (!item || typeof item !== 'object' || Array.isArray(item)) {
+          return {
+            valid: false,
+            error: `Invalid task at index ${num}: Expected a task object, but found ${item === null ? 'null' : Array.isArray(item) ? 'an array' : typeof item}.`
+          };
+        }
+
+        const taskName = item.name !== undefined ? item.name : item.nombre;
+        if (taskName === undefined || taskName === null || typeof taskName !== 'string' || taskName.trim().length === 0) {
+          return {
+            valid: false,
+            error: `Invalid task at index ${num}: Missing or empty 'name' property. Every task must have a name.`
+          };
+        }
+
+        const rawStatus = item.status !== undefined ? item.status : item.estado;
+        if (rawStatus !== undefined && rawStatus !== null && typeof rawStatus !== 'string') {
+          return {
+            valid: false,
+            error: `Invalid task #${num} ("${taskName}"): 'status' must be a string.`
+          };
+        }
+
+        const rawPriority = item.priority !== undefined ? item.priority : item.prioridad;
+        if (rawPriority !== undefined && rawPriority !== null && typeof rawPriority !== 'string') {
+          return {
+            valid: false,
+            error: `Invalid task #${num} ("${taskName}"): 'priority' must be a string.`
+          };
+        }
+
+        const rawHistory = item.history !== undefined ? item.history : item.historial;
+        if (rawHistory !== undefined && rawHistory !== null && !Array.isArray(rawHistory)) {
+          return {
+            valid: false,
+            error: `Invalid task #${num} ("${taskName}"): 'history' must be an array.`
+          };
+        }
+
+        const rawComments = item.comments !== undefined ? item.comments : item.comentarios;
+        if (rawComments !== undefined && rawComments !== null && !Array.isArray(rawComments)) {
+          return {
+            valid: false,
+            error: `Invalid task #${num} ("${taskName}"): 'comments' must be an array.`
+          };
+        }
+      }
+
+      return { valid: true, list };
+    }
+
+    /* -------------------------------------------------------------
+     * INITIALIZATION AND PERSISTENCE
+     * ------------------------------------------------------------- */
 
     async function initApp() {
       setupEventListeners();
       renderBoardColumns();
 
-      let loaded = false;
-
-      // On a local Node.js server, tasks.json on disk is the live source of truth
-      if (isLocalServer) {
+      // Board starts empty by default on a fresh visit
+      const stored = localStorage.getItem('vg_task_manager_tasks');
+      if (stored) {
         try {
-          const response = await fetch('./tasks.json', { cache: 'no-store' });
-          if (response.ok) {
-            const data = await response.json();
-            tasks = normalizeTasks(data);
-            loaded = true;
-            saveToLocalStorage();
-            showToast('Tasks loaded from tasks.json', 'success');
-          }
-        } catch (err) {
-          // fallback to localStorage
-        }
-      }
-
-      // If running on GitHub Pages (static host), check localStorage first to preserve user edits
-      if (!loaded) {
-        const stored = localStorage.getItem('vg_task_manager_tasks') || localStorage.getItem('vg_kanban_tasks');
-        if (stored) {
-          try {
-            tasks = normalizeTasks(JSON.parse(stored));
-            loaded = true;
-            showToast('Tasks loaded from local storage', 'info');
-          } catch (e) {
+          const parsed = JSON.parse(stored);
+          const validation = validateTasksJson(parsed);
+          if (validation.valid) {
+            tasks = normalizeTasks(validation.list);
+          } else {
             tasks = [];
           }
-        }
-      }
-
-      // If still not loaded (e.g. first visit on GitHub Pages), load default tasks.json from repo
-      if (!loaded) {
-        try {
-          const response = await fetch('./tasks.json', { cache: 'no-store' });
-          if (response.ok) {
-            const data = await response.json();
-            tasks = normalizeTasks(data);
-            loaded = true;
-            saveToLocalStorage();
-            showToast('Tasks loaded from tasks.json', 'success');
-          }
-        } catch (err) {
+        } catch (e) {
           tasks = [];
         }
+      } else {
+        tasks = [];
       }
 
-      if (isLocalServer) {
-        updateSyncBadge('server');
-      } else {
-        updateSyncBadge(fileHandle ? 'file' : false);
-      }
       renderBoard();
     }
 
@@ -1653,126 +1627,20 @@
       localStorage.setItem('vg_task_manager_tasks', JSON.stringify(tasks, null, 2));
     }
 
-    async function persistChanges(notifyMessage = 'Saved') {
+    function persistChanges(notifyMessage = 'Saved') {
       saveToLocalStorage();
-
-      // If served over local HTTP server (localhost), save to tasks.json on disk
-      if (isLocalServer) {
-        try {
-          const res = await fetch('./tasks.json', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(tasks, null, 2)
-          });
-          if (res.ok) {
-            updateSyncBadge('server');
-            if (notifyMessage) showToast(`${notifyMessage} and saved to tasks.json`, 'success');
-            return;
-          }
-        } catch (err) {
-          console.warn('Could not save via HTTP server:', err);
-        }
-      }
-
-      // If File System Access API handle is active, write directly to file
-      if (fileHandle) {
-        try {
-          const writable = await fileHandle.createWritable();
-          await writable.write(JSON.stringify(tasks, null, 2));
-          await writable.close();
-          updateSyncBadge('file');
-          if (notifyMessage) showToast(`${notifyMessage} and synced to tasks.json`, 'success');
-          return;
-        } catch (err) {
-          console.warn('Error writing to tasks.json:', err);
-          updateSyncBadge(false);
-        }
-      }
-
       if (notifyMessage) showToast(notifyMessage, 'info');
     }
 
-    function updateSyncBadge(mode = false) {
-      if (isLocalServer && (mode === 'server' || mode !== false)) {
-        statusDot.classList.add('synced');
-        statusLabel.textContent = 'tasks.json synced (Server)';
-        btnLinkFile.classList.add('btn-sync');
-        btnLinkFile.innerHTML = `
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-          <span>tasks.json connected</span>
-        `;
-      } else if (mode === 'file' || fileHandle) {
-        statusDot.classList.add('synced');
-        statusLabel.textContent = 'tasks.json linked (Auto-save)';
-        btnLinkFile.classList.add('btn-sync');
-        btnLinkFile.innerHTML = `
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-          <span>tasks.json linked</span>
-        `;
-      } else {
-        statusDot.classList.remove('synced');
-        statusLabel.textContent = 'Local Storage (Exportable)';
-        btnLinkFile.classList.remove('btn-sync');
-        btnLinkFile.innerHTML = `
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 12v7H5v-7H3v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2v9.67z"/></svg>
-          <span>Link tasks.json</span>
-        `;
-      }
-    }
-
     /* -------------------------------------------------------------
-     * FILE SYSTEM ACCESS API & EXPORT/IMPORT
+     * FILE IMPORT, EXPORT & CLEAR ACTIONS
      * ------------------------------------------------------------- */
 
-    async function linkLocalFile() {
-      if ('showOpenFilePicker' in window) {
-        try {
-          const [handle] = await window.showOpenFilePicker({
-            types: [{
-              description: 'JSON Files',
-              accept: { 'application/json': ['.json'] }
-            }],
-            multiple: false
-          });
-
-          // Request read/write permissions
-          const options = { mode: 'readwrite' };
-          if ((await handle.queryPermission(options)) !== 'granted') {
-            if ((await handle.requestPermission(options)) !== 'granted') {
-              showToast('Write permission denied.', 'error');
-              return;
-            }
-          }
-
-          fileHandle = handle;
-          const file = await fileHandle.getFile();
-          const text = await file.text();
-          if (text.trim()) {
-            try {
-              const parsed = JSON.parse(text);
-              tasks = normalizeTasks(parsed);
-              saveToLocalStorage();
-              renderBoard();
-            } catch (e) {
-              console.error('The selected JSON file has an invalid format:', e);
-            }
-          }
-
-          updateSyncBadge(true);
-          showToast(`Linked successfully with "${file.name}". Auto-save enabled!`, 'success');
-        } catch (err) {
-          if (err.name !== 'AbortError') {
-            showToast('Could not link file: ' + err.message, 'error');
-          }
-        }
-      } else {
-        // Fallback for browsers without File System Access API
-        downloadJsonFile();
-        showToast('Your browser does not support the File System Access API. tasks.json was downloaded as a backup.', 'info');
-      }
-    }
-
     function downloadJsonFile() {
+      if (!tasks || tasks.length === 0) {
+        showToast('Board is empty. Create a task or upload a JSON file first.', 'warning');
+        return;
+      }
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(tasks, null, 2));
       const downloadAnchor = document.createElement('a');
       downloadAnchor.setAttribute("href", dataStr);
@@ -1780,31 +1648,56 @@
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
       downloadAnchor.remove();
-      showToast('Download of tasks.json started', 'success');
+      showToast(`Downloaded tasks.json (${tasks.length} task${tasks.length === 1 ? '' : 's'})`, 'success');
     }
 
-    function triggerImportJson() {
+    function triggerUploadJson() {
       fileInputPicker.click();
     }
 
-    fileInputPicker.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
+    function handleImportJson(jsonText, filename = 'file.json') {
+      if (!jsonText || !jsonText.trim()) {
+        showToast('The uploaded file is empty.', 'error');
+        alert(`Upload rejected: The file "${filename}" is empty.`);
+        return false;
+      }
 
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const imported = JSON.parse(event.target.result);
-          tasks = normalizeTasks(imported);
-          persistChanges('JSON file imported successfully');
-          renderBoard();
-        } catch (err) {
-          showToast('Error importing JSON file: ' + err.message, 'error');
-        }
-      };
-      reader.readAsText(file);
-      fileInputPicker.value = '';
-    });
+      let parsed;
+      try {
+        parsed = JSON.parse(jsonText);
+      } catch (err) {
+        showToast('Invalid JSON syntax: ' + err.message, 'error');
+        alert(`Upload rejected: The file "${filename}" contains invalid JSON syntax.\n\nError: ${err.message}`);
+        return false;
+      }
+
+      const res = validateTasksJson(parsed);
+      if (!res.valid) {
+        showToast('Validation failed: ' + res.error, 'error');
+        alert(`Upload rejected: The file "${filename}" has an invalid tasks format.\n\n${res.error}`);
+        return false;
+      }
+
+      // Format is valid! Now update the board
+      tasks = normalizeTasks(res.list);
+      saveToLocalStorage();
+      renderBoard();
+      showToast(`Successfully uploaded ${tasks.length} task${tasks.length === 1 ? '' : 's'} from ${filename}`, 'success');
+      return true;
+    }
+
+    function clearBoard() {
+      if (!tasks || tasks.length === 0) {
+        showToast('Board is already empty', 'info');
+        return;
+      }
+      if (confirm(`Are you sure you want to clear all ${tasks.length} tasks from the board?\n\nTip: You can download tasks.json before clearing if you want to keep a backup.`)) {
+        tasks = [];
+        localStorage.removeItem('vg_task_manager_tasks');
+        renderBoard();
+        showToast('Board cleared', 'info');
+      }
+    }
 
     /* -------------------------------------------------------------
      * BOARD RENDERING
@@ -2523,29 +2416,32 @@
       searchInput.addEventListener('input', renderBoard);
       priorityFilter.addEventListener('change', renderBoard);
 
-      // File Management
-      btnLinkFile.addEventListener('click', linkLocalFile);
-      fileStatusBadge.addEventListener('click', linkLocalFile);
+      // JSON File Upload, Download & Clear
+      btnUploadJson.addEventListener('click', triggerUploadJson);
       btnDownloadJson.addEventListener('click', downloadJsonFile);
-      btnImportJson.addEventListener('click', triggerImportJson);
+      btnClearBoard.addEventListener('click', clearBoard);
+
+      fileInputPicker.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          handleImportJson(event.target.result, file.name);
+        };
+        reader.readAsText(file);
+        fileInputPicker.value = '';
+      });
 
       // Drag and drop JSON file onto window to import
       window.addEventListener('dragover', (e) => e.preventDefault());
       window.addEventListener('drop', (e) => {
         if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
           const file = e.dataTransfer.files[0];
-          if (file.name.endsWith('.json')) {
+          if (file.name.toLowerCase().endsWith('.json') || file.type === 'application/json') {
             e.preventDefault();
             const reader = new FileReader();
             reader.onload = (event) => {
-              try {
-                const parsed = JSON.parse(event.target.result);
-                tasks = normalizeTasks(parsed);
-                persistChanges(`File ${file.name} imported successfully`);
-                renderBoard();
-              } catch (err) {
-                showToast('Error importing file: ' + err.message, 'error');
-              }
+              handleImportJson(event.target.result, file.name);
             };
             reader.readAsText(file);
           }
