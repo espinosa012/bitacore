@@ -1,9 +1,9 @@
-/* EasyMDE, aligned with Fomantic-UI forms */
+/* EasyMDE in the app's dark palette, aligned with Fomantic-UI inverted forms */
 .EasyMDEContainer .editor-toolbar {
-  border-color: rgba(34, 36, 38, 0.15);
+  background: var(--app-surface-2);
+  border-color: var(--app-border-strong);
   border-radius: 0.28571429rem 0.28571429rem 0 0;
   padding: 4px 6px;
-  background: #f9fafb;
   opacity: 1;
 }
 
@@ -14,17 +14,30 @@
   align-items: center;
   justify-content: center;
   vertical-align: middle;
-  color: rgba(0, 0, 0, 0.7);
+  color: var(--app-muted);
+  border: 1px solid transparent;
 }
 
 .EasyMDEContainer .editor-toolbar button:hover,
 .EasyMDEContainer .editor-toolbar button.active {
-  background: #e0e1e2;
+  background: var(--app-surface-3);
   border-color: transparent;
+  color: var(--app-text);
+}
+
+.EasyMDEContainer .editor-toolbar i.separator {
+  border-left-color: var(--app-border-strong);
+  border-right: none;
+}
+
+.EasyMDEContainer .editor-toolbar.disabled-for-preview button:not(.no-disable) {
+  opacity: 0.35;
 }
 
 .EasyMDEContainer .CodeMirror {
-  border-color: rgba(34, 36, 38, 0.15);
+  background: #15191f;
+  color: var(--app-text);
+  border-color: var(--app-border-strong);
   border-radius: 0 0 0.28571429rem 0.28571429rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.9rem;
@@ -32,8 +45,35 @@
 }
 
 .EasyMDEContainer .CodeMirror-focused {
-  border-color: #85b7d9;
+  border-color: var(--app-accent);
 }
+
+.EasyMDEContainer .CodeMirror-cursor {
+  border-left-color: var(--app-text);
+}
+
+.EasyMDEContainer .CodeMirror-selected,
+.EasyMDEContainer .CodeMirror-focused .CodeMirror-selected,
+.EasyMDEContainer .CodeMirror-line::selection,
+.EasyMDEContainer .CodeMirror-line > span::selection,
+.EasyMDEContainer .CodeMirror-line > span > span::selection {
+  background: rgba(79, 143, 230, 0.35);
+}
+
+.EasyMDEContainer .CodeMirror .CodeMirror-placeholder {
+  color: rgba(230, 232, 235, 0.38);
+}
+
+.EasyMDEContainer .cm-s-easymde .cm-header { color: #a9c7f5; }
+.EasyMDEContainer .cm-s-easymde .cm-link,
+.EasyMDEContainer .cm-s-easymde .cm-url { color: #6cb6ff; }
+.EasyMDEContainer .cm-s-easymde .cm-comment { background: rgba(255, 255, 255, 0.07); color: #f2cc60; border-radius: 3px; }
+.EasyMDEContainer .cm-s-easymde .cm-quote { color: var(--app-muted); }
+.EasyMDEContainer .cm-s-easymde .cm-tag { color: #f47067; }
+.EasyMDEContainer .cm-s-easymde .cm-attribute { color: #6cb6ff; }
+.EasyMDEContainer .cm-s-easymde .cm-string { color: #96d0ff; }
+.EasyMDEContainer .cm-s-easymde .cm-formatting-list,
+.EasyMDEContainer .cm-s-easymde .cm-variable-2 { color: #b4c6ff; }
 
 /* Fomantic sets textarea styles that leak into CodeMirror's hidden input */
 .ui.form .EasyMDEContainer textarea {
@@ -47,7 +87,9 @@
   font-family: Lato, 'Helvetica Neue', Arial, Helvetica, sans-serif;
   font-size: 1rem;
   line-height: 1.6;
-  background: #fff;
+  background: #15191f;
+  color: var(--app-text);
+  border-color: var(--app-border-strong);
 }
 
 .EasyMDEContainer .editor-preview-active {
@@ -58,27 +100,51 @@
 .EasyMDEContainer .editor-preview h2,
 .EasyMDEContainer .editor-preview h3 {
   margin: 0.6em 0 0.4em;
+  color: #fff;
+}
+
+.EasyMDEContainer .editor-preview a,
+.EasyMDEContainer .editor-preview-side a {
+  color: #6cb6ff;
 }
 
 .EasyMDEContainer .editor-preview blockquote {
-  border-left: 3px solid #2185d0;
+  border-left: 3px solid var(--app-accent);
   margin: 0.6em 0;
   padding: 2px 12px;
-  color: rgba(0, 0, 0, 0.6);
+  color: var(--app-muted);
 }
 
-.EasyMDEContainer .editor-preview pre {
-  background: #f6f8fa;
-  border: 1px solid rgba(34, 36, 38, 0.1);
+.EasyMDEContainer .editor-preview code,
+.EasyMDEContainer .editor-preview-side code {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.EasyMDEContainer .editor-preview pre,
+.EasyMDEContainer .editor-preview-side pre {
+  background: #0d1014;
+  border: 1px solid var(--app-border);
   border-radius: 4px;
   padding: 10px 12px;
   overflow-x: auto;
 }
 
+.EasyMDEContainer .editor-preview pre code,
+.EasyMDEContainer .editor-preview-side pre code {
+  background: none;
+  padding: 0;
+}
+
 .EasyMDEContainer .editor-preview table td,
 .EasyMDEContainer .editor-preview table th {
-  border: 1px solid rgba(34, 36, 38, 0.15);
+  border: 1px solid var(--app-border-strong);
   padding: 5px 10px;
+}
+
+.EasyMDEContainer .editor-preview table th {
+  background: var(--app-surface-2);
 }
 
 .EasyMDEContainer .editor-preview img {
@@ -92,6 +158,7 @@
 /* Fullscreen above the sticky header */
 .EasyMDEContainer .editor-toolbar.fullscreen {
   z-index: 1001;
+  background: var(--app-surface);
 }
 
 .EasyMDEContainer .CodeMirror-fullscreen,

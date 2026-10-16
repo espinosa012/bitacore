@@ -22,6 +22,21 @@
       };
     }
 
+    // Optional tag registry at the root: { "tags": [ "name" | { "name", "color" } ], "tasks": [...] }
+    const rawTags = !Array.isArray(parsed) ? parsed.tags : undefined;
+    if (rawTags !== undefined && rawTags !== null) {
+      if (!Array.isArray(rawTags)) {
+        return { valid: false, error: `Invalid format: the root "tags" property must be an array of tag names or { "name": "..." } objects.` };
+      }
+      for (let i = 0; i < rawTags.length; i++) {
+        const tag = rawTags[i];
+        const tagName = typeof tag === 'string' ? tag : (tag && typeof tag === 'object' ? tag.name : undefined);
+        if (typeof tagName !== 'string' || tagName.trim().length === 0) {
+          return { valid: false, error: `Invalid tag #${i + 1} in the root "tags" list: every tag needs a non-empty name.` };
+        }
+      }
+    }
+
     for (let i = 0; i < list.length; i++) {
       const item = list[i];
       const num = i + 1;
@@ -73,6 +88,15 @@
         };
       }
 
+      const rawTaskTags = item.tags !== undefined ? item.tags : item.etiquetas;
+      if (rawTaskTags !== undefined && rawTaskTags !== null && typeof rawTaskTags !== 'string' &&
+          !(Array.isArray(rawTaskTags) && rawTaskTags.every(tg => typeof tg === 'string'))) {
+        return {
+          valid: false,
+          error: `Invalid task #${num} ("${taskName}"): 'tags' must be an array of tag names.`
+        };
+      }
+
       const rawAttachments = item.attachments !== undefined ? item.attachments : item.adjuntos;
       if (rawAttachments !== undefined && rawAttachments !== null) {
         if (!Array.isArray(rawAttachments)) {
@@ -100,7 +124,7 @@
       }
     }
 
-    return { valid: true, list };
+    return { valid: true, list, tags: Array.isArray(rawTags) ? rawTags : [] };
   }
 
   function isSafeId(id) {
@@ -152,6 +176,8 @@
         timestamp: c.timestamp || new Date().toISOString()
       }));
 
+      const tags = window.VG.Tags.normalizeList(t.tags !== undefined ? t.tags : t.etiquetas);
+
       // Attachments normalization (filename, name, description, size, type, created_at)
       const rawAttachments = Array.isArray(t.attachments) ? t.attachments : (Array.isArray(t.adjuntos) ? t.adjuntos : []);
       const attachments = rawAttachments.map(a => {
@@ -176,6 +202,7 @@
         'openspec-id': openspecId,
         priority,
         status,
+        tags,
         created_at: createdAt,
         updated_at: updatedAt,
         history,

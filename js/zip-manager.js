@@ -19,7 +19,7 @@
     const zip = new JSZip();
 
     // 1. Add tasks.json at root
-    const jsonStr = JSON.stringify(tasks, null, 2);
+    const jsonStr = JSON.stringify(window.VG.App.buildDocument(), null, 2);
     zip.file('tasks.json', jsonStr);
 
     // 2. Add attachments in subdirectories: attachments/<taskId>/<filename>
@@ -140,7 +140,7 @@
       }
     }
 
-    return { tasks, attachmentCount };
+    return { tasks, tags: validation.tags, attachmentCount };
   }
 
   window.VG.ZipManager = {

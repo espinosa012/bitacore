@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -14,7 +14,7 @@
 
   <!-- Application Header -->
   <header class="app-header">
-    <div class="ui borderless stackable menu app-menu">
+    <div class="ui inverted borderless stackable menu app-menu">
       <div class="header item app-brand">
         <i class="large tasks icon app-brand-icon"></i>
         <div>
@@ -41,9 +41,15 @@
         </select>
       </div>
 
+      <div class="item board-only">
+        <select id="tagFilter" class="ui dropdown" aria-label="Filter by tag" disabled>
+          <option value="all">All tags</option>
+        </select>
+      </div>
+
       <div class="right menu">
         <div class="item">
-          <a id="folderStatusBadge" class="ui basic label folder-status" title="Live synchronization status with local folder" role="button" tabindex="0">
+          <a id="folderStatusBadge" class="ui basic inverted label folder-status" title="Live synchronization status with local folder" role="button" tabindex="0">
             <span class="status-dot" id="folderDot"></span>
             <span id="folderLabel">Standalone</span>
           </a>
@@ -103,22 +109,22 @@
   <!-- Task Page (route: #/task/<id>) -->
   <section class="task-page" id="taskPage" hidden aria-labelledby="pageTaskName">
     <div class="ui container">
-      <div class="ui secondary stackable menu task-page-topbar">
+      <div class="ui secondary inverted stackable menu task-page-topbar">
         <div class="item">
-          <button type="button" class="ui basic labeled icon button" id="pageBackBtn" title="Back to board">
+          <button type="button" class="ui basic inverted labeled icon button" id="pageBackBtn" title="Back to board">
             <i class="arrow left icon"></i>
             Board
           </button>
         </div>
         <div class="item">
-          <span class="ui basic label task-id-label" id="pageTaskIdLabel"></span>
+          <span class="ui basic inverted label task-id-label" id="pageTaskIdLabel"></span>
           <span class="ui yellow label" id="pageDirtyBadge" hidden>
             <i class="pencil alternate icon"></i>
             Unsaved changes
           </span>
         </div>
         <div class="right item">
-          <button type="button" class="ui basic red button" id="pageDeleteBtn">
+          <button type="button" class="ui basic inverted red button" id="pageDeleteBtn">
             <i class="trash alternate outline icon"></i>
             Delete
           </button>
@@ -132,7 +138,7 @@
 
       <div class="ui stackable grid">
         <div class="eleven wide column">
-          <div class="ui form">
+          <div class="ui inverted form">
             <div class="field">
               <div class="ui transparent fluid input task-page-title">
                 <input type="text" id="pageTaskName" placeholder="Task title" autocomplete="off" aria-label="Task title" />
@@ -140,37 +146,37 @@
             </div>
           </div>
 
-          <h4 class="ui dividing header">
+          <h4 class="ui inverted dividing header">
             <i class="align left icon"></i>
             <div class="content">Description</div>
           </h4>
-          <div class="ui form">
+          <div class="ui inverted form">
             <textarea id="pageTaskDesc" placeholder="Write the task details in Markdown..."></textarea>
           </div>
 
-          <h4 class="ui dividing header task-page-section-head">
+          <h4 class="ui inverted dividing header task-page-section-head">
             <i class="paperclip icon"></i>
             <div class="content" id="pageAttachmentsTitle">Attachments</div>
-            <button type="button" class="ui mini basic labeled icon button" id="pageAddFilesBtn">
+            <button type="button" class="ui mini basic inverted labeled icon button" id="pageAddFilesBtn">
               <i class="plus icon"></i>
               Add files
             </button>
           </h4>
           <input type="file" id="pageFileInput" multiple hidden />
-          <div class="ui three stackable doubling cards" id="pageAttachmentsGrid"></div>
-          <div class="ui placeholder segment drop-zone" id="pageDropZone" role="button" tabindex="0">
+          <div class="ui three stackable doubling inverted cards" id="pageAttachmentsGrid"></div>
+          <div class="ui inverted placeholder segment drop-zone" id="pageDropZone" role="button" tabindex="0">
             <div class="ui icon header">
               <i class="cloud upload icon"></i>
               <span class="drop-zone-text">Drop files here to attach them, or <a>browse from computer</a></span>
             </div>
           </div>
 
-          <h4 class="ui dividing header">
+          <h4 class="ui inverted dividing header">
             <i class="comments outline icon"></i>
             <div class="content" id="pageCommentsTitle">Comments</div>
           </h4>
-          <div class="ui comments" id="pageCommentsList"></div>
-          <form id="pageCommentForm" class="ui reply form">
+          <div class="ui inverted comments" id="pageCommentsList"></div>
+          <form id="pageCommentForm" class="ui inverted reply form">
             <div class="field">
               <input type="text" id="pageCommentAuthor" placeholder="Your name" autocomplete="off" />
             </div>
@@ -186,8 +192,8 @@
 
         <div class="five wide column">
           <div class="task-page-sidebar">
-            <div class="ui segment">
-              <div class="ui form">
+            <div class="ui inverted segment">
+              <div class="ui inverted form">
                 <div class="field">
                   <label for="pageTaskState">Status</label>
                   <select id="pageTaskState" class="ui fluid dropdown"></select>
@@ -197,22 +203,26 @@
                   <select id="pageTaskPriority" class="ui fluid dropdown"></select>
                 </div>
                 <div class="field">
+                  <label>Tags</label>
+                  <div id="pageTaskTags"></div>
+                </div>
+                <div class="field">
                   <label for="pageTaskOpenspecId">OpenSpec ID</label>
                   <input type="text" id="pageTaskOpenspecId" placeholder="e.g. add-straw" autocomplete="off" />
                 </div>
               </div>
             </div>
 
-            <div class="ui segment">
+            <div class="ui inverted segment">
               <div class="ui two column grid task-page-meta" id="pageTaskMeta"></div>
             </div>
 
-            <div class="ui segment">
-              <h4 class="ui header">
+            <div class="ui inverted segment">
+              <h4 class="ui inverted header">
                 <i class="history icon"></i>
                 <div class="content" id="pageHistoryTitle">History</div>
               </h4>
-              <div class="ui small feed" id="pageHistoryTimeline"></div>
+              <div class="ui inverted small feed" id="pageHistoryTimeline"></div>
             </div>
           </div>
         </div>
@@ -221,14 +231,14 @@
   </section>
 
   <!-- MODAL: Create Task -->
-  <div class="ui small modal" id="modalCreateOverlay">
+  <div class="ui small inverted modal" id="modalCreateOverlay">
     <i class="close icon" id="closeCreateModalBtn"></i>
     <div class="header">
       <i class="plus square outline icon"></i>
       New Task
     </div>
     <div class="content">
-      <form id="createTaskForm" class="ui form">
+      <form id="createTaskForm" class="ui inverted form">
         <div class="required field">
           <label for="newTaskName">Task Title</label>
           <input type="text" id="newTaskName" placeholder="e.g. Implement crafting menu" required autocomplete="off" />
@@ -258,6 +268,11 @@
         </div>
 
         <div class="field">
+          <label>Tags (Optional)</label>
+          <div id="newTaskTags"></div>
+        </div>
+
+        <div class="field">
           <label for="newTaskOpenspecId">OpenSpec ID (Optional)</label>
           <input type="text" id="newTaskOpenspecId" placeholder="e.g. add-crafting-menu" autocomplete="off" />
         </div>
@@ -271,7 +286,7 @@
       </form>
     </div>
     <div class="actions">
-      <button type="button" class="ui basic button" id="cancelCreateBtn">Cancel</button>
+      <button type="button" class="ui basic inverted button" id="cancelCreateBtn">Cancel</button>
       <button type="submit" form="createTaskForm" class="ui primary button">
         <i class="check icon"></i>
         Create Task
@@ -280,12 +295,12 @@
   </div>
 
   <!-- MODAL: Edit Task & Attachments -->
-  <div class="ui large modal" id="modalEditOverlay">
+  <div class="ui large inverted modal" id="modalEditOverlay">
     <i class="close icon" id="closeEditModalBtn"></i>
     <div class="header edit-modal-header">
       <span>Edit Task</span>
-      <span class="ui basic label task-id-label" id="editTaskIdLabel">#000000</span>
-      <button type="button" class="ui mini basic labeled icon button" id="btnOpenTaskPage" title="Open the full task page (unsaved edits are kept)">
+      <span class="ui basic inverted label task-id-label" id="editTaskIdLabel">#000000</span>
+      <button type="button" class="ui mini basic inverted labeled icon button" id="btnOpenTaskPage" title="Open the full task page (unsaved edits are kept)">
         <i class="external alternate icon"></i>
         Open page
       </button>
@@ -294,7 +309,7 @@
     <div class="scrolling content">
       <div class="ui stackable grid">
         <div class="eleven wide column">
-          <div class="ui form">
+          <div class="ui inverted form">
             <div class="field">
               <label for="editTaskName">Task Title</label>
               <input type="text" id="editTaskName" required autocomplete="off" />
@@ -310,7 +325,7 @@
           </div>
 
           <!-- Tabs -->
-          <div class="ui top attached tabular menu edit-tabs">
+          <div class="ui top attached inverted tabular menu edit-tabs">
             <a class="active item" id="tabBtnAttachments">
               <i class="paperclip icon"></i>
               <span>Attachments (0)</span>
@@ -326,18 +341,18 @@
           </div>
 
           <!-- Tab: Attachments -->
-          <div class="ui bottom attached active tab segment" id="tabAttachments">
-            <div class="ui divided items" id="attachmentsList"></div>
+          <div class="ui bottom attached inverted active tab segment" id="tabAttachments">
+            <div class="ui inverted divided items" id="attachmentsList"></div>
 
-            <div class="ui secondary segment">
+            <div class="ui inverted secondary segment">
               <input type="file" id="newAttachmentFile" hidden />
-              <div class="ui placeholder segment drop-zone compact-drop-zone" id="attachmentDropZone" role="button" tabindex="0">
+              <div class="ui inverted placeholder segment drop-zone compact-drop-zone" id="attachmentDropZone" role="button" tabindex="0">
                 <div class="ui icon header">
                   <i class="cloud upload icon"></i>
                   <span class="drop-zone-text attachment-drop-text">Drag & drop a file here or <a>browse from computer</a></span>
                 </div>
               </div>
-              <div class="ui form">
+              <div class="ui inverted form">
                 <div class="two fields">
                   <div class="field">
                     <input type="text" id="newAttachmentName" placeholder="Display title (optional)" autocomplete="off" />
@@ -355,9 +370,9 @@
           </div>
 
           <!-- Tab: Comments -->
-          <div class="ui bottom attached tab segment" id="tabComments">
-            <div class="ui comments" id="commentsList"></div>
-            <form id="addCommentForm" class="ui reply form">
+          <div class="ui bottom attached inverted tab segment" id="tabComments">
+            <div class="ui inverted comments" id="commentsList"></div>
+            <form id="addCommentForm" class="ui inverted reply form">
               <div class="field">
                 <input type="text" id="newCommentAuthor" placeholder="Your name" value="OpenCode" autocomplete="off" />
               </div>
@@ -372,13 +387,13 @@
           </div>
 
           <!-- Tab: History -->
-          <div class="ui bottom attached tab segment" id="tabHistory">
-            <div class="ui small feed" id="historyTimeline"></div>
+          <div class="ui bottom attached inverted tab segment" id="tabHistory">
+            <div class="ui inverted small feed" id="historyTimeline"></div>
           </div>
         </div>
 
         <div class="five wide column">
-          <div class="ui form">
+          <div class="ui inverted form">
             <div class="field">
               <label for="editTaskState">Status</label>
               <select id="editTaskState" class="ui fluid dropdown">
@@ -399,18 +414,22 @@
                 <option value="low">Low</option>
               </select>
             </div>
+            <div class="field">
+              <label>Tags</label>
+              <div id="editTaskTags"></div>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
     <div class="actions edit-modal-actions">
-      <button type="button" class="ui basic red button" id="btnDeleteTask">
+      <button type="button" class="ui basic inverted red button" id="btnDeleteTask">
         <i class="trash alternate outline icon"></i>
         Delete Task
       </button>
       <div>
-        <button type="button" class="ui basic button" id="cancelEditBtn">Cancel</button>
+        <button type="button" class="ui basic inverted button" id="cancelEditBtn">Cancel</button>
         <button type="button" class="ui primary button" id="btnSaveTask" title="Save changes (Ctrl/Cmd+Enter)">
           <i class="save icon"></i>
           Save Changes
@@ -427,6 +446,7 @@
   <script src="vendor/easymde/easymde.min.js"></script>
   <script src="js/constants.js"></script>
   <script src="js/ui.js"></script>
+  <script src="js/tags.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/validation.js"></script>
   <script src="js/markdown.js"></script>

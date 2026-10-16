@@ -20,6 +20,7 @@
 
   let currentTaskId = null;
   let descEditor = null;
+  let tagPicker = null;
   let pendingDraft = null;       // fields carried over from the edit modal
   let cameFromBoard = false;     // true when history.back() returns to the board
   let ignoreNextHashChange = false;
@@ -56,7 +57,8 @@
       description: Markdown.getValue(descEditor, el('pageTaskDesc')),
       'openspec-id': el('pageTaskOpenspecId').value,
       priority: el('pageTaskPriority').value,
-      status: el('pageTaskState').value
+      status: el('pageTaskState').value,
+      tags: tagPicker ? tagPicker.getValue() : undefined
     };
   }
 
@@ -66,7 +68,8 @@
       description: (f.description || '').trim(),
       'openspec-id': (f['openspec-id'] || '').trim(),
       priority: canonicalPriority(f.priority),
-      status: canonicalState(f.status)
+      status: canonicalState(f.status),
+      tags: (f.tags || []).map(t => t.toLowerCase()).join('\n')
     };
   }
 
@@ -90,6 +93,7 @@
     el('pageTaskOpenspecId').value = fields['openspec-id'] || '';
     el('pageTaskPriority').value = canonicalPriority(fields.priority);
     el('pageTaskState').value = canonicalState(fields.status);
+    if (tagPicker) tagPicker.setValue(fields.tags || []);
     Markdown.setValue(descEditor, el('pageTaskDesc'), fields.description || '');
 
     // Show the rendered description first; double-click or the toolbar edits it
@@ -349,7 +353,7 @@
           <span title="${escapeHtml(att.type || 'unknown type')}">${formatFileSize(att.size)}</span>
           · <span title="${escapeHtml(new Date(att.created_at).toLocaleString())}">${formatRelativeTime(att.created_at)}</span>
         </div>
-        <div class="ui bottom attached four mini basic buttons">
+        <div class="ui bottom attached four mini basic inverted buttons">
           <button type="button" class="ui icon button" data-action="open" title="Open in a new tab" aria-label="Open"><i class="external alternate icon"></i></button>
           <button type="button" class="ui icon button" data-action="download" title="Download file" aria-label="Download"><i class="download icon"></i></button>
           <button type="button" class="ui icon button" data-action="edit" title="Edit name & description" aria-label="Edit details"><i class="pencil alternate icon"></i></button>
@@ -396,7 +400,7 @@
 
     if (!blob) {
       container.classList.add('is-missing');
-      container.insertAdjacentHTML('beforeend', '<span class="ui mini basic label page-attachment-missing">Not available locally</span>');
+      container.insertAdjacentHTML('beforeend', '<span class="ui mini basic inverted label page-attachment-missing">Not available locally</span>');
       return;
     }
 
@@ -450,7 +454,7 @@
       : '—';
     const stat = (label, value) => `
       <div class="column">
-        <div class="ui mini statistic task-page-stat">
+        <div class="ui mini inverted statistic task-page-stat">
           <div class="value">${value}</div>
           <div class="label">${label}</div>
         </div>
@@ -493,6 +497,8 @@
     } else {
       el('pageTaskDesc').addEventListener('input', updateDirtyState);
     }
+
+    tagPicker = window.VG.Tags.createPicker(el('pageTaskTags'), { onChange: updateDirtyState });
 
     ['pageTaskName', 'pageTaskOpenspecId'].forEach(id => el(id).addEventListener('input', updateDirtyState));
     ['pageTaskState', 'pageTaskPriority'].forEach(id => el(id).addEventListener('change', updateDirtyState));

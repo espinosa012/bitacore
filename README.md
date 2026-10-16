@@ -1,6 +1,6 @@
 # vg-task-manager
 
-A modern, privacy-first task manager and Kanban board with task attachments, ZIP archiving, local folder synchronization, a responsive [Fomantic-UI](https://fomantic-ui.com/) (Semantic UI) interface, and zero external build tooling.
+A modern, privacy-first task manager and Kanban board with task attachments, ZIP archiving, local folder synchronization, a responsive dark [Fomantic-UI](https://fomantic-ui.com/) (Semantic UI) interface, and zero external build tooling.
 
 Live Demo (GitHub Pages): [https://espinosa012.github.io/vg-task-manager/](https://espinosa012.github.io/vg-task-manager/)
 
@@ -49,9 +49,13 @@ Live Demo (GitHub Pages): [https://espinosa012.github.io/vg-task-manager/](https
   - Chronological status transition history tracking with reasons.
   - Discussion comments thread per task.
   - OpenSpec ID integration for traceability with development workflows.
+- **Tags**:
+  - Tasks can have any number of tags; the board's tag registry is saved in `tasks.json`.
+  - Add tags from a card (tag button), the edit modal or the task page. Suggestions appear as you type, and a tag that does not exist yet is created automatically with its own color.
+  - Filter the board by tag next to the priority filter, or click a tag on a card to filter by it.
 - **Priorities & Search**:
   - Color-coded priority tags (*Blocker*, *High*, *Medium-High*, *Medium*, *Low*).
-  - Fast search matching task titles, descriptions, OpenSpec IDs, and attachment file names.
+  - Fast search matching task titles, descriptions, OpenSpec IDs, tags, and attachment file names.
 
 ---
 
@@ -96,7 +100,21 @@ my-task-folder/
 
 ## Task Schema
 
-Tasks are stored in `tasks.json` with strict schema validation:
+`tasks.json` holds the tag registry and the tasks, with strict schema validation:
+
+```json
+{
+  "tags": [
+    { "name": "frontend", "color": "blue" },
+    { "name": "crafting", "color": "teal" }
+  ],
+  "tasks": [ { ...task } ]
+}
+```
+
+A plain array of tasks (the previous format) is still accepted; its tags are added to the registry on load.
+
+Each task:
 
 ```json
 {
@@ -106,6 +124,7 @@ Tasks are stored in `tasks.json` with strict schema validation:
   "openspec-id": "crafting-spec",
   "priority": "high",
   "status": "planned",
+  "tags": ["frontend", "crafting"],
   "created_at": "2026-10-16T18:00:00.000Z",
   "updated_at": "2026-10-16T18:00:00.000Z",
   "history": [

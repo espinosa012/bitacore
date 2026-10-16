@@ -36,7 +36,7 @@
     STATES.forEach(st => {
       const isCollapsed = collapsedColumns.has(st.id);
       const colEl = document.createElement('div');
-      colEl.className = `ui ${st.color} segment board-column ${isCollapsed ? 'collapsed' : ''}`;
+      colEl.className = `ui inverted segment board-column col-${st.color} ${isCollapsed ? 'collapsed' : ''}`;
       colEl.setAttribute('data-col-state', st.id);
       if (isCollapsed) {
         colEl.setAttribute('title', `${st.label} (Collapsed - Click to expand)`);
@@ -44,16 +44,16 @@
 
       colEl.innerHTML = `
         <div class="column-header">
-          <h4 class="ui header column-title">
+          <h4 class="ui inverted header column-title">
             <i class="${st.icon} ${st.color} icon"></i>
             <div class="content">${escapeHtml(st.label)}</div>
           </h4>
-          <span class="ui circular ${st.color} basic mini label col-badge" id="badge-${escapeCss(st.id)}">0</span>
+          <span class="ui circular ${st.color} mini label col-badge" id="badge-${escapeCss(st.id)}">0</span>
           <div class="column-header-actions">
-            <button class="ui mini basic icon button col-btn-add" title="Add task to ${escapeHtml(st.label)}" aria-label="Add task to ${escapeHtml(st.label)}">
+            <button class="ui mini basic inverted icon button col-btn-add" title="Add task to ${escapeHtml(st.label)}" aria-label="Add task to ${escapeHtml(st.label)}">
               <i class="plus icon"></i>
             </button>
-            <button class="ui mini basic icon button col-btn-toggle" title="${isCollapsed ? 'Expand column' : 'Collapse column'}" aria-label="${isCollapsed ? 'Expand column' : 'Collapse column'}">
+            <button class="ui mini basic inverted icon button col-btn-toggle" title="${isCollapsed ? 'Expand column' : 'Collapse column'}" aria-label="${isCollapsed ? 'Expand column' : 'Collapse column'}">
               <i class="${isCollapsed ? 'angle double right' : 'angle double left'} icon"></i>
             </button>
           </div>
@@ -99,6 +99,9 @@
 
     const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
     const prioFilter = priorityFilter ? priorityFilter.value : 'all';
+    const tagFilterEl = document.getElementById('tagFilter');
+    const tagFilter = tagFilterEl && !tagFilterEl.disabled ? tagFilterEl.value : 'all';
+    const tagFilterKey = tagFilter.toLowerCase();
 
     // Clear card containers
     STATES.forEach(st => {
@@ -132,11 +135,13 @@
         t.name.toLowerCase().includes(query) || 
         t.description.toLowerCase().includes(query) ||
         (t['openspec-id'] && t['openspec-id'].toLowerCase().includes(query)) ||
+        (t.tags || []).some(tag => tag.toLowerCase().includes(query)) ||
         matchesAttachment;
 
       const matchesPriority = prioFilter === 'all' || t.priority === prioFilter;
+      const matchesTag = tagFilter === 'all' || (t.tags || []).some(tag => tag.toLowerCase() === tagFilterKey);
 
-      if (matchesQuery && matchesPriority) {
+      if (matchesQuery && matchesPriority && matchesTag) {
         renderTaskCard(t, query);
         counts.shown++;
       }
@@ -155,7 +160,7 @@
 
     // Update header statistics
     if (taskStatsCounter) {
-      const isFiltered = query || prioFilter !== 'all';
+      const isFiltered = query || prioFilter !== 'all' || tagFilter !== 'all';
       const shownStr = isFiltered ? ` (${counts.shown} shown)` : '';
       taskStatsCounter.textContent = `${counts.total} tasks${shownStr} · ${counts['in progress']} in progress · ${counts.blocked} blocked`;
     }
@@ -187,7 +192,7 @@
     const openSpecId = task['openspec-id'];
 
     const card = document.createElement('div');
-    card.className = `ui fluid card task-card prio-${prioKey}`;
+    card.className = `ui fluid inverted card task-card prio-${prioKey}`;
     card.draggable = true;
     card.tabIndex = 0;
     card.setAttribute('role', 'button');
@@ -208,13 +213,14 @@
             <i class="${prioMeta.icon} icon"></i>${escapeHtml(prioMeta.label)}
           </span>
           ${openSpecId ? `
-            <span class="ui mini basic teal label card-openspec" title="OpenSpec: ${escapeHtml(openSpecId)}">
+            <span class="ui mini basic inverted teal label card-openspec" title="OpenSpec: ${escapeHtml(openSpecId)}">
               <i class="file alternate outline icon"></i>${escapeHtml(openSpecId)}
             </span>` : ''}
           <span class="card-id">#${escapeHtml(task.id.slice(-6))}</span>
         </div>
         <div class="header card-title">${highlight(task.name, query)}</div>
         ${descText ? `<div class="description card-desc">${highlight(descText, query)}</div>` : ''}
+        ${(task.tags || []).length ? `<div class="card-tags">${window.VG.Tags.renderLabels(task.tags, { highlight: (name) => highlight(name, query) })}</div>` : ''}
       </div>
       <div class="extra content card-footer">
         <span class="card-meta">
@@ -222,12 +228,15 @@
           ${commentsCount > 0 ? `<span title="${plural(commentsCount, 'comment')}"><i class="comment outline icon"></i>${commentsCount}</span>` : ''}
           <span title="${plural(historyCount, 'transition')}"><i class="history icon"></i>${historyCount}</span>
         </span>
-        <span class="card-footer-right">
-          <span class="card-updated">${lastUpdateStr}</span>
-          <button type="button" class="ui mini basic icon button card-open-page" title="Open task page" aria-label="Open task page">
-            <i class="external alternate icon"></i>
-          </button>
-        </span>
+        <span class="card-updated">${lastUpdateStr}</span>
+      </div>
+      <div class="card-actions">
+        <button type="button" class="ui mini icon button card-edit-tags" title="Edit tags" aria-label="Edit tags">
+          <i class="tags icon"></i>
+        </button>
+        <button type="button" class="ui mini icon button card-open-page" title="Open task page" aria-label="Open task page">
+          <i class="external alternate icon"></i>
+        </button>
       </div>
     `;
 
@@ -237,6 +246,18 @@
       if (e.target.closest('.card-open-page')) {
         e.stopPropagation();
         if (window.VG.TaskPage) window.VG.TaskPage.open(task.id);
+        return;
+      }
+      if (e.target.closest('.card-edit-tags')) {
+        e.stopPropagation();
+        editTaskTags(task);
+        return;
+      }
+      const tagLabel = e.target.closest('.tag-label');
+      if (tagLabel) {
+        // Clicking a tag filters the board by it
+        e.stopPropagation();
+        setTagFilter(tagLabel.getAttribute('data-tag'));
         return;
       }
       if (window.VG.Modals) window.VG.Modals.openEditModal(task);
@@ -379,7 +400,48 @@
     }, { offset: Number.NEGATIVE_INFINITY }).element;
   }
 
+  function setTagFilter(name) {
+    const select = document.getElementById('tagFilter');
+    if (!select) return;
+    const option = [...select.options].find(o => o.value.toLowerCase() === String(name).toLowerCase());
+    select.value = option && select.value !== option.value ? option.value : 'all';
+    renderBoard();
+  }
+
+  /** Quick tag editor opened from a card */
+  async function editTaskTags(task) {
+    const UI = window.VG.UI;
+    let picker = null;
+    const names = await UI.dialog({
+      title: `Tags · ${task.name}`,
+      size: 'tiny',
+      content: '<div class="ui inverted form"><div class="field"><div class="tag-picker-host"></div></div><p class="tag-picker-hint">Type to search; press Enter to create a new tag.</p></div>',
+      dismissValue: null,
+      buttons: [
+        { text: 'Cancel', value: null, cls: 'basic inverted' },
+        { text: 'Save tags', value: 'read', cls: 'primary' }
+      ],
+      onShow: (el) => {
+        picker = window.VG.Tags.createPicker(el.querySelector('.tag-picker-host'));
+        picker.setValue(task.tags || []);
+        picker.focus();
+      },
+      readValue: () => (picker ? picker.getValue() : null)
+    });
+    if (names === null || names === undefined) return;
+
+    const next = window.VG.Tags.ensure(names);
+    const changed = next.join('\n') !== (task.tags || []).join('\n');
+    if (!changed) return;
+    task.tags = next;
+    task.updated_at = new Date().toISOString();
+    window.VG.App.persistChanges('Tags updated');
+    renderBoard();
+  }
+
   window.VG.Board = {
+    setTagFilter,
+    editTaskTags,
     renderBoardColumns,
     renderBoard,
     renderTaskCard

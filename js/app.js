@@ -10,6 +10,8 @@
   const Board = window.VG.Board;
   const Modals = window.VG.Modals;
   const UI = window.VG.UI;
+  const Tags = window.VG.Tags;
+  const { escapeHtml } = window.VG.Constants;
 
   let tasks = [];
 
@@ -19,6 +21,30 @@
 
   function setTasks(newTasks) {
     tasks = newTasks || [];
+  }
+
+  /** Replaces the whole board (import, folder, clear) with its tag registry */
+  function replaceBoard(newTasks, rawTags = []) {
+    tasks = newTasks || [];
+    Tags.load(rawTags, tasks);
+    refreshTagFilter();
+  }
+
+  /** The tasks.json document: tag registry + tasks */
+  function buildDocument() {
+    return { tags: Tags.getAll(), tasks };
+  }
+
+  /** Rebuilds the board's tag filter options, keeping the current choice */
+  function refreshTagFilter() {
+    const select = document.getElementById('tagFilter');
+    if (!select) return;
+    const current = select.value;
+    const usage = Tags.usage(tasks).sort((a, b) => a.name.localeCompare(b.name));
+    select.innerHTML = '<option value="all">All tags</option>' +
+      usage.map(t => `<option value="${escapeHtml(t.name)}">${escapeHtml(t.name)} (${t.count})</option>`).join('');
+    select.value = usage.some(t => t.name === current) ? current : 'all';
+    select.disabled = usage.length === 0;
   }
 
   // True when the board has changes that exist only in this tab
@@ -34,12 +60,13 @@
   }
 
   function persistChanges(notifyMessage = 'Saved') {
+    refreshTagFilter();
     Storage.saveLocalTasks(tasks);
     if (!FsSync.isLiveSync()) markDirty();
 
     // If local folder is connected, save directly to tasks.json on disk ("sincronia")
     if (FsSync.isLiveSync()) {
-      FsSync.saveTasksToDirectory(tasks).then(saved => {
+      FsSync.saveTasksToDirectory(buildDocument()).then(saved => {
         if (!saved) {
           markDirty();
           showToast(`Could not write tasks.json to "${FsSync.getLinkedDirName()}". Use Download ZIP to keep your changes.`, 'error', 7000);
@@ -99,7 +126,7 @@
     try {
       showToast('Opening folder selector...', 'info');
       const result = await FsSync.selectDirectory();
-      tasks = result.tasks;
+      replaceBoard(result.tasks, result.tags);
       Storage.saveLocalTasks(tasks);
       markClean();
       updateFolderBadge();
@@ -142,7 +169,7 @@
       try {
         showToast(`Extracting ${file.name}...`, 'info');
         const res = await ZipManager.importTasksZip(file);
-        tasks = res.tasks;
+        replaceBoard(res.tasks, res.tags);
         Storage.saveLocalTasks(tasks);
         markClean();
         Board.renderBoard();
@@ -166,7 +193,7 @@
             return;
           }
 
-          tasks = Validation.normalizeTasks(validation.list);
+          replaceBoard(Validation.normalizeTasks(validation.list), validation.tags);
           Storage.saveLocalTasks(tasks);
           markClean();
           Board.renderBoard();
@@ -194,7 +221,7 @@
       { title: 'Clear board', okText: 'Clear board', danger: true }
     );
     if (ok) {
-      tasks = [];
+      replaceBoard([], []);
       Storage.clearLocalTasks();
       await Storage.clearAttachmentsIfSoleTab();
       FsSync.unlink();
@@ -211,7 +238,7 @@
       showToast('Board is empty. Create a task or upload files first.', 'warning');
       return;
     }
-    const blob = new Blob([JSON.stringify(tasks, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(buildDocument(), null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -238,6 +265,8 @@
 
     if (searchInput) searchInput.addEventListener('input', () => Board.renderBoard());
     if (priorityFilter) priorityFilter.addEventListener('change', () => Board.renderBoard());
+    const tagFilter = document.getElementById('tagFilter');
+    if (tagFilter) tagFilter.addEventListener('change', () => Board.renderBoard());
 
     if (btnNewTask) {
       btnNewTask.addEventListener('click', () => Modals.openCreateModal('planned'));
@@ -361,7 +390,7 @@
     setupEventListeners();
 
     // 5. Always start with a clean empty board on page entry
-    tasks = [];
+    replaceBoard([], []);
 
     // Clear any stale cached tasks from earlier localStorage, and the attachment
     // blobs of previous visits (nothing references them on an empty board)
@@ -385,6 +414,9 @@
     initApp,
     getTasks,
     setTasks,
+    replaceBoard,
+    buildDocument,
+    refreshTagFilter,
     persistChanges,
     showToast,
     updateFolderBadge

@@ -66,7 +66,7 @@
     return new Promise((resolve) => {
       let result = spec.dismissValue;
       const el = document.createElement('div');
-      el.className = `ui ${spec.size || 'tiny'} modal vg-dialog`;
+      el.className = `ui ${spec.size || 'tiny'} inverted modal vg-dialog`;
       el.innerHTML = `
         <div class="header">${escapeHtml(spec.title)}</div>
         <div class="content">${spec.content}</div>
@@ -116,7 +116,7 @@
       content: `<p>${escapeHtml(message).replace(/\n/g, '<br>')}</p>`,
       dismissValue: false,
       buttons: [
-        { text: 'Cancel', value: false, cls: 'basic' },
+        { text: 'Cancel', value: false, cls: 'basic inverted' },
         { text: okText, value: true, cls: danger ? 'red' : 'primary' }
       ]
     });
@@ -138,7 +138,7 @@
    */
   function formDialog(title, fields, { okText = 'Save' } = {}) {
     const content = `
-      <form class="ui form">
+      <form class="ui inverted form">
         ${fields.map(f => `
           <div class="field">
             <label>${escapeHtml(f.label)}</label>
@@ -153,7 +153,7 @@
       content,
       dismissValue: null,
       buttons: [
-        { text: 'Cancel', value: null, cls: 'basic' },
+        { text: 'Cancel', value: null, cls: 'basic inverted' },
         { text: okText, value: 'read', cls: 'primary' }
       ],
       readValue: (el) => {
@@ -166,6 +166,7 @@
 
   window.VG.UI = {
     toast,
+    dialog,
     initModal,
     showModal,
     hideModal,

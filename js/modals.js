@@ -11,6 +11,8 @@
   let activeTab = 'tabAttachments';
   let createDescEditor = null;
   let editDescEditor = null;
+  let createTagPicker = null;
+  let editTagPicker = null;
   let lastFocusedCard = null;
   let restoreFocusOnHide = true;
 
@@ -94,6 +96,10 @@
     createDescEditor = Markdown.createEditor(document.getElementById('newTaskDesc'), { minHeight: '110px' });
     editDescEditor = Markdown.createEditor(document.getElementById('editTaskDesc'), { minHeight: '130px' });
 
+    // Tag pickers (suggestions while typing, new tags created on save)
+    createTagPicker = window.VG.Tags.createPicker(document.getElementById('newTaskTags'));
+    editTagPicker = window.VG.Tags.createPicker(document.getElementById('editTaskTags'));
+
     // Open the full task page, carrying over unsaved edits from the modal
     const btnOpenTaskPage = document.getElementById('btnOpenTaskPage');
     if (btnOpenTaskPage) {
@@ -150,6 +156,7 @@
     if (createTaskForm) createTaskForm.reset();
     if (taskStateSelect) taskStateSelect.value = defaultState;
     window.VG.Markdown.setValue(createDescEditor, document.getElementById('newTaskDesc'), '');
+    if (createTagPicker) createTagPicker.setValue([]);
 
     if (modalCreateOverlay) UI.showModal(modalCreateOverlay);
   }
@@ -181,6 +188,7 @@
       'openspec-id': openspecInput.value.trim(),
       priority: canonicalPriority(prioInput.value),
       status: targetState,
+      tags: window.VG.Tags.ensure(createTagPicker ? createTagPicker.getValue() : []),
       created_at: now,
       updated_at: now,
       history: [
@@ -216,6 +224,7 @@
     document.getElementById('editTaskOpenspecId').value = task['openspec-id'] || '';
     document.getElementById('editTaskPriority').value = canonicalPriority(task.priority);
     document.getElementById('editTaskState').value = canonicalState(task.status);
+    if (editTagPicker) editTagPicker.setValue(task.tags || []);
 
     renderAttachmentsTab(task);
     renderCommentsTab(task);
@@ -265,7 +274,8 @@
       description: window.VG.Markdown.getValue(editDescEditor, document.getElementById('editTaskDesc')),
       'openspec-id': document.getElementById('editTaskOpenspecId').value,
       priority: document.getElementById('editTaskPriority').value,
-      status: document.getElementById('editTaskState').value
+      status: document.getElementById('editTaskState').value,
+      tags: editTagPicker ? editTagPicker.getValue() : undefined
     };
   }
 
@@ -287,6 +297,7 @@
     task['openspec-id'] = (fields['openspec-id'] || '').trim();
     task.priority = canonicalPriority(fields.priority);
     task.status = newStatus;
+    if (fields.tags !== undefined) task.tags = window.VG.Tags.ensure(fields.tags);
     task.updated_at = now;
 
     if (prevStatus !== newStatus) {
@@ -395,7 +406,7 @@
           ${att.description ? `<div class="description">${escapeHtml(att.description)}</div>` : ''}
           <div class="extra">
             ${formatFileSize(att.size)} · ${formatRelativeTime(att.created_at)}
-            <div class="ui right floated mini basic icon buttons">
+            <div class="ui right floated mini basic inverted icon buttons">
               <button type="button" class="ui button" data-action="open" title="Open or download file" aria-label="Open file"><i class="external alternate icon"></i></button>
               <button type="button" class="ui button" data-action="edit" title="Edit name & description" aria-label="Edit details"><i class="pencil alternate icon"></i></button>
               <button type="button" class="ui button" data-action="delete" title="Delete attachment" aria-label="Delete attachment"><i class="red trash alternate outline icon"></i></button>

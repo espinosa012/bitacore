@@ -4,14 +4,22 @@
  * framework; this file only handles the board layout and a few details.
  */
 :root {
-  --app-bg: #f4f6fa;
-  --app-border: rgba(34, 36, 38, 0.15);
-  --app-muted: rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
+  --app-bg: #111418;
+  --app-surface: #191d23;
+  --app-surface-2: #20252d;
+  --app-surface-3: #2a303a;
+  --app-border: rgba(255, 255, 255, 0.09);
+  --app-border-strong: rgba(255, 255, 255, 0.16);
+  --app-text: #e6e8eb;
+  --app-muted: rgba(230, 232, 235, 0.6);
+  --app-accent: #4f8fe6;
   --app-header-height: 64px;
 }
 
 body {
   background: var(--app-bg);
+  color: var(--app-text);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -39,7 +47,7 @@ body {
 }
 
 .app-brand .app-brand-icon {
-  color: #2185d0;
+  color: var(--app-accent);
   margin-right: 0.6em !important;
 }
 
@@ -122,7 +130,7 @@ main[hidden],
   max-width: 380px;
   margin: 0;
   padding: 12px;
-  background: #fbfcfe;
+  background: var(--app-surface);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -218,6 +226,7 @@ main[hidden],
 
 /* Task cards */
 .ui.card.task-card {
+  position: relative;
   cursor: grab;
   border-left: 3px solid transparent;
   transition: box-shadow 0.15s ease, transform 0.15s ease;
@@ -228,7 +237,7 @@ main[hidden],
 }
 
 .ui.card.task-card:focus-visible {
-  outline: 2px solid #2185d0;
+  outline: 2px solid var(--app-accent);
   outline-offset: 2px;
 }
 
@@ -286,7 +295,7 @@ main[hidden],
 }
 
 .task-card mark {
-  background: #fff3a3;
+  background: rgba(250, 204, 21, 0.35);
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
@@ -302,31 +311,48 @@ main[hidden],
 .task-card .card-meta {
   display: flex;
   gap: 10px;
+  white-space: nowrap;
 }
 
-.task-card .card-footer-right {
+.task-card .card-updated {
+  white-space: nowrap;
+}
+
+/* Hover actions float over the card's top-right corner */
+.task-card .card-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
   display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.task-card .card-open-page.ui.button {
-  margin: 0;
-  padding: 5px;
+  gap: 4px;
   opacity: 0;
   transition: opacity 0.15s;
+  z-index: 2;
 }
 
-.task-card:hover .card-open-page,
-.task-card:focus-within .card-open-page {
+.task-card .card-actions .ui.button {
+  margin: 0;
+  padding: 6px;
+  background: var(--app-surface-3);
+  color: var(--app-text);
+  box-shadow: 0 0 0 1px var(--app-border-strong) inset;
+}
+
+.task-card .card-actions .ui.button:hover {
+  background: #3a4250;
+}
+
+.task-card:hover .card-actions,
+.task-card:focus-within .card-actions {
   opacity: 1;
 }
 
 @media (hover: none) {
-  .task-card .card-open-page.ui.button {
+  .task-card .card-actions {
     opacity: 1;
   }
 }
+
 
 .card-drop-placeholder {
   width: 100%;
@@ -461,8 +487,8 @@ main[hidden],
 }
 
 .task-page-title.ui.input > input:focus {
-  background: #fff !important;
-  border-color: #85b7d9 !important;
+  background: var(--app-surface-2) !important;
+  border-color: var(--app-accent) !important;
 }
 
 .task-page-section-head {
@@ -523,7 +549,7 @@ main[hidden],
   justify-content: center;
   gap: 8px;
   overflow: hidden;
-  background: #f0f2f5 !important;
+  background: #14171c !important;
 }
 
 .page-attachment-preview.image > .icon {
@@ -553,7 +579,11 @@ main[hidden],
 .page-attachment-preview.is-text {
   align-items: stretch;
   justify-content: flex-start;
-  background: #fafafa !important;
+  background: #14171c !important;
+}
+
+.page-attachment-preview pre {
+  color: var(--app-muted);
 }
 
 .page-attachment-preview pre {
@@ -610,4 +640,365 @@ main[hidden],
   .task-page-topbar .right.item {
     flex-wrap: wrap;
   }
+}
+
+/* -------------------------------------------------------------
+ * Dark mode: Fomantic "inverted" variants are used in the markup;
+ * these rules soften pure black into the app's palette and cover
+ * components without an inverted variant.
+ * ------------------------------------------------------------- */
+.ui.inverted.menu,
+.ui.inverted.segment,
+.ui.inverted.modal,
+.ui.inverted.modal > .header,
+.ui.inverted.modal > .content {
+  background: var(--app-surface);
+  color: var(--app-text);
+}
+
+.ui.inverted.menu.app-menu {
+  border-bottom: 1px solid var(--app-border);
+}
+
+.ui.inverted.modal > .header {
+  border-bottom: 1px solid var(--app-border);
+}
+
+.ui.inverted.modal > .actions {
+  background: var(--app-surface-2);
+  border-top: 1px solid var(--app-border);
+}
+
+.ui.inverted.modal > .close {
+  color: var(--app-text);
+}
+
+.ui.dimmer {
+  background: rgba(5, 7, 10, 0.78);
+}
+
+.ui.inverted.secondary.menu.task-page-topbar {
+  background: transparent;
+}
+
+.ui.inverted.segment.board-column {
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+}
+
+.ui.inverted.segment.board-column {
+  border-top: 3px solid var(--col-color, var(--app-border-strong));
+}
+
+.board-column.col-blue { --col-color: #2185d0; }
+.board-column.col-orange { --col-color: #f2711c; }
+.board-column.col-violet { --col-color: #6435c9; }
+.board-column.col-green { --col-color: #21ba45; }
+.board-column.col-red { --col-color: #db2828; }
+
+.ui.inverted.cards > .card,
+.ui.inverted.card {
+  background: var(--app-surface-2);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--app-border);
+}
+
+.ui.inverted.card.task-card:hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45), 0 0 0 1px var(--app-border-strong);
+}
+
+.ui.inverted.card > .extra,
+.ui.inverted.cards > .card > .extra {
+  border-top-color: var(--app-border) !important;
+  color: var(--app-muted);
+}
+
+.ui.inverted.card .description,
+.ui.inverted.cards > .card .description,
+.ui.inverted.card .meta,
+.ui.inverted.cards > .card .meta {
+  color: var(--app-muted);
+}
+
+.column-empty {
+  border-color: var(--app-border-strong);
+}
+
+.ui.inverted.segment.tab {
+  background: var(--app-surface-2);
+  border-color: var(--app-border) !important;
+}
+
+.ui.inverted.tabular.menu {
+  border-bottom-color: var(--app-border);
+}
+
+.ui.inverted.tabular.menu .active.item,
+.ui.inverted.tabular.menu .active.item:hover {
+  background: var(--app-surface-2);
+  border-color: var(--app-border);
+}
+
+.ui.inverted.secondary.segment {
+  background: var(--app-surface);
+}
+
+.ui.inverted.placeholder.segment {
+  background: var(--app-surface-2);
+  border: 1px dashed var(--app-border-strong);
+  box-shadow: none;
+}
+
+.ui.inverted.placeholder.segment .ui.icon.header {
+  color: var(--app-muted);
+}
+
+.ui.inverted.placeholder.segment a,
+.ui.inverted.comments .comment .author,
+.ui.inverted.feed > .event > .content .summary {
+  color: var(--app-text);
+}
+
+.ui.inverted.placeholder.segment a {
+  color: var(--app-accent);
+}
+
+.empty-message.ui.message {
+  color: var(--app-muted);
+  border-color: var(--app-border-strong);
+}
+
+/* Inputs, textareas and native selects */
+.app-menu .ui.input > input,
+.ui.inverted.form input:not([type]):not(.search),
+.ui.inverted.form input[type="text"]:not(.search),
+.ui.inverted.form textarea,
+.ui.inverted.form select,
+select.ui.dropdown {
+  background: var(--app-surface-2) !important;
+  color: var(--app-text) !important;
+  border: 1px solid var(--app-border-strong) !important;
+}
+
+.app-menu .ui.input > input::placeholder,
+.ui.inverted.form input::placeholder,
+.ui.inverted.form textarea::placeholder {
+  color: rgba(230, 232, 235, 0.38) !important;
+}
+
+.app-menu .ui.input > input:focus,
+.ui.inverted.form input:not(.search):focus,
+.ui.inverted.form textarea:focus,
+.ui.inverted.form select:focus,
+select.ui.dropdown:focus {
+  border-color: var(--app-accent) !important;
+}
+
+.app-menu .ui.icon.input > i.icon {
+  color: var(--app-muted);
+}
+
+select.ui.dropdown:disabled {
+  opacity: 0.45;
+}
+
+select.ui.dropdown option {
+  background: var(--app-surface-2);
+  color: var(--app-text);
+}
+
+.ui.inverted.form .field > label {
+  color: var(--app-text);
+}
+
+/* Default (grey) buttons */
+.ui.button:not(.primary):not(.basic):not(.inverted):not(.red):not(.green):not(.blue):not(.teal):not(.orange):not(.yellow):not(.violet):not(.purple):not(.pink):not(.olive):not(.brown):not(.black):not(.grey) {
+  background: var(--app-surface-3);
+  color: var(--app-text);
+}
+
+.ui.button:not(.primary):not(.basic):not(.inverted):not(.red):not(.green):not(.blue):not(.teal):not(.orange):not(.yellow):not(.violet):not(.purple):not(.pink):not(.olive):not(.brown):not(.black):not(.grey):hover {
+  background: #343b47;
+  color: #fff;
+}
+
+.ui.buttons .ui.button:not(:first-child) {
+  border-left: 1px solid var(--app-border);
+}
+
+.ui.labeled.icon.button:not(.primary):not(.basic) > .icon {
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.ui.basic.inverted.button,
+.ui.basic.inverted.buttons .button {
+  box-shadow: 0 0 0 1px var(--app-border-strong) inset !important;
+  color: var(--app-text) !important;
+}
+
+.ui.basic.inverted.button:hover,
+.ui.basic.inverted.buttons .button:hover {
+  background: rgba(255, 255, 255, 0.07) !important;
+}
+
+.ui.basic.inverted.red.button {
+  box-shadow: 0 0 0 1px #e0605f inset !important;
+  color: #ff7b7a !important;
+}
+
+/* Floating menus (download dropdown, tag suggestions) */
+.ui.dropdown .menu,
+.ui.inverted.dropdown .menu {
+  background: var(--app-surface-2);
+  border-color: var(--app-border-strong);
+}
+
+.ui.dropdown .menu > .item {
+  color: var(--app-text) !important;
+  border-top-color: var(--app-border) !important;
+}
+
+.ui.dropdown .menu > .item:hover,
+.ui.dropdown .menu > .selected.item {
+  background: var(--app-surface-3) !important;
+}
+
+.ui.dropdown .menu > .message {
+  color: var(--app-muted) !important;
+}
+
+/* Labels and ids */
+.ui.basic.inverted.label.task-id-label,
+.ui.basic.inverted.label.folder-status:not(.green):not(.yellow) {
+  background: transparent;
+  color: var(--app-muted);
+  border-color: var(--app-border-strong);
+}
+
+.task-card .card-id {
+  color: rgba(230, 232, 235, 0.45);
+}
+
+/* Comments, feed and items */
+.ui.inverted.comments .comment .metadata,
+.ui.inverted.feed > .event > .content .date,
+.ui.inverted.items > .item > .content > .extra,
+.ui.inverted.items > .item > .content > .meta {
+  color: var(--app-muted);
+}
+
+.ui.inverted.comments .comment .text,
+.ui.inverted.items > .item > .content > .description,
+.ui.inverted.feed > .event > .content .extra.text {
+  color: var(--app-text);
+}
+
+.ui.inverted.divided.items > .item {
+  border-top-color: var(--app-border);
+}
+
+/* Tags */
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.card-tags .ui.label.tag-label {
+  margin: 0;
+  cursor: pointer;
+}
+
+.ui.label.tag-label > .icon {
+  margin-right: 0.35em;
+}
+
+
+.ui.dropdown.tag-picker {
+  background: var(--app-surface-2) !important;
+  border-color: var(--app-border-strong) !important;
+  color: var(--app-text) !important;
+}
+
+.ui.dropdown.tag-picker.active,
+.ui.dropdown.tag-picker:focus {
+  border-color: var(--app-accent) !important;
+}
+
+.ui.dropdown.tag-picker > input.search {
+  color: var(--app-text) !important;
+}
+
+.ui.dropdown.tag-picker > .default.text,
+.ui.dropdown.tag-picker > .text.filtered {
+  color: rgba(230, 232, 235, 0.38) !important;
+}
+
+.ui.multiple.dropdown.tag-picker > .label {
+  font-size: 0.85em;
+  box-shadow: none;
+}
+/* Selected tags inside pickers keep their tag color */
+.ui.multiple.dropdown.tag-picker > .ui.label.red { background-color: #db2828; color: #fff; }
+.ui.multiple.dropdown.tag-picker > .ui.label.orange { background-color: #f2711c; color: #fff; }
+.ui.multiple.dropdown.tag-picker > .ui.label.yellow { background-color: #fbbd08; color: #1b1c1d; }
+.ui.multiple.dropdown.tag-picker > .ui.label.olive { background-color: #b5cc18; color: #1b1c1d; }
+.ui.multiple.dropdown.tag-picker > .ui.label.green { background-color: #21ba45; color: #fff; }
+.ui.multiple.dropdown.tag-picker > .ui.label.teal { background-color: #00b5ad; color: #fff; }
+.ui.multiple.dropdown.tag-picker > .ui.label.blue { background-color: #2185d0; color: #fff; }
+.ui.multiple.dropdown.tag-picker > .ui.label.violet { background-color: #6435c9; color: #fff; }
+.ui.multiple.dropdown.tag-picker > .ui.label.purple { background-color: #a333c8; color: #fff; }
+.ui.multiple.dropdown.tag-picker > .ui.label.pink { background-color: #e03997; color: #fff; }
+.ui.multiple.dropdown.tag-picker > .ui.label.brown { background-color: #a5673f; color: #fff; }
+.ui.multiple.dropdown.tag-picker > .ui.label.grey { background-color: #767676; color: #fff; }
+
+
+.ui.dropdown.tag-picker .menu .ui.empty.circular.label {
+  margin-right: 0.6em;
+}
+
+.tag-picker-hint {
+  margin-top: 0.7em;
+  font-size: 0.85em;
+  color: var(--app-muted);
+}
+
+/* Toasts keep Fomantic colors; scrollbars follow the dark palette */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+/* The task page title reads as a heading until focused */
+.ui.inverted.form .task-page-title.ui.input > input#pageTaskName {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: #fff !important;
+}
+
+.ui.inverted.form .task-page-title.ui.input > input#pageTaskName:hover {
+  border-color: var(--app-border-strong) !important;
+}
+
+.ui.inverted.form .task-page-title.ui.input > input#pageTaskName:focus {
+  background: var(--app-surface-2) !important;
+  border-color: var(--app-accent) !important;
+}
+
+.ui.dropdown.tag-picker > input.search {
+  background: transparent !important;
+  border: none !important;
 }

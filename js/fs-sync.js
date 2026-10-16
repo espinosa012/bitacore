@@ -152,7 +152,7 @@
       }
     }
 
-    return { tasks, dirName, attachmentCount: loadedAttachmentsCount };
+    return { tasks, tags: validation.tags, dirName, attachmentCount: loadedAttachmentsCount };
   }
 
   // ---------------------------------------------------------------------------
@@ -322,10 +322,10 @@
   /**
    * Save current tasks to tasks.json in the connected directory
    */
-  async function saveTasksToDirectory(tasks) {
+  /** Writes the board document ({ tags, tasks }) to tasks.json */
+  async function saveTasksToDirectory(doc) {
     if (!isLiveSync()) return false;
-    const currentTasks = tasks || (window.VG.App ? window.VG.App.getTasks() : []);
-    const json = JSON.stringify(currentTasks, null, 2);
+    const json = JSON.stringify(doc || window.VG.App.buildDocument(), null, 2);
     return enqueueWrite(() => writeTasksJson(json));
   }
 
