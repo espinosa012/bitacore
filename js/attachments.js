@@ -61,7 +61,9 @@
     // Upload attachment to MongoDB in the cloud
     if (window.VG.MongoSync && window.VG.MongoSync.isConnected()) {
       const written = await window.VG.MongoSync.uploadAttachment(task.id, filename, file);
-      if (!written && window.VG.App) {
+      if (written && written.fileId) {
+        attachmentRecord.fileId = written.fileId;
+      } else if (!written && window.VG.App) {
         window.VG.App.showToast(`Could not upload "${filename}" to MongoDB`, 'error', 6000);
       }
     }
@@ -84,9 +86,9 @@
     task.attachments.splice(idx, 1);
     task.updated_at = new Date().toISOString();
 
-    // Delete from MongoDB
+    // Delete from MongoDB GridFS
     if (window.VG.MongoSync && window.VG.MongoSync.isConnected()) {
-      await window.VG.MongoSync.deleteAttachment(task.id, att.filename);
+      await window.VG.MongoSync.deleteAttachment(task.id, att.filename, att.fileId);
     }
 
     return true;
@@ -121,18 +123,15 @@
   async function openOrDownloadAttachment(task, attachment, forceDownload = false) {
     let blob = await Storage.getAttachmentBlob(task.id, attachment.filename);
 
-    // If not in local IndexedDB cache, fetch from MongoDB
-    if (!blob) {
+    // If not in local IndexedDB cache, fetch from MongoDB GridFS via MongoSync
+    if (!blob && window.VG.MongoSync && window.VG.MongoSync.isConnected()) {
       try {
-        const endpoint = `/api/attachments/${encodeURIComponent(task.id)}/${encodeURIComponent(attachment.filename)}`;
-        const url = window.VG.MongoSync ? window.VG.MongoSync.apiUrl(endpoint) : endpoint;
-        const res = await fetch(url, { cache: 'no-store' });
-        if (res.ok) {
-          blob = await res.blob();
+        blob = await window.VG.MongoSync.downloadAttachment(attachment.fileId, attachment.filename);
+        if (blob) {
           await Storage.saveAttachmentBlob(task.id, attachment.filename, blob);
         }
       } catch (err) {
-        console.warn('Could not fetch attachment from MongoDB:', err);
+        console.warn('Could not fetch attachment from MongoDB GridFS:', err);
       }
     }
 

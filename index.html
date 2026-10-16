@@ -143,17 +143,17 @@
   <main class="board-view">
     <div class="ui inverted placeholder segment mongo-empty-state" id="mongoEmptyState" style="display: none;">
       <div class="ui icon header">
-        <i class="database icon" style="font-size: 3.5rem; color: #00b5ad; margin-bottom: 0.5rem;"></i>
+        <i class="server icon" style="font-size: 3.5rem; color: #00b5ad; margin-bottom: 0.5rem;"></i>
         <div class="content" style="font-size: 1.4rem; font-weight: 700; margin-top: 0.5rem;">
-          MongoDB Atlas Connection Required
+          MongoDB Proxy Connection Required
           <div class="sub header" style="color: #9ab; max-width: 520px; margin: 0.75rem auto 1.5rem; line-height: 1.5;">
-            Enter your MongoDB connection string to access and manage your tasks and attachments in real-time. Tasks are stored directly in the <code>vg-task-manager</code> database.
+            Connect to your <code>vg-mongo-proxy</code> API to synchronize tasks, comments, and GridFS attachments with MongoDB Atlas from anywhere (including GitHub Pages).
           </div>
         </div>
       </div>
       <button class="ui teal large labeled icon button" id="btnConnectEmptyState">
         <i class="plug icon"></i>
-        Connect to MongoDB Atlas
+        Connect to MongoDB Proxy
       </button>
     </div>
 
@@ -566,37 +566,91 @@
     </div>
   </div>
 
-  <!-- MODAL: MongoDB Connection -->
+  <!-- MODAL: MongoDB Connection (vg-mongo-proxy) -->
   <div class="ui small inverted modal" id="modalMongoOverlay">
     <i class="close icon" id="closeMongoModalBtn"></i>
     <div class="header">
-      <i class="database icon" style="color: #00b5ad;"></i>
-      <span>Connect to MongoDB Atlas</span>
+      <i class="server icon" style="color: #00b5ad;"></i>
+      <span>Connect to MongoDB (vg-mongo-proxy)</span>
     </div>
     <div class="content">
       <form id="mongoConnectForm" class="ui inverted form">
         <p style="margin-bottom: 1.2rem; color: #a0aec0; line-height: 1.5;">
-          Enter your MongoDB connection string. Tasks will be loaded from the
-          <strong style="color: #e2e8f0;">tasks</strong> collection in the <strong style="color: #e2e8f0;">vg-task-manager</strong> database.
-          Attached files are stored directly in MongoDB.
+          Connect to your <strong style="color: #e2e8f0;">vg-mongo-proxy</strong> HTTP API.
+          Tasks and users are persisted in MongoDB Atlas, and attachments are streamed via GridFS without exposing database credentials in the browser.
         </p>
 
         <div class="required field">
-          <label for="mongoUriInput">Connection String (URI)</label>
+          <label for="proxyUrlInput">Proxy API URL</label>
           <div class="ui inverted fluid icon input">
             <input
-              type="text"
-              id="mongoUriInput"
-              placeholder="mongodb+srv://admin:password@cluster.mongodb.net/"
+              type="url"
+              id="proxyUrlInput"
+              placeholder="https://api.tu-dominio.com"
               autocomplete="off"
               spellcheck="false"
               required
             />
-            <i class="key icon"></i>
+            <i class="server icon"></i>
           </div>
-          <small style="display: block; margin-top: 6px; color: #718096;">
-            Target Database: <strong style="color: #a0aec0;">vg-task-manager</strong> · Collection: <strong style="color: #a0aec0;">tasks</strong>
+          <small style="display: block; margin-top: 5px; color: #718096;">
+            Public HTTPS URL of your deployed <code>vg-mongo-proxy</code> service.
           </small>
+        </div>
+
+        <div class="required field" style="margin-top: 1rem;">
+          <label for="proxyApiKeyInput">Proxy API Key (<code>x-api-key</code>)</label>
+          <div class="ui inverted fluid icon input action">
+            <input
+              type="password"
+              id="proxyApiKeyInput"
+              placeholder="Enter your PROXY_API_KEY"
+              autocomplete="off"
+              spellcheck="false"
+              required
+            />
+            <i class="key icon" id="toggleApiKeyVisibility" style="cursor: pointer; pointer-events: auto;" title="Show/Hide API Key"></i>
+          </div>
+          <small style="display: block; margin-top: 5px; color: #718096;">
+            Secret authentication key configured in your proxy server environment.
+          </small>
+        </div>
+
+        <div class="two fields" style="margin-top: 1rem;">
+          <div class="field">
+            <label for="proxyDbInput">Database Name (Optional)</label>
+            <div class="ui inverted fluid icon input">
+              <input
+                type="text"
+                id="proxyDbInput"
+                placeholder="vg-task-manager"
+                value="vg-task-manager"
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <i class="database icon"></i>
+            </div>
+            <small style="display: block; margin-top: 5px; color: #718096;">
+              Optional. Default: <code>vg-task-manager</code>
+            </small>
+          </div>
+
+          <div class="field">
+            <label for="proxyMongoUriInput">Custom MongoDB URI (Optional)</label>
+            <div class="ui inverted fluid icon input">
+              <input
+                type="text"
+                id="proxyMongoUriInput"
+                placeholder="mongodb+srv://... (optional)"
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <i class="linkify icon"></i>
+            </div>
+            <small style="display: block; margin-top: 5px; color: #718096;">
+              Leave blank to use the proxy's default URI.
+            </small>
+          </div>
         </div>
 
         <div class="ui negative message" id="mongoConnectError" style="display: none; margin-top: 1rem;">
@@ -684,7 +738,7 @@
       <!-- Register Form -->
       <form id="authRegisterForm" class="ui inverted form auth-panel-form" style="display: none;">
         <p class="auth-helper-text">
-          Register a new user. Passwords are securely encrypted using scrypt hashing and stored in the <code>users</code> collection.
+          Register a new user. Passwords are securely encrypted using PBKDF2 with Web Crypto and stored in the <code>users</code> collection.
         </p>
 
         <div class="required field">

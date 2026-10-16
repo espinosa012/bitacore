@@ -66,7 +66,7 @@
       MongoSync.saveTasks(buildDocument()).then(saved => {
         if (!saved) {
           markDirty();
-          showToast('Could not save changes to MongoDB Atlas', 'error', 7000);
+          showToast('Could not save changes to MongoDB', 'error', 7000);
         } else {
           markClean();
           if (notifyMessage) {
@@ -129,8 +129,8 @@
         mongoStatusDot.className = 'status-dot synced';
       }
       const dbName = MongoSync.getCurrentDb() || 'vg-task-manager';
-      mongoStatusLabel.textContent = `MongoDB: ${dbName}${isLoggedIn ? ` (${tasks.length})` : ''}`;
-      btnMongoStatus.title = `Connected to database "${dbName}". Click to manage connection or disconnect.`;
+      mongoStatusLabel.textContent = `Proxy: ${dbName}${isLoggedIn ? ` (${tasks.length})` : ''}`;
+      btnMongoStatus.title = `Connected to database "${dbName}" via vg-mongo-proxy. Click to manage connection or disconnect.`;
 
       if (mongoEmptyState) mongoEmptyState.style.display = 'none';
 
@@ -153,8 +153,8 @@
       if (mongoStatusDot) {
         mongoStatusDot.className = 'status-dot disconnected';
       }
-      mongoStatusLabel.textContent = 'Connect MongoDB';
-      btnMongoStatus.title = 'Click to enter your MongoDB connection string';
+      mongoStatusLabel.textContent = 'Connect Proxy';
+      btnMongoStatus.title = 'Click to connect to vg-mongo-proxy';
 
       if (mongoEmptyState) mongoEmptyState.style.display = 'block';
       if (authEmptyState) authEmptyState.style.display = 'none';
@@ -224,7 +224,7 @@
 
   async function loadFromMongo() {
     try {
-      showToast('Loading tasks from MongoDB Atlas...', 'info');
+      showToast('Loading tasks from MongoDB...', 'info');
       const data = await MongoSync.loadTasks();
       const validation = Validation.validateTasksJson(data);
       if (!validation.valid) {
@@ -236,7 +236,7 @@
       updateMongoBadge();
       Board.renderBoard();
       window.VG.TaskPage.onTasksReplaced();
-      showToast(`Loaded ${normalizedTasks.length} tasks from MongoDB Atlas`, 'success');
+      showToast(`Loaded ${normalizedTasks.length} tasks from MongoDB`, 'success');
       return true;
     } catch (err) {
       UI.alert(err.message, { title: 'Could not load tasks from MongoDB' });

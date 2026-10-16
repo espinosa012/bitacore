@@ -46,7 +46,7 @@
 
     if (btnDisconnectMongo) {
       btnDisconnectMongo.addEventListener('click', async () => {
-        const ok = await UI.confirm('Disconnect from MongoDB Atlas? Tasks will be hidden.', {
+        const ok = await UI.confirm('Disconnect from MongoDB proxy? Tasks will be hidden.', {
           title: 'Disconnect MongoDB',
           okText: 'Disconnect',
           danger: true
@@ -62,29 +62,68 @@
       });
     }
 
+    const toggleApiKeyVisibility = document.getElementById('toggleApiKeyVisibility');
+    if (toggleApiKeyVisibility) {
+      toggleApiKeyVisibility.addEventListener('click', () => {
+        const input = document.getElementById('proxyApiKeyInput');
+        if (!input) return;
+        if (input.type === 'password') {
+          input.type = 'text';
+          toggleApiKeyVisibility.classList.remove('key');
+          toggleApiKeyVisibility.classList.add('eye');
+        } else {
+          input.type = 'password';
+          toggleApiKeyVisibility.classList.remove('eye');
+          toggleApiKeyVisibility.classList.add('key');
+        }
+      });
+    }
+
     if (mongoConnectForm) {
       mongoConnectForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const uriInput = document.getElementById('mongoUriInput');
-        const uri = (uriInput ? uriInput.value : '').trim();
+        const proxyUrlInput = document.getElementById('proxyUrlInput');
+        const apiKeyInput = document.getElementById('proxyApiKeyInput');
+        const dbInput = document.getElementById('proxyDbInput');
+        const mongoUriInput = document.getElementById('proxyMongoUriInput');
+
+        const proxyUrl = (proxyUrlInput ? proxyUrlInput.value : '').trim();
+        const apiKey = (apiKeyInput ? apiKeyInput.value : '').trim();
+        const database = (dbInput ? dbInput.value : '').trim() || 'vg-task-manager';
+        const mongoUri = (mongoUriInput ? mongoUriInput.value : '').trim();
+
         const errBox = document.getElementById('mongoConnectError');
         const errText = document.getElementById('mongoConnectErrorText');
         const succBox = document.getElementById('mongoConnectSuccess');
         const succText = document.getElementById('mongoConnectSuccessText');
         const submitBtn = document.getElementById('btnSubmitMongo');
 
-        if (!uri) return;
+        if (!proxyUrl) {
+          if (errBox && errText) {
+            errBox.style.display = 'block';
+            errText.textContent = 'Please enter the Proxy API URL.';
+          }
+          return;
+        }
+
+        if (!apiKey) {
+          if (errBox && errText) {
+            errBox.style.display = 'block';
+            errText.textContent = 'Please enter the Proxy API Key.';
+          }
+          return;
+        }
 
         if (errBox) errBox.style.display = 'none';
         if (succBox) succBox.style.display = 'none';
         if (submitBtn) submitBtn.classList.add('loading');
 
         try {
-          const res = await window.VG.MongoSync.connect(uri);
+          const res = await window.VG.MongoSync.connect({ proxyUrl, apiKey, database, mongoUri });
           if (submitBtn) submitBtn.classList.remove('loading');
           if (succBox && succText) {
             succBox.style.display = 'block';
-            succText.textContent = `Connected! Accessing database "${res.database}"...`;
+            succText.textContent = `Connected! Accessing database "${res.database}" via vg-mongo-proxy.`;
           }
           setTimeout(async () => {
             closeMongoModal();
@@ -351,7 +390,10 @@
 
   function openMongoModal() {
     const modal = document.getElementById('modalMongoOverlay');
-    const input = document.getElementById('mongoUriInput');
+    const proxyUrlInput = document.getElementById('proxyUrlInput');
+    const apiKeyInput = document.getElementById('proxyApiKeyInput');
+    const dbInput = document.getElementById('proxyDbInput');
+    const mongoUriInput = document.getElementById('proxyMongoUriInput');
     const errBox = document.getElementById('mongoConnectError');
     const succBox = document.getElementById('mongoConnectSuccess');
     const disconnectBtn = document.getElementById('btnDisconnectMongo');
@@ -359,9 +401,12 @@
     if (errBox) errBox.style.display = 'none';
     if (succBox) succBox.style.display = 'none';
 
-    if (input) {
-      const stored = window.VG.MongoSync ? window.VG.MongoSync.getStoredUri() : '';
-      input.value = stored || (window.VG.MongoSync ? window.VG.MongoSync.DEFAULT_URI : '');
+    if (window.VG.MongoSync) {
+      const cfg = window.VG.MongoSync.getStoredConfig();
+      if (proxyUrlInput) proxyUrlInput.value = cfg.proxyUrl || window.VG.MongoSync.DEFAULT_PROXY_URL || '';
+      if (apiKeyInput) apiKeyInput.value = cfg.apiKey || '';
+      if (dbInput) dbInput.value = cfg.database || window.VG.MongoSync.DEFAULT_DB || 'vg-task-manager';
+      if (mongoUriInput) mongoUriInput.value = cfg.mongoUri || '';
     }
 
     if (disconnectBtn && window.VG.MongoSync) {
