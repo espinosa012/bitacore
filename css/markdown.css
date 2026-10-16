@@ -1,0 +1,153 @@
+/* EasyMDE dark theme, matched to the app palette */
+.EasyMDEContainer {
+  display: flex;
+  flex-direction: column;
+}
+
+.EasyMDEContainer .editor-toolbar {
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid var(--border-subtle);
+  border-bottom: none;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  padding: 4px 6px;
+  opacity: 1;
+}
+
+.EasyMDEContainer .editor-toolbar button {
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  width: 30px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+
+.EasyMDEContainer .editor-toolbar button:hover,
+.EasyMDEContainer .editor-toolbar button.active {
+  background: rgba(99, 102, 241, 0.18);
+  border-color: rgba(99, 102, 241, 0.35);
+  color: var(--text-main);
+}
+
+.EasyMDEContainer .editor-toolbar i.separator {
+  border-left: 1px solid var(--border-subtle);
+  border-right: none;
+  margin: 0 4px;
+}
+
+.EasyMDEContainer .editor-toolbar.disabled-for-preview button:not(.no-disable) {
+  opacity: 0.35;
+}
+
+.EasyMDEContainer .CodeMirror {
+  background: var(--bg-input);
+  color: var(--text-main);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  padding: 4px 6px;
+}
+
+.EasyMDEContainer .CodeMirror-focused {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.EasyMDEContainer .CodeMirror-cursor {
+  border-left-color: var(--text-main);
+}
+
+.EasyMDEContainer .CodeMirror-selected,
+.EasyMDEContainer .CodeMirror-focused .CodeMirror-selected,
+.EasyMDEContainer .CodeMirror-line::selection,
+.EasyMDEContainer .CodeMirror-line > span::selection,
+.EasyMDEContainer .CodeMirror-line > span > span::selection {
+  background: rgba(99, 102, 241, 0.35);
+}
+
+.EasyMDEContainer .CodeMirror .CodeMirror-placeholder {
+  color: var(--text-dim);
+}
+
+.EasyMDEContainer .cm-s-easymde .cm-header { color: #c7d2fe; }
+.EasyMDEContainer .cm-s-easymde .cm-link,
+.EasyMDEContainer .cm-s-easymde .cm-url { color: #38bdf8; }
+.EasyMDEContainer .cm-s-easymde .cm-comment { background: rgba(148, 163, 184, 0.12); color: #fbbf24; border-radius: 3px; }
+.EasyMDEContainer .cm-s-easymde .cm-quote { color: var(--text-muted); }
+.EasyMDEContainer .cm-s-easymde .cm-formatting-list,
+.EasyMDEContainer .cm-s-easymde .cm-variable-2 { color: #a5b4fc; }
+
+/* Fullscreen and side-by-side (task page only) */
+.EasyMDEContainer .editor-toolbar.fullscreen {
+  background: var(--bg-modal);
+  z-index: 200;
+}
+
+.EasyMDEContainer .CodeMirror-fullscreen,
+.EasyMDEContainer .editor-preview-side {
+  z-index: 199;
+}
+
+.EasyMDEContainer .editor-preview-side {
+  border-color: var(--border-subtle);
+}
+
+/* Rendered markdown (preview panes) */
+.EasyMDEContainer .editor-preview,
+.EasyMDEContainer .editor-preview-side {
+  background: var(--bg-modal);
+  color: var(--text-main);
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  padding: 12px 16px;
+}
+
+.EasyMDEContainer .editor-preview-active {
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  cursor: text;
+}
+
+.editor-preview h1, .editor-preview-side h1 { font-size: 1.4rem; margin: 0.6em 0 0.4em; }
+.editor-preview h2, .editor-preview-side h2 { font-size: 1.2rem; margin: 0.6em 0 0.4em; }
+.editor-preview h3, .editor-preview-side h3 { font-size: 1.05rem; margin: 0.6em 0 0.4em; }
+.editor-preview p, .editor-preview-side p { margin: 0.5em 0; }
+.editor-preview ul, .editor-preview ol,
+.editor-preview-side ul, .editor-preview-side ol { margin: 0.5em 0; padding-left: 1.5em; }
+.editor-preview a, .editor-preview-side a { color: #38bdf8; }
+.editor-preview blockquote, .editor-preview-side blockquote {
+  border-left: 3px solid var(--accent-primary);
+  margin: 0.6em 0;
+  padding: 2px 12px;
+  color: var(--text-muted);
+}
+.editor-preview code, .editor-preview-side code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.84em;
+  background: rgba(148, 163, 184, 0.15);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.editor-preview pre, .editor-preview-side pre {
+  background: rgba(2, 6, 23, 0.6);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  overflow-x: auto;
+}
+.editor-preview pre code, .editor-preview-side pre code { background: none; padding: 0; }
+.editor-preview table, .editor-preview-side table { border-collapse: collapse; margin: 0.6em 0; }
+.editor-preview th, .editor-preview td,
+.editor-preview-side th, .editor-preview-side td {
+  border: 1px solid var(--border-subtle);
+  padding: 5px 10px;
+}
+.editor-preview th, .editor-preview-side th { background: rgba(30, 41, 59, 0.6); }
+.editor-preview hr, .editor-preview-side hr { border: none; border-top: 1px solid var(--border-subtle); margin: 1em 0; }
+.editor-preview img, .editor-preview-side img { max-width: 100%; }
+.editor-preview input[type="checkbox"], .editor-preview-side input[type="checkbox"] { margin-right: 6px; }

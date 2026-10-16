@@ -112,6 +112,7 @@
       markClean();
       updateFolderBadge();
       Board.renderBoard();
+      window.VG.TaskPage.onTasksReplaced();
       showToast(`Loaded ${tasks.length} tasks and ${result.attachmentCount} attachments from "${result.dirName}"`, 'success');
       if (result.mode === 'snapshot') {
         showToast('Read-only: this browser cannot write to folders. Use Download ZIP to save changes, or run "npm start" for live sync.', 'warning', 8000);
@@ -155,6 +156,7 @@
         Storage.saveLocalTasks(tasks);
         markClean();
         Board.renderBoard();
+        window.VG.TaskPage.onTasksReplaced();
         showToast(`Imported ${tasks.length} tasks and ${res.attachmentCount} attachments from ${file.name}`, 'success');
       } catch (err) {
         alert(`Failed to import ZIP file "${file.name}":\n\n${err.message}`);
@@ -180,6 +182,7 @@
           Storage.saveLocalTasks(tasks);
           markClean();
           Board.renderBoard();
+          window.VG.TaskPage.onTasksReplaced();
           showToast(`Loaded ${tasks.length} tasks from ${file.name}`, 'success');
         } catch (err) {
           alert(`Invalid JSON file "${file.name}":\n\n${err.message}`);
@@ -207,6 +210,7 @@
       markClean();
       updateFolderBadge();
       Board.renderBoard();
+      window.VG.TaskPage.onTasksReplaced();
       showToast('Board cleared', 'info');
     }
   }
@@ -302,6 +306,7 @@
       }
 
       if (e.metaKey || e.ctrlKey || e.altKey || Modals.isAnyModalOpen()) return;
+      if (window.VG.TaskPage.isOpen() && e.key === '/') return;
       const target = e.target;
       const isTyping = target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
       if (isTyping) return;
@@ -319,7 +324,7 @@
     // Warn before leaving when changes only live in this tab: the board
     // starts empty on every visit, so they would be lost.
     window.addEventListener('beforeunload', (e) => {
-      if (hasUnsavedChanges && !FsSync.isLiveSync()) {
+      if ((hasUnsavedChanges && !FsSync.isLiveSync()) || window.VG.TaskPage.isDirty()) {
         e.preventDefault();
         e.returnValue = '';
       }
@@ -344,8 +349,9 @@
     await Storage.initDb();
     await Storage.registerTab();
 
-    // 2. Setup modals
+    // 2. Setup modals and the task page
     Modals.initModals();
+    window.VG.TaskPage.init();
 
     // 3. Render column drop zones
     Board.renderBoardColumns();
@@ -364,6 +370,10 @@
     // 6. Update UI
     updateFolderBadge();
     Board.renderBoard();
+
+    // A #/task/<id> link cannot resolve on an empty board: route() explains and
+    // falls back to the board
+    if (window.location.hash) window.VG.TaskPage.route();
 
     // 7. Detect a running local sync agent (server.js) for browsers without
     //    the File System Access API (Safari, Firefox)

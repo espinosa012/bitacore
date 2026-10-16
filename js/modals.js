@@ -8,6 +8,8 @@
 
   let activeEditingTaskId = null;
   let activeTab = 'tabAttachments';
+  let createDescEditor = null;
+  let editDescEditor = null;
   let lastFocusedCard = null;
 
   function initModals() {
@@ -68,6 +70,23 @@
     // Attachment upload handlers in Edit Modal
     setupAttachmentUploadHandlers();
 
+    // Markdown editors for the description fields
+    const Markdown = window.VG.Markdown;
+    createDescEditor = Markdown.createEditor(document.getElementById('newTaskDesc'), { minHeight: '110px' });
+    editDescEditor = Markdown.createEditor(document.getElementById('editTaskDesc'), { minHeight: '130px' });
+
+    // Open the full task page, carrying over unsaved edits from the modal
+    const btnOpenTaskPage = document.getElementById('btnOpenTaskPage');
+    if (btnOpenTaskPage) {
+      btnOpenTaskPage.addEventListener('click', () => {
+        if (!activeEditingTaskId) return;
+        const taskId = activeEditingTaskId;
+        const draft = readEditDraft();
+        closeEditModal({ restoreFocus: false });
+        window.VG.TaskPage.open(taskId, draft);
+      });
+    }
+
     // Cmd/Ctrl+Enter saves the edit modal (or posts the comment being written)
     if (modalEditOverlay) {
       modalEditOverlay.addEventListener('keydown', (e) => {
@@ -111,6 +130,7 @@
 
     if (createTaskForm) createTaskForm.reset();
     if (taskStateSelect) taskStateSelect.value = defaultState;
+    window.VG.Markdown.setValue(createDescEditor, document.getElementById('newTaskDesc'), '');
 
     if (modalCreateOverlay) {
       modalCreateOverlay.classList.add('active');
@@ -142,7 +162,7 @@
     const newTask = {
       id,
       name,
-      description: descInput.value.trim(),
+      description: window.VG.Markdown.getValue(createDescEditor, descInput).trim(),
       'openspec-id': openspecInput.value.trim(),
       priority: canonicalPriority(prioInput.value),
       status: targetState,
@@ -177,7 +197,7 @@
     // Set values in modal
     document.getElementById('editTaskIdLabel').textContent = `#${task.id}`;
     document.getElementById('editTaskName').value = task.name || '';
-    document.getElementById('editTaskDesc').value = task.description || '';
+    window.VG.Markdown.setValue(editDescEditor, document.getElementById('editTaskDesc'), task.description || '');
     document.getElementById('editTaskOpenspecId').value = task['openspec-id'] || '';
     document.getElementById('editTaskPriority').value = canonicalPriority(task.priority);
     document.getElementById('editTaskState').value = canonicalState(task.status);
@@ -197,7 +217,7 @@
     if (nameInput) setTimeout(() => nameInput.focus(), 50);
   }
 
-  function closeEditModal() {
+  function closeEditModal({ restoreFocus = true } = {}) {
     const modalEditOverlay = document.getElementById('modalEditOverlay');
     if (!modalEditOverlay || !modalEditOverlay.classList.contains('active')) return;
     modalEditOverlay.classList.remove('active');
@@ -205,7 +225,7 @@
     // Return focus to the card that opened the modal (keyboard users)
     const cardId = lastFocusedCard && lastFocusedCard.getAttribute && lastFocusedCard.getAttribute('data-task-id');
     lastFocusedCard = null;
-    if (cardId) {
+    if (cardId && restoreFocus) {
       const card = document.querySelector(`.card[data-task-id="${CSS.escape(cardId)}"]`);
       if (card) card.focus();
     }
@@ -231,40 +251,75 @@
     if (tabHistory) tabHistory.classList.toggle('active', tabId === 'tabHistory');
   }
 
+  /** Current (possibly unsaved) values of the edit modal's task fields */
+  function readEditDraft() {
+    return {
+      name: document.getElementById('editTaskName').value,
+      description: window.VG.Markdown.getValue(editDescEditor, document.getElementById('editTaskDesc')),
+      'openspec-id': document.getElementById('editTaskOpenspecId').value,
+      priority: document.getElementById('editTaskPriority').value,
+      status: document.getElementById('editTaskState').value
+    };
+  }
+
+  /**
+   * Applies edited fields to a task, recording a status transition when the
+   * status changes. Shared by the edit modal and the task page.
+   * @returns {string|null} an error message, or null when applied
+   */
+  function applyTaskEdits(task, fields, reason) {
+    const name = (fields.name || '').trim();
+    if (!name) return 'Task name cannot be empty.';
+
+    const prevStatus = canonicalState(task.status);
+    const newStatus = canonicalState(fields.status);
+    const now = new Date().toISOString();
+
+    task.name = name;
+    task.description = (fields.description || '').trim();
+    task['openspec-id'] = (fields['openspec-id'] || '').trim();
+    task.priority = canonicalPriority(fields.priority);
+    task.status = newStatus;
+    task.updated_at = now;
+
+    if (prevStatus !== newStatus) {
+      task.history = task.history || [];
+      task.history.push({ from_status: prevStatus, to_status: newStatus, timestamp: now, reason });
+    }
+    return null;
+  }
+
   function handleSaveTaskDetails() {
     if (!activeEditingTaskId) return;
     const tasks = window.VG.App.getTasks();
     const task = tasks.find(t => t.id === activeEditingTaskId);
     if (!task) return;
 
-    const name = document.getElementById('editTaskName').value.trim();
-    if (!name) {
-      alert('Task name cannot be empty.');
+    const error = applyTaskEdits(task, readEditDraft(), 'Status changed in task details');
+    if (error) {
+      alert(error);
       return;
-    }
-
-    const prevStatus = task.status;
-    const newStatus = canonicalState(document.getElementById('editTaskState').value);
-
-    task.name = name;
-    task.description = document.getElementById('editTaskDesc').value.trim();
-    task['openspec-id'] = document.getElementById('editTaskOpenspecId').value.trim();
-    task.priority = canonicalPriority(document.getElementById('editTaskPriority').value);
-    task.status = newStatus;
-    task.updated_at = new Date().toISOString();
-
-    if (canonicalState(prevStatus) !== newStatus) {
-      task.history = task.history || [];
-      task.history.push({
-        from_status: canonicalState(prevStatus),
-        to_status: newStatus,
-        timestamp: new Date().toISOString(),
-        reason: 'Status changed in task details'
-      });
     }
 
     closeEditModal();
     window.VG.App.persistChanges('Task updated successfully');
+    window.VG.Board.renderBoard();
+  }
+
+  /** Removes a task with its attachments (IndexedDB and synced folder) */
+  async function deleteTask(task) {
+    await window.VG.Storage.deleteTaskAttachments(task.id);
+    if (window.VG.FsSync && window.VG.FsSync.isLiveSync()) {
+      for (const att of task.attachments || []) {
+        await window.VG.FsSync.deleteAttachmentFile(task.id, att.filename);
+      }
+    }
+
+    const tasks = window.VG.App.getTasks();
+    const idx = tasks.findIndex(t => t.id === task.id);
+    if (idx !== -1) tasks.splice(idx, 1);
+
+    window.VG.App.persistChanges('Task deleted');
     window.VG.Board.renderBoard();
   }
 
@@ -275,20 +330,8 @@
     if (!task) return;
 
     if (confirm(`Are you sure you want to delete task "${task.name}"? All attachments will also be removed.`)) {
-      // Remove attachments from IndexedDB and local directory
-      await window.VG.Storage.deleteTaskAttachments(task.id);
-      if (window.VG.FsSync && window.VG.FsSync.isLiveSync()) {
-        for (const att of task.attachments || []) {
-          await window.VG.FsSync.deleteAttachmentFile(task.id, att.filename);
-        }
-      }
-
-      const idx = tasks.findIndex(t => t.id === activeEditingTaskId);
-      if (idx !== -1) tasks.splice(idx, 1);
-
       closeEditModal();
-      window.VG.App.persistChanges('Task deleted');
-      window.VG.Board.renderBoard();
+      await deleteTask(task);
     }
   }
 
@@ -477,6 +520,10 @@
     const count = task.comments ? task.comments.length : 0;
 
     setTabLabel(tabBtn, `Comments (${count})`);
+    renderCommentList(listEl, task);
+  }
+
+  function renderCommentList(listEl, task) {
     if (!listEl) return;
 
     if (!task.comments || task.comments.length === 0) {
@@ -499,6 +546,26 @@
     });
   }
 
+  /** Appends a comment and remembers its author for next time */
+  function addComment(task, author, text) {
+    const authorName = (author || '').trim();
+    try { localStorage.setItem(COMMENT_AUTHOR_KEY, authorName); } catch (err) { /* ignore */ }
+
+    const now = new Date().toISOString();
+    task.comments = task.comments || [];
+    task.comments.push({
+      id: window.VG.Constants.generateId('comm'),
+      author: authorName || 'User',
+      text: text.trim(),
+      timestamp: now
+    });
+    task.updated_at = now;
+  }
+
+  function getSavedCommentAuthor() {
+    try { return localStorage.getItem(COMMENT_AUTHOR_KEY) || ''; } catch (e) { return ''; }
+  }
+
   function handleAddCommentSubmit(e) {
     e.preventDefault();
     if (!activeEditingTaskId) return;
@@ -513,17 +580,7 @@
     const text = textInput.value.trim();
     if (!text) return;
 
-    try { localStorage.setItem(COMMENT_AUTHOR_KEY, authorInput.value.trim()); } catch (err) { /* ignore */ }
-
-    task.comments = task.comments || [];
-    task.comments.push({
-      id: window.VG.Constants.generateId('comm'),
-      author: authorInput.value.trim() || 'User',
-      text,
-      timestamp: new Date().toISOString()
-    });
-    task.updated_at = new Date().toISOString();
-
+    addComment(task, authorInput.value, text);
     textInput.value = '';
     renderCommentsTab(task);
     window.VG.Board.renderBoard();
@@ -536,6 +593,10 @@
     const count = task.history ? task.history.length : 0;
 
     setTabLabel(tabBtn, `History (${count})`);
+    renderHistoryList(timelineEl, task);
+  }
+
+  function renderHistoryList(timelineEl, task) {
     if (!timelineEl) return;
 
     if (!task.history || task.history.length === 0) {
@@ -570,6 +631,12 @@
     openEditModal,
     closeEditModal,
     isAnyModalOpen,
-    switchTab
+    switchTab,
+    applyTaskEdits,
+    deleteTask,
+    addComment,
+    getSavedCommentAuthor,
+    renderCommentList,
+    renderHistoryList
   };
 })();

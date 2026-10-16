@@ -200,6 +200,7 @@
     const historyCount = task.history ? task.history.length : 0;
     const attachmentsCount = task.attachments ? task.attachments.length : 0;
     const lastUpdateStr = formatRelativeTime(task.updated_at || task.created_at);
+    const descText = window.VG.Markdown.toPlainText(task.description);
 
     card.innerHTML = `
       <div class="card-top">
@@ -214,7 +215,7 @@
         </div>
       </div>
       <div class="card-title">${highlight(task.name, query)}</div>
-      ${task.description ? `<div class="card-desc">${highlight(task.description, query)}</div>` : ''}
+      ${descText ? `<div class="card-desc">${highlight(descText, query)}</div>` : ''}
       <div class="card-footer">
         <div class="card-meta-indicators">
           ${attachmentsCount > 0 ? `
@@ -232,13 +233,23 @@
             <span>${historyCount}</span>
           </span>
         </div>
-        <span class="card-updated">${lastUpdateStr}</span>
+        <div class="card-footer-right">
+          <span class="card-updated">${lastUpdateStr}</span>
+          <button type="button" class="card-open-page" title="Open task page" aria-label="Open task page">
+            <svg viewBox="0 0 24 24"><path d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
+          </button>
+        </div>
       </div>
     `;
 
-    // Click to edit
+    // Click to edit (the corner button opens the full task page)
     card.addEventListener('click', (e) => {
       if (isDragging) return;
+      if (e.target.closest('.card-open-page')) {
+        e.stopPropagation();
+        if (window.VG.TaskPage) window.VG.TaskPage.open(task.id);
+        return;
+      }
       if (window.VG.Modals) window.VG.Modals.openEditModal(task);
     });
 

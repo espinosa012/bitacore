@@ -31,6 +31,14 @@ Live Demo (GitHub Pages): [https://espinosa012.github.io/vg-task-manager/](https
     | Safari / Firefox without agent | Read-only: the folder is loaded, and you save changes with **Download ZIP** |
 
   - **Local agent**: `server.js` serves the app and exposes a small sync API (`/api/tasks`, `/api/attachments/...`) restricted to `localhost` and the GitHub Pages origin. Open `http://localhost:8766/` (recommended in Safari), or keep it running while you use GitHub Pages: the page detects it on port 8766.
+- **Task Page** (`#/task/<id>`):
+  - Open any task as a full page from the card's corner button or the edit modal's **Open page** button (unsaved modal edits carry over).
+  - Edit the title, status, priority and OpenSpec ID; changes are a draft until **Save** (`Ctrl/Cmd+S`), with an unsaved-changes guard.
+  - Attachments grid with inline previews: images, text/code excerpts, audio and video players; drop several files at once.
+  - Comments, history timeline and task metadata side by side.
+- **Markdown Descriptions**:
+  - Task descriptions use an embedded Markdown editor ([EasyMDE](https://github.com/Ionaru/easy-markdown-editor)) with preview, checklists, tables and code blocks; the task page adds side-by-side and fullscreen modes.
+  - Rendered Markdown is sanitized with [DOMPurify](https://github.com/cure53/DOMPurify); cards show a plain-text excerpt.
 - **Drag & Drop Workflow**:
   - Drag cards across columns (*Planned*, *In Progress*, *In Review*, *Done*, *Blocked*).
   - Pixel-perfect vertical reordering within columns with live drop indicators.
@@ -121,6 +129,18 @@ Tasks are stored in `tasks.json` with strict schema validation:
   ]
 }
 ```
+
+---
+
+## Third-party libraries
+
+Vendored in the repository, no build step or CDN required:
+
+| Library | Version | License | Path |
+|---|---|---|---|
+| JSZip | — | MIT / GPLv3 | `jszip.min.js` |
+| EasyMDE | 2.21.0 | MIT | `vendor/easymde/` |
+| DOMPurify | 3.4.16 | MPL-2.0 / Apache-2.0 | `vendor/dompurify/` |
 
 ---
 

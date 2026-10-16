@@ -157,6 +157,7 @@
     deleteAttachmentFromTask,
     updateAttachmentDetails,
     openOrDownloadAttachment,
+    getSafeViewType,
     sanitizeFilename
   };
 })();
