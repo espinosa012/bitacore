@@ -49,10 +49,11 @@ Live Demo (GitHub Pages): [https://espinosa012.github.io/vg-task-manager/](https
   - Chronological status transition history tracking with reasons.
   - Discussion comments thread per task.
   - OpenSpec ID integration for traceability with development workflows.
-- **Tags**:
+- **Tags & Bulk Tagging**:
   - Tasks can have any number of tags; the board's tag registry is saved in `tasks.json`.
   - Add tags from a card (tag button), the edit modal or the task page. Suggestions appear as you type, and a tag that does not exist yet is created automatically with its own color.
   - Filter the board by tag next to the priority filter, or click a tag on a card to filter by it.
+  - **Bulk Tag Assignment**: Assign tags to multiple tasks in bulk after filtering (e.g. "Tag Filtered") or by selecting specific cards via custom checkboxes. A floating action bar and keyboard shortcut (`T`) provide rapid tagging while preserving existing tags.
 - **Priorities & Search**:
   - Color-coded priority tags (*Blocker*, *High*, *Medium-High*, *Medium*, *Low*).
   - Fast search matching task titles, descriptions, OpenSpec IDs, tags, and attachment file names.

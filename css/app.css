@@ -252,12 +252,74 @@ main[hidden],
 .task-card.prio-medium { border-left-color: #2185d0; }
 .task-card.prio-low { border-left-color: #21ba45; }
 
+.ui.card.task-card.is-selected {
+  border-color: rgba(0, 181, 173, 0.7) !important;
+  background-color: rgba(0, 181, 173, 0.08) !important;
+  box-shadow: 0 0 0 1px rgba(0, 181, 173, 0.45), 0 4px 14px rgba(0, 0, 0, 0.4) !important;
+}
+
 .task-card .card-top {
   display: flex;
   align-items: center;
   gap: 6px;
   margin-bottom: 8px;
   flex-wrap: wrap;
+}
+
+/* Card Selection Checkbox */
+.card-select-label {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  margin: 0 2px 0 0;
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.card-select-checkbox {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.card-checkbox-custom {
+  width: 15px;
+  height: 15px;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.3);
+  transition: all 0.15s ease;
+  opacity: 0.4;
+}
+
+.task-card:hover .card-checkbox-custom,
+.task-card:focus-within .card-checkbox-custom,
+.card-select-checkbox:focus + .card-checkbox-custom {
+  opacity: 1;
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+.card-select-checkbox:checked + .card-checkbox-custom {
+  opacity: 1;
+  background: #00b5ad;
+  border-color: #00b5ad;
+  box-shadow: 0 0 6px rgba(0, 181, 173, 0.5);
+}
+
+.card-select-checkbox:checked + .card-checkbox-custom::after {
+  content: '';
+  width: 4px;
+  height: 8px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) translate(-0.5px, -0.5px);
+  display: block;
 }
 
 .task-card .card-top .ui.label {
@@ -350,6 +412,9 @@ main[hidden],
 @media (hover: none) {
   .task-card .card-actions {
     opacity: 1;
+  }
+  .task-card .card-checkbox-custom {
+    opacity: 0.85;
   }
 }
 
@@ -1001,4 +1066,186 @@ select.ui.dropdown option {
 .ui.dropdown.tag-picker > input.search {
   background: transparent !important;
   border: none !important;
+}
+
+/* -------------------------------------------------------------
+ * Floating Bulk Actions Bar
+ * ------------------------------------------------------------- */
+.bulk-action-bar {
+  position: fixed !important;
+  bottom: 24px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  z-index: 1000 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 16px !important;
+  padding: 10px 18px !important;
+  margin: 0 !important;
+  background: rgba(25, 29, 35, 0.94) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  border: 1px solid var(--app-border-strong) !important;
+  border-radius: 50px !important;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.25) !important;
+  animation: bulkBarSlideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes bulkBarSlideUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 20px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+.bulk-action-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.92em;
+  font-weight: 500;
+  color: var(--app-text);
+  white-space: nowrap;
+}
+
+.bulk-action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bulk-bar-close {
+  padding: 6px !important;
+  border-radius: 50% !important;
+  color: var(--app-muted) !important;
+  margin-left: 2px !important;
+}
+
+.bulk-bar-close:hover {
+  color: #fff !important;
+}
+
+/* -------------------------------------------------------------
+ * Bulk Tag Dialog
+ * ------------------------------------------------------------- */
+.bulk-tag-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.bulk-tag-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: rgba(0, 181, 173, 0.1);
+  border: 1px solid rgba(0, 181, 173, 0.25);
+  border-radius: 8px;
+}
+
+.bulk-tag-banner i.icon {
+  font-size: 1.8em !important;
+  color: #00b5ad !important;
+  margin: 0 !important;
+}
+
+.bulk-tag-banner .banner-title {
+  font-weight: 600;
+  font-size: 1.05em;
+  color: #fff;
+}
+
+.bulk-tag-banner .banner-subtitle {
+  font-size: 0.85em;
+  color: var(--app-muted);
+  margin-top: 2px;
+}
+
+.bulk-tag-form {
+  margin: 0 !important;
+}
+
+.bulk-tag-targets-section {
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.bulk-tag-targets-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--app-border);
+  font-size: 0.88em;
+  font-weight: 600;
+}
+
+.bulk-tag-targets-list {
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bulk-target-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+  user-select: none;
+}
+
+.bulk-target-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.bulk-target-item input[type="checkbox"] {
+  cursor: pointer;
+}
+
+.bulk-target-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  min-width: 0;
+  gap: 8px;
+}
+
+.bulk-target-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9em;
+  color: var(--app-text);
+}
+
+.bulk-target-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.bulk-target-meta .no-tags {
+  font-size: 0.8em;
+  color: var(--app-muted);
+  font-style: italic;
+}
+
+.bulk-tag-note {
+  margin-top: 2px !important;
 }

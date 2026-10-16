@@ -47,6 +47,14 @@
         </select>
       </div>
 
+      <div class="item board-only">
+        <button id="btnBulkTag" class="ui small basic inverted button" title="Bulk assign tags to tasks (T)">
+          <i class="tags icon"></i>
+          <span id="btnBulkTagText">Bulk Tag</span>
+          <span class="ui circular mini teal label" id="btnBulkTagBadge" style="display: none; margin-left: 6px;">0</span>
+        </button>
+      </div>
+
       <div class="right menu">
         <div class="item">
           <a id="folderStatusBadge" class="ui basic inverted label folder-status" title="Live synchronization status with local folder" role="button" tabindex="0">
@@ -229,6 +237,29 @@
       </div>
     </div>
   </section>
+
+  <!-- Floating Bulk Actions Bar -->
+  <div id="bulkActionBar" class="bulk-action-bar ui inverted segment board-only" hidden aria-label="Bulk actions toolbar">
+    <div class="bulk-action-info">
+      <span class="ui teal circular label" id="bulkBarCount">0</span>
+      <span id="bulkBarLabel">selected</span>
+    </div>
+    <div class="bulk-action-buttons">
+      <button type="button" id="btnBulkBarSelectVisible" class="ui mini basic inverted button" title="Select all currently visible tasks">
+        Select All Visible
+      </button>
+      <button type="button" id="btnBulkBarClear" class="ui mini basic inverted button" title="Clear selection">
+        Deselect
+      </button>
+      <button type="button" id="btnBulkBarTag" class="ui mini teal labeled icon button" title="Assign tags to selected tasks">
+        <i class="tags icon"></i>
+        Assign Tags...
+      </button>
+    </div>
+    <button type="button" id="btnBulkBarClose" class="ui mini basic inverted icon button bulk-bar-close" title="Dismiss bar and clear selection" aria-label="Dismiss selection">
+      <i class="close icon"></i>
+    </button>
+  </div>
 
   <!-- MODAL: Create Task -->
   <div class="ui small inverted modal" id="modalCreateOverlay">

@@ -9,6 +9,8 @@
   let collapsedColumns = Storage.loadCollapsedColumns();
   let draggedTaskId = null;
   let isDragging = false;
+  let selectedTaskIds = new Set();
+  let visibleTasks = [];
 
   const EMPTY_COLUMN_HTML = '<div class="column-empty">No tasks</div>';
 
@@ -119,6 +121,7 @@
       blocked: 0
     };
 
+    visibleTasks = [];
     tasks.forEach(t => {
       const st = canonicalState(t.status);
       if (counts[st] !== undefined) {
@@ -142,10 +145,21 @@
       const matchesTag = tagFilter === 'all' || (t.tags || []).some(tag => tag.toLowerCase() === tagFilterKey);
 
       if (matchesQuery && matchesPriority && matchesTag) {
+        visibleTasks.push(t);
         renderTaskCard(t, query);
         counts.shown++;
       }
     });
+
+    // Prune any selectedTaskIds that are no longer in tasks
+    const existingIds = new Set(tasks.map(t => t.id));
+    for (const id of selectedTaskIds) {
+      if (!existingIds.has(id)) {
+        selectedTaskIds.delete(id);
+      }
+    }
+
+    updateBulkActionUI();
 
     // Update column badges & empty placeholders
     STATES.forEach(st => {
@@ -191,8 +205,9 @@
     const prioMeta = PRIORITIES[prioKey] || PRIORITIES['medium'];
     const openSpecId = task['openspec-id'];
 
+    const isSelected = selectedTaskIds.has(task.id);
     const card = document.createElement('div');
-    card.className = `ui fluid inverted card task-card prio-${prioKey}`;
+    card.className = `ui fluid inverted card task-card prio-${prioKey}${isSelected ? ' is-selected' : ''}`;
     card.draggable = true;
     card.tabIndex = 0;
     card.setAttribute('role', 'button');
@@ -209,6 +224,10 @@
     card.innerHTML = `
       <div class="content">
         <div class="card-top">
+          <label class="card-select-label" title="Select task for bulk actions" onclick="event.stopPropagation();">
+            <input type="checkbox" class="card-select-checkbox" data-task-id="${escapeHtml(task.id)}" ${isSelected ? 'checked' : ''} aria-label="Select task ${escapeHtml(task.name)}" />
+            <span class="card-checkbox-custom"></span>
+          </label>
           <span class="ui mini ${prioMeta.color} label">
             <i class="${prioMeta.icon} icon"></i>${escapeHtml(prioMeta.label)}
           </span>
@@ -240,9 +259,24 @@
       </div>
     `;
 
+    // Checkbox selection listener
+    const selectCheckbox = card.querySelector('.card-select-checkbox');
+    if (selectCheckbox) {
+      selectCheckbox.addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+      selectCheckbox.addEventListener('change', (e) => {
+        e.stopPropagation();
+        toggleTaskSelection(task.id, selectCheckbox.checked);
+      });
+    }
+
     // Click to edit (the corner button opens the full task page)
     card.addEventListener('click', (e) => {
       if (isDragging) return;
+      if (e.target.closest('.card-select-label') || e.target.closest('.card-select-checkbox')) {
+        return;
+      }
       if (e.target.closest('.card-open-page')) {
         e.stopPropagation();
         if (window.VG.TaskPage) window.VG.TaskPage.open(task.id);
@@ -439,11 +473,314 @@
     renderBoard();
   }
 
+  function toggleTaskSelection(taskId, isSelected) {
+    if (isSelected) {
+      selectedTaskIds.add(taskId);
+    } else {
+      selectedTaskIds.delete(taskId);
+    }
+    const card = document.querySelector(`.task-card[data-task-id="${escapeCss(taskId)}"]`);
+    if (card) {
+      card.classList.toggle('is-selected', isSelected);
+      const cb = card.querySelector('.card-select-checkbox');
+      if (cb) cb.checked = isSelected;
+    }
+    updateBulkActionUI();
+  }
+
+  function selectAllVisible() {
+    visibleTasks.forEach(t => {
+      selectedTaskIds.add(t.id);
+      const card = document.querySelector(`.task-card[data-task-id="${escapeCss(t.id)}"]`);
+      if (card) {
+        card.classList.add('is-selected');
+        const cb = card.querySelector('.card-select-checkbox');
+        if (cb) cb.checked = true;
+      }
+    });
+    updateBulkActionUI();
+  }
+
+  function clearSelection() {
+    selectedTaskIds.clear();
+    document.querySelectorAll('.task-card.is-selected').forEach(card => {
+      card.classList.remove('is-selected');
+      const cb = card.querySelector('.card-select-checkbox');
+      if (cb) cb.checked = false;
+    });
+    updateBulkActionUI();
+  }
+
+  function getSelectedTaskIds() {
+    return Array.from(selectedTaskIds);
+  }
+
+  function getVisibleTasks() {
+    return visibleTasks.slice();
+  }
+
+  function updateBulkActionUI() {
+    const tasks = window.VG.App ? window.VG.App.getTasks() : [];
+    const searchInput = document.getElementById('searchInput');
+    const priorityFilter = document.getElementById('priorityFilter');
+    const tagFilterEl = document.getElementById('tagFilter');
+
+    const query = searchInput ? searchInput.value.trim() : '';
+    const prioFilter = priorityFilter ? priorityFilter.value : 'all';
+    const tagFilter = tagFilterEl && !tagFilterEl.disabled ? tagFilterEl.value : 'all';
+    const isFiltered = !!query || prioFilter !== 'all' || tagFilter !== 'all';
+
+    const btnBulkTag = document.getElementById('btnBulkTag');
+    const btnBulkTagText = document.getElementById('btnBulkTagText');
+    const btnBulkTagBadge = document.getElementById('btnBulkTagBadge');
+
+    const bulkActionBar = document.getElementById('bulkActionBar');
+    const bulkBarCount = document.getElementById('bulkBarCount');
+    const bulkBarLabel = document.getElementById('bulkBarLabel');
+
+    const selectedCount = selectedTaskIds.size;
+    const visibleCount = visibleTasks.length;
+
+    // Header Button
+    if (btnBulkTag) {
+      if (selectedCount > 0) {
+        btnBulkTag.disabled = false;
+        if (btnBulkTagText) btnBulkTagText.textContent = 'Tag Selected';
+        if (btnBulkTagBadge) {
+          btnBulkTagBadge.textContent = selectedCount;
+          btnBulkTagBadge.style.display = 'inline-block';
+        }
+        btnBulkTag.classList.remove('basic');
+        btnBulkTag.classList.add('teal');
+        btnBulkTag.title = `Assign tags to ${selectedCount} selected tasks (T)`;
+      } else if (isFiltered) {
+        btnBulkTag.disabled = visibleCount === 0;
+        if (btnBulkTagText) btnBulkTagText.textContent = 'Tag Filtered';
+        if (btnBulkTagBadge) {
+          btnBulkTagBadge.textContent = visibleCount;
+          btnBulkTagBadge.style.display = 'inline-block';
+        }
+        btnBulkTag.classList.add('basic');
+        btnBulkTag.classList.remove('teal');
+        btnBulkTag.title = `Assign tags to all ${visibleCount} filtered tasks (T)`;
+      } else {
+        btnBulkTag.disabled = tasks.length === 0;
+        if (btnBulkTagText) btnBulkTagText.textContent = 'Bulk Tag';
+        if (btnBulkTagBadge) {
+          btnBulkTagBadge.style.display = 'none';
+        }
+        btnBulkTag.classList.add('basic');
+        btnBulkTag.classList.remove('teal');
+        btnBulkTag.title = 'Assign tags to tasks (T)';
+      }
+    }
+
+    // Floating bar
+    if (bulkActionBar) {
+      if (selectedCount > 0) {
+        bulkActionBar.hidden = false;
+        if (bulkBarCount) bulkBarCount.textContent = selectedCount;
+        if (bulkBarLabel) bulkBarLabel.textContent = selectedCount === 1 ? 'task selected' : 'tasks selected';
+      } else {
+        bulkActionBar.hidden = true;
+      }
+    }
+  }
+
+  async function openBulkTagDialog(customTaskIds) {
+    const allTasks = window.VG.App ? window.VG.App.getTasks() : [];
+    if (!allTasks.length) {
+      window.VG.UI.toast('Board is empty. No tasks to tag.', 'info');
+      return;
+    }
+
+    let targetTasks = [];
+    if (customTaskIds && customTaskIds.length) {
+      const idSet = new Set(customTaskIds);
+      targetTasks = allTasks.filter(t => idSet.has(t.id));
+    } else if (selectedTaskIds.size > 0) {
+      targetTasks = allTasks.filter(t => selectedTaskIds.has(t.id));
+    } else if (visibleTasks.length > 0) {
+      targetTasks = visibleTasks.slice();
+    } else {
+      targetTasks = allTasks.slice();
+    }
+
+    if (!targetTasks.length) {
+      window.VG.UI.toast('No matching tasks found to tag.', 'warning');
+      return;
+    }
+
+    const UI = window.VG.UI;
+    const Tags = window.VG.Tags;
+    let picker = null;
+
+    const modalContent = `
+      <div class="bulk-tag-dialog-content">
+        <div class="bulk-tag-banner">
+          <i class="tags icon"></i>
+          <div class="banner-text">
+            <div class="banner-title">Assigning tags to <strong id="bulkModalBannerCount">${targetTasks.length}</strong> task(s)</div>
+            <div class="banner-subtitle">Pick or type tags to add. Existing tags will be preserved.</div>
+          </div>
+        </div>
+
+        <div class="ui inverted form bulk-tag-form">
+          <div class="field">
+            <label>Tags to add</label>
+            <div class="bulk-tag-picker-host"></div>
+            <small class="tag-picker-hint">Type to search existing tags or press Enter to create a new tag.</small>
+          </div>
+        </div>
+
+        <div class="bulk-tag-targets-section">
+          <div class="bulk-tag-targets-header">
+            <span><i class="tasks icon"></i> Target tasks (<span id="bulkModalListCount">${targetTasks.length}</span>):</span>
+            <button type="button" class="ui mini basic inverted button btn-bulk-modal-toggle-all">Select none</button>
+          </div>
+          <div class="bulk-tag-targets-list">
+            ${targetTasks.map(t => {
+              const prioKey = canonicalPriority(t.priority);
+              const prioMeta = PRIORITIES[prioKey] || PRIORITIES['medium'];
+              return `
+                <label class="bulk-target-item">
+                  <input type="checkbox" class="bulk-modal-task-check" data-task-id="${escapeHtml(t.id)}" checked />
+                  <span class="bulk-target-info">
+                    <span class="bulk-target-title" title="${escapeHtml(t.name)}">${escapeHtml(t.name)}</span>
+                    <span class="bulk-target-meta">
+                      <span class="ui mini ${prioMeta.color} label">${escapeHtml(prioMeta.label)}</span>
+                      ${(t.tags && t.tags.length) ? t.tags.map(tag => `<span class="ui mini label ${Tags.colorOf(tag)}">${escapeHtml(tag)}</span>`).join('') : '<span class="no-tags">No tags</span>'}
+                    </span>
+                  </span>
+                </label>
+              `;
+            }).join('')}
+          </div>
+        </div>
+
+        <div class="ui mini info inverted message bulk-tag-note">
+          <i class="info circle icon"></i>
+          Tags will be added to the selected tasks without removing their current tags. New tags will be added to the board registry.
+        </div>
+      </div>
+    `;
+
+    const res = await UI.dialog({
+      title: 'Bulk Assign Tags',
+      size: 'small',
+      content: modalContent,
+      dismissValue: null,
+      buttons: [
+        { text: 'Cancel', value: null, cls: 'basic inverted' },
+        { text: `Add Tags (${targetTasks.length})`, value: 'read', cls: 'teal' }
+      ],
+      onShow: (el) => {
+        const pickerHost = el.querySelector('.bulk-tag-picker-host');
+        picker = Tags.createPicker(pickerHost, { placeholder: 'Select or create tags...' });
+        picker.focus();
+
+        const bannerCount = el.querySelector('#bulkModalBannerCount');
+        const listCount = el.querySelector('#bulkModalListCount');
+        const toggleAllBtn = el.querySelector('.btn-bulk-modal-toggle-all');
+        const checkboxes = el.querySelectorAll('.bulk-modal-task-check');
+        const submitBtn = el.querySelector('.actions .button[data-index="1"]');
+
+        const updateCount = () => {
+          const checked = el.querySelectorAll('.bulk-modal-task-check:checked');
+          const count = checked.length;
+          if (bannerCount) bannerCount.textContent = count;
+          if (listCount) listCount.textContent = count;
+          if (submitBtn) {
+            submitBtn.textContent = `Add Tags (${count})`;
+            submitBtn.classList.toggle('disabled', count === 0);
+          }
+          if (toggleAllBtn) {
+            toggleAllBtn.textContent = count === checkboxes.length ? 'Select none' : 'Select all';
+          }
+        };
+
+        checkboxes.forEach(cb => {
+          cb.addEventListener('change', updateCount);
+        });
+
+        if (toggleAllBtn) {
+          toggleAllBtn.addEventListener('click', () => {
+            const anyUnchecked = Array.from(checkboxes).some(cb => !cb.checked);
+            checkboxes.forEach(cb => { cb.checked = anyUnchecked; });
+            updateCount();
+          });
+        }
+
+        if (submitBtn) {
+          submitBtn.addEventListener('click', (e) => {
+            const rawTags = picker ? picker.getValue() : [];
+            const checkedBoxes = el.querySelectorAll('.bulk-modal-task-check:checked');
+            if (!rawTags.length) {
+              e.stopImmediatePropagation();
+              UI.toast('Please select or create at least one tag to add', 'warning');
+              picker.focus();
+              return;
+            }
+            if (!checkedBoxes.length) {
+              e.stopImmediatePropagation();
+              UI.toast('Please select at least one task to receive tags', 'warning');
+              return;
+            }
+          }, true);
+        }
+      },
+      readValue: (el) => {
+        const rawTags = picker ? picker.getValue() : [];
+        const checkedIds = Array.from(el.querySelectorAll('.bulk-modal-task-check:checked'))
+          .map(cb => cb.getAttribute('data-task-id'));
+        return { tagNames: rawTags, selectedIds: checkedIds };
+      }
+    });
+
+    if (!res || !res.tagNames || !res.tagNames.length || !res.selectedIds || !res.selectedIds.length) {
+      return;
+    }
+
+    const tagsToAdd = Tags.ensure(res.tagNames);
+    const targetSet = new Set(res.selectedIds);
+    let modifiedCount = 0;
+
+    allTasks.forEach(task => {
+      if (!targetSet.has(task.id)) return;
+      const current = task.tags || [];
+      const combined = [...current, ...tagsToAdd];
+      const next = Tags.ensure(combined);
+      const changed = next.length !== current.length || next.some((t, i) => t !== current[i]);
+      if (changed) {
+        task.tags = next;
+        task.updated_at = new Date().toISOString();
+        modifiedCount++;
+      }
+    });
+
+    if (modifiedCount > 0) {
+      clearSelection();
+      window.VG.App.persistChanges(`Assigned tags to ${modifiedCount} task${modifiedCount === 1 ? '' : 's'}`);
+      renderBoard();
+    } else {
+      clearSelection();
+      UI.toast('Selected tasks already have these tags', 'info');
+      renderBoard();
+    }
+  }
+
   window.VG.Board = {
     setTagFilter,
     editTaskTags,
     renderBoardColumns,
     renderBoard,
-    renderTaskCard
+    renderTaskCard,
+    toggleTaskSelection,
+    selectAllVisible,
+    clearSelection,
+    getSelectedTaskIds,
+    getVisibleTasks,
+    updateBulkActionUI,
+    openBulkTagDialog
   };
 })();

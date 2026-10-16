@@ -28,6 +28,9 @@
     tasks = newTasks || [];
     Tags.load(rawTags, tasks);
     refreshTagFilter();
+    if (window.VG.Board && window.VG.Board.clearSelection) {
+      window.VG.Board.clearSelection();
+    }
   }
 
   /** The tasks.json document: tag registry + tasks */
@@ -322,9 +325,36 @@
       btnClearBoard.addEventListener('click', handleClearBoard);
     }
 
-    // Keyboard shortcuts: Escape closes modals, "/" focuses search, "n" creates a task
+    // Bulk Tag buttons and toolbar
+    const btnBulkTag = document.getElementById('btnBulkTag');
+    const btnBulkBarTag = document.getElementById('btnBulkBarTag');
+    const btnBulkBarSelectVisible = document.getElementById('btnBulkBarSelectVisible');
+    const btnBulkBarClear = document.getElementById('btnBulkBarClear');
+    const btnBulkBarClose = document.getElementById('btnBulkBarClose');
+
+    if (btnBulkTag) {
+      btnBulkTag.addEventListener('click', () => Board.openBulkTagDialog());
+    }
+    if (btnBulkBarTag) {
+      btnBulkBarTag.addEventListener('click', () => Board.openBulkTagDialog());
+    }
+    if (btnBulkBarSelectVisible) {
+      btnBulkBarSelectVisible.addEventListener('click', () => Board.selectAllVisible());
+    }
+    if (btnBulkBarClear) {
+      btnBulkBarClear.addEventListener('click', () => Board.clearSelection());
+    }
+    if (btnBulkBarClose) {
+      btnBulkBarClose.addEventListener('click', () => Board.clearSelection());
+    }
+
+    // Keyboard shortcuts: Escape closes modals/selection, "/" focuses search, "n" creates task, "t" bulk tags
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
+        if (Board && Board.getSelectedTaskIds && Board.getSelectedTaskIds().length > 0) {
+          Board.clearSelection();
+          return;
+        }
         if (document.activeElement === searchInput && searchInput.value) {
           searchInput.value = '';
           Board.renderBoard();
@@ -336,7 +366,7 @@
       }
 
       if (e.metaKey || e.ctrlKey || e.altKey || Modals.isAnyModalOpen()) return;
-      if (window.VG.TaskPage.isOpen() && e.key === '/') return;
+      if (window.VG.TaskPage.isOpen() && (e.key === '/' || e.key === 't' || e.key === 'T')) return;
       const target = e.target;
       const isTyping = target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
       if (isTyping) return;
@@ -348,6 +378,9 @@
       } else if (e.key === 'n' || e.key === 'N') {
         e.preventDefault();
         Modals.openCreateModal('planned');
+      } else if (e.key === 't' || e.key === 'T') {
+        e.preventDefault();
+        Board.openBulkTagDialog();
       }
     });
 
