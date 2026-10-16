@@ -1,0 +1,18 @@
+{
+  "name": "vg-task-manager",
+  "version": "1.0.0",
+  "description": "Minimalist single-file task manager & kanban board with JSON persistence and drag-and-drop",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "kanban",
+    "task-manager",
+    "tasks",
+    "productivity",
+    "single-file"
+  ],
+  "author": "Adrián R. Espinosa",
+  "license": "MIT"
+}

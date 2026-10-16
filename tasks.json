@@ -1,0 +1,3216 @@
+[
+  {
+    "id": "task-001",
+    "name": "Menú de crafteo sin estación",
+    "description": "quizas necesitemos menu para fabricaciones sin estación, en función de lo que coonozcamos y lo que podamos construir por los recursos accesibles (distinguir entre en inventario propio o el algún inventario público al que tenga acceso). podríamos incorporarlo en el menú de fabricación",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-002",
+    "name": "Spawn de paja para camastro",
+    "description": "spawnear paja o similar para camastro simple",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-003",
+    "name": "Generalización de depósitos",
+    "description": "habria que ver como generalizar la interacción con depósitos",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-004",
+    "name": "Receta de sal comestible",
+    "description": "receta: sal para comer a partir de bloques de sal de las salinas",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-005",
+    "name": "Tablero kanban de tareas",
+    "description": "tablero kanban sencillo para gestionar estaas tareas. herramienta generica propia, puede crecer. lo mismo para consultar sqlite, mi propio viewer y editor",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-006",
+    "name": "Exploración de mapa por facciones",
+    "description": "partes del mapa exploradas por cada faccion, conocimiento de lugares concretos, posición de otras facciones, acceso a recursos... intenciones de expansión, avanzado...",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-007",
+    "name": "Desacoplo de items en DB y código",
+    "description": "!! con cl: me preocupa el acoplamiento de items en base de datos y en clases. en db son necesarios para las recetas. quizás podríamos tener una forma de generar items de manera genérica a partir de los valores de base de datos, incluido sprites de juego y de ui. interesante esto. tendríamos solo definidas las clases y subclases. igual podríamos hacer para las estacions de trabajo y muebles (guardar tambien dimensiones y posicion del punto de entrada). tambien arboles y resto de plantes si generalizamos bien eliminamos el acople. en general debemos extender este enfoque al maximo, buscar oportunidades activamente.",
+    "openspec-id": "",
+    "priority": "high",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-008",
+    "name": "Banco de piedra para madera",
+    "description": "estacion de trabajo: banco de piedra para hacer leña y bloques constructivos de maderda a partir de los troncos",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-009",
+    "name": "Unidades familiares y herencias",
+    "description": "unidades familiares -> recursos necesarios, vivienda, herencias los niños crecen, se emparejan y forman unidades familiares (matrimonio)",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-010",
+    "name": "Sistema de libros y tecnología",
+    "description": "libros: distintos libros por temática, relacionadas con ramas tecnologicas (literatura será una rama más) para escribirlo, el autor debe cumplir ciertos requisitos de conocimiento, además de nivel de escritura. el conocimiento no solo se obtiene ejerciendo, tambien estudiando. titulos universitarios (hace falta alcanzar nivel de politica, o similar, o una combinacion), educacion tener un libro, a nivel de facción, da puntos tecnológicos para la rama relacionada. los libros, en principio, seran items unicos, aunque tendremos estaciones de trabajo para copiar libros y comerciar con ellos, por ejemplo. para que los libros contabilicen, deberemos tener una biblioteca (clases derivadas), que seran contenedores de libros a nivel de facción o asentamiento, hay que verlo bien. el propio desarrollo tecnologico puede incentivar la escritura de libros de una temática, produciéndose cierta retroalimentación (un asentamiento especializado en mineria puede hacer que expertos en mineria escriban sobre ello). para escribir libros hará falta estaciones de trabajo (escritorios). podrían estar limitados en cuanto a donde pueden colocarse (solo en bibliotecas, en casas particulares si el autor supera cierto nivel...) tener claro el conjunto de ramas tecnologicas/culturales, pueden tener relación entre ellas, dejar las mínimas y llevar a base de datos: religión, matemáticas, filosofía, artesanía (en general), minería, arquitectura/ ingeniería civil, pesca, navegación marítima, guerra, política, literatura.",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-011",
+    "name": "Degradación lenta de stats inactivas",
+    "description": "las stats que no se entrenan van bajando de nivel, pero muy lentamente",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-012",
+    "name": "Menú de asentamiento",
+    "description": "menu de asentamiento",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-013",
+    "name": "Atajo Mayús+Número para pestañas",
+    "description": "mayus + numero para alternar entre pestañas de un menú (genérico). estudiar elementos genéricos de interfaz grafica",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-014",
+    "name": "Debug de campo de visión",
+    "description": "opcion de debug: marcar de alguna manera los items y personajes que caen dentro del campo de visión de un personaje.",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-015",
+    "name": "Nombramiento de gobernador",
+    "description": "nombrar gobernador de poblado, consecuencias",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-016",
+    "name": "Entierro de fallecidos",
+    "description": "hay que enterrar a los muertos",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-017",
+    "name": "Efecto de comida desagradable",
+    "description": "comer cosas asquerosas afecta a felicidad. a veces no queda otra",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-018",
+    "name": "Resistencia de pueblos infelices",
+    "description": "pueblos muy infelices ofrecen menos resistencia a la conquista",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-019",
+    "name": "Verificación de integridad de DB",
+    "description": "verificar integridad de la db antes de arrancar partida, permitir multiples db",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-020",
+    "name": "Soporte de mando y Steam Deck",
+    "description": "controles de mando y probar en steam deck y mi game boy android (menos botones)",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-021",
+    "name": "Autocrecimiento de poblados",
+    "description": "autocrecimiento del poblado, cubriendo necesidades. algoritmo generacion de poblados. modo auto opcional para los nuestros",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-022",
+    "name": "Arbustos frutales recolectables",
+    "description": "arbustos como derivados de arboles con frutos que podemos coger facilmente.",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-023",
+    "name": "Control completo con ratón",
+    "description": "facilitar jugar solo con raton, interacciones en menu contextual además de teclas (estaciones, recoger cosas, atacar...)",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-024",
+    "name": "Doble pulsación para centrar cámara",
+    "description": "facil: pulsar dos veces rapido el numero para llevar la camara a la posicion del personaje quitamos mayus",
+    "openspec-id": "",
+    "priority": "low",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-025",
+    "name": "Editor de facciones y religiones",
+    "description": "editor de facciones y religiones. tener claro entidades",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-026",
+    "name": "Interacción squad vs aldeanos",
+    "description": "interacciones con miembros del squadron vs aldeanos y npcs",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-027",
+    "name": "Selector de modelos en OpenCode",
+    "description": "sistema en opencode para determinar que modelo usar para cada tarea que pidamos (xplore,implement) ahora con freellmapi tendremos más",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-028",
+    "name": "Fabricación básica de supervivencia",
+    "description": "ahora mismo no es esta spawneando comida. necesitamos poder fabricar fogata, armas para cazar (lanza), depellejar (cuchillo, no tenemos)",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-029",
+    "name": "Distinción entre squad y aldeanos",
+    "description": "creo que debemos distinguir entre dos tipos de personajes: los que manejamos directamente y los que funcionan de forma autonoma (los niños que van naciendo, gente que llega...). luego tendremos la acción de reclutar. podremos reclutar a cualquiera de nuestro asentamiento y a algunos npc que encontremos o haciendo misiones, etc. así, distinguimos entre los individuos de nuestro squad, que manejamos directamente, y nuestros \"aldeanos\", que funcionarán de forma autónoma, como npc, pero tendremos que cubrir sus necesidades. una partida podría jugarse completamente sin aldeanos, es un recurso más.",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-030",
+    "name": "Caducidad de alimentos",
+    "description": "tiempo qe tarda en pudrirse un alimento, en cualquier estado de procesado (tiempo base + condiciones)",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-031",
+    "name": "Controles de grupo y formación",
+    "description": "distinguir controles de players individuales de los controles de grupo (formacion, todos alç mismo ritmo...)",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-032",
+    "name": "Doma y transporte de animales",
+    "description": "animales, corrales, doma, transporte de animales (comprados, domados, etc.). podrá ser en libertad, guiándolos, o para algunos, como conejos, corderos, cerdos (en funcion del tamaño), o gallinas y otras aves podremos atarlos (es un tipo de interacción, se defenderá o huirá, habilidad del cazador) y serán un item más que almacenar en inventarios especiales (carros... inventarios especiales o para animales). si un animal ya esta domado, podremos atarlos para cargarlos sin dificultad ni oposicion, es una mecanica más. ¿el climaa afecta a animales en crecimiento, felicidad...?",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-033",
+    "name": "Nivel y prestigio de asentamientos",
+    "description": "los asentamientos tendrán un nivel en función de ciertos parametros: fertilidad, recursos, pib, estaciones de trabajo que tiene, infraestructura como carreteras, puertos, puestos comerciales, valor religioso (lugares sagrados). esto hara que se codicie más o menos y se respete más o menos vendrán de fuera a comprar, vender, rezar, estudiar (podremos tener libros valiosos, alto desarrollo tecnológico...)...",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-034",
+    "name": "Preferencia de tareas en personajes",
+    "description": "personajes aman tareas: aumenta más rápido el nivel y la felicidad baja menos. podría ser un valor continuo",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-035",
+    "name": "Rasgos de personalidad",
+    "description": "rasgos de personalidad, como en ck3, afectan a stats",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-036",
+    "name": "Narradores de eventos históricos",
+    "description": "narradores al estilo rimworld para gestionar eventos de la historia",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-037",
+    "name": "Normas e ideología de facción",
+    "description": "modelar bien entidad Faction (religion libre o no, ideologias...) guardar config. de normas de una facción",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-038",
+    "name": "Gestor de tareas y esfuerzo",
+    "description": "herramienta para estas tareas: esfuerzo, prioridad. gestor de tareas para el proyecto sdd",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-039",
+    "name": "Acción de sentarse y descanso",
+    "description": "si hay donde sentarse cerca y accesible, los personajes se sientan si no tienen nada que hacer. mejora algo el descanso y la felicidad, el hambre baja mas lento, gastamos menos comida",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-040",
+    "name": "Relaciones diplomáticas indirectas",
+    "description": "los enemigos de tus amigso son tus enemigos",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-041",
+    "name": "Tipos de daño por arma",
+    "description": "distintos tipos de daño segun arma y/o golpe: punzante, cortante, percutor, desgarrar... investigar kenshi",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-042",
+    "name": "Registro grupal de recetas conocidas",
+    "description": "facil: mantener registro de las recetas que conocemos (como grupo, entidad grupo), que no seran todas las del juego.",
+    "openspec-id": "",
+    "priority": "low",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-043",
+    "name": "Inventario animal y despiece",
+    "description": "inventario animal como en kenshi. manera facil de implementar el despellejado y la extracción de carne",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-044",
+    "name": "Recarga de proyectiles y flechas",
+    "description": "tiempo de recarga al disparar. implementar municion. recetas de flechas, varios tipos. flechas envenenadas (receta veneno + flecha)",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-045",
+    "name": "Personajes en busca y captura",
+    "description": "characters buscado, al estilo rdr2 o kenshi. lo entregamos en ciertos edificios de la facción que lo persigue. recompensa. vivo o muerto. curar para entregar vivo",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-046",
+    "name": "Logias y hermandades secretas",
+    "description": "formar parte de logias o hermandades. acceso a lugares y recetas exclusivas. algunas seran excluyentes. puede dar juego. relacion de estas hermandades con religiones y facciones. pensar en ideologias",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-047",
+    "name": "Casas en ruinas a la venta",
+    "description": "casas en ruina a la venta en ciudades de facciones. relacion con la faccion, religion...",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-048",
+    "name": "Tooltip en hover para el mundo",
+    "description": "facil: tooltip al psar el raton por bloques, arboles, estaciones,,,,",
+    "openspec-id": "",
+    "priority": "low",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-049",
+    "name": "Resiliencia tras derrota",
+    "description": "al sobrevivir a una derrota, nos hacemos más fuertes. quedar inconsciente, cuerarnos, heridas permanentes y temporales...",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-050",
+    "name": "Triggers y efectos de eventos",
+    "description": "claude sistema generico de eventos. triggers y efectos",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-051",
+    "name": "Atributo owner en habitaciones",
+    "description": "hecho: ahora vamos a añadir un nuevo atributo a las habitaciones, owner, que sera un personaje y podra ser nil falta usarlo",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "in progress",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:05:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      },
+      {
+        "from_status": "planned",
+        "to_status": "in progress",
+        "timestamp": "2026-10-16T18:05:00.000Z",
+        "reason": "Marcada en progreso según notas de tl:.md.md"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-052",
+    "name": "Sistema de alimentación",
+    "description": "alimentación",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-053",
+    "name": "Comida regional y restaurantes",
+    "description": "las recetas de comida tendran faccion de origen. restaruantes",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-054",
+    "name": "Auditoría de edificios existentes",
+    "description": "recopilar todo lo que tenemos aqui de dificios, es bastante. ver que tenemos, que sobra...",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-055",
+    "name": "Relaciones íntimas y embarazo",
+    "description": "relacion sexual con embarazo, como los sims (interacción). embarazo también con violación",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-056",
+    "name": "Modelado de biomas",
+    "description": "pensar en biomas: modelar, relacionar con atributos del terreno y el mundo, incluir primeros ejemplos...",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-057",
+    "name": "Mecánicas de rol ligeras",
+    "description": "opciones de rol como baldurs, pero sencillo, kenshi tiene algo similar",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-058",
+    "name": "Entrenamiento pasivo por práctica",
+    "description": "auto entrenamiento de los atributos con la práctica: correr, minar, granja, doma de animales, etc. modelar clase atributo/habilidades entrenables de manera genérica",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-059",
+    "name": "Árboles tecnológicos",
+    "description": "arbooles tecnologicos",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-060",
+    "name": "Lanza arrojadiza recogible",
+    "description": "lanza arrojadiza. al lanzarla, actua como una bala o flecha. desaparece del inventario y es un item recogible del suelo",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-061",
+    "name": "Carga masiva de datos en DB",
+    "description": "tengo que añadir datos en general: animales, items, armas, herramientas, estaciones de trabajo, cultivos...",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-062",
+    "name": "Durabilidad y desgaste de bloques",
+    "description": "no claude: estado de salud de los bloques, durabilidad, desgaste natural (hecho)... calcular para el edificio (falta). hacer cuando acabemos el refactor de bloques constructivos",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "in progress",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:05:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      },
+      {
+        "from_status": "planned",
+        "to_status": "in progress",
+        "timestamp": "2026-10-16T18:05:00.000Z",
+        "reason": "Marcada en progreso según notas de tl:.md.md"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-063",
+    "name": "Recetas de frascos y medicinas",
+    "description": "recetas de medicinas. se llevan en un frasco y tienen distintos efectos, tambien boost temporales",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-064",
+    "name": "Ampliación del catálogo de armas",
+    "description": "empezar a añadir armas",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-065",
+    "name": "Generador de formas de viviendas",
+    "description": "generador de edificios (viviendas para empezar), al menos la forma, sin determinar material. sera un primer paso para empezar a planificar ciudades (poblacion, gente por casa...)",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-066",
+    "name": "Rutas de patrulla",
+    "description": "rutas, patrullas",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-067",
+    "name": "Modos tácticos de combate",
+    "description": "modos de combate automatico como en kenshi: ofensivo, defensivo, ... investigar",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-068",
+    "name": "Influencia del peso en velocidad",
+    "description": "se aborda: peso altera velocidad de movimiento, no capacidad de inventario.",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "in progress",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:05:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      },
+      {
+        "from_status": "planned",
+        "to_status": "in progress",
+        "timestamp": "2026-10-16T18:05:00.000Z",
+        "reason": "Marcada en progreso según notas de tl:.md.md"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-069",
+    "name": "Salud localizada por partes del cuerpo",
+    "description": "se aborda: partes del cuerpo como en kenshi. salud por parte, puede inducir a la inconsciencia",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "in progress",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:05:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      },
+      {
+        "from_status": "planned",
+        "to_status": "in progress",
+        "timestamp": "2026-10-16T18:05:00.000Z",
+        "reason": "Marcada en progreso según notas de tl:.md.md"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-070",
+    "name": "Equipamiento de carga para animales",
+    "description": "animales con inventario (cargas). habria que equiparle algun tipo de item de tipo mochila. lo que hay que implementar primero es la opción de equipar animales (monturas, cargas, protecciones)",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-071",
+    "name": "Control de acceso a ciudades",
+    "description": "control de acceso a ciudades",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-072",
+    "name": "Spawn de fauna con movimiento",
+    "description": "spawnear animales. movimiento autonomo sencillo para asentar las bases",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-073",
+    "name": "Eventos de sigilo y delitos",
+    "description": "se aborda: sistema de eventos: robar, quedarse dormido, etc. profundizar, tener claro como modelar eventos",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "in progress",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:05:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      },
+      {
+        "from_status": "planned",
+        "to_status": "in progress",
+        "timestamp": "2026-10-16T18:05:00.000Z",
+        "reason": "Marcada en progreso según notas de tl:.md.md"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-074",
+    "name": "Cono de visión y campo auditivo",
+    "description": "se aborda: campo de visión: distancia, obstáculos... faltaria uno similar para la audicion (circular, no conico) el ruido hace que giren la cabeza hacia la fuente",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "in progress",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:05:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      },
+      {
+        "from_status": "planned",
+        "to_status": "in progress",
+        "timestamp": "2026-10-16T18:05:00.000Z",
+        "reason": "Marcada en progreso según notas de tl:.md.md"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-075",
+    "name": "Mecánica de sueño en camas",
+    "description": "dormir: en una cama: si no es suya y lo pillan le pueden agredir (evento). el sueño será más reparador en función de la calidad de la cama. el dormir será una interacción con items de tipo cama, podremos elegir cuanto tiempo queremos dormir antes de empezar. si no tenemos acceso a cama tendremos una opción para dormir en el sueño, pero tendrá consecuencias negativas, menos descanso, descenso de la felicidad, etc.",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-076",
+    "name": "Pestaña de armas en personaje",
+    "description": "añadir tab armas en el menu de personaje. armas equipadas, munición... receta de flechas y arco",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-077",
+    "name": "Física y puntería de disparos",
+    "description": "implementar disparos (colliders, punteria...)",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-078",
+    "name": "Colección de efectos de sonido",
+    "description": "buscar sonidos libres",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-079",
+    "name": "Flujo de agricultura y riego",
+    "description": "flujo de farming segun especie. plantear especies iniciales. necesidades de riego, automatizacion",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-080",
+    "name": "Historial de eventos micro y macro",
+    "description": "en general, un sistema de eventos para interacciones, registrar en la historia, etc. tanto a nivel micro como a nivel macro (llega la noticia de una guerra, muere alguien, etc)",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-081",
+    "name": "Contratación de jornaleros",
+    "description": "contratar trabajadores temporales (granjas, minas, pastoreo...)",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-082",
+    "name": "Estudio de estilo visual minimalista",
+    "description": "diseño artistico minimalista al estilo de caves of qud?? facil de generar el arte. ver bien, no encaja 100%",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-083",
+    "name": "Parametrización y calibración global",
+    "description": "diseñar parametrizando siempre, pensando que habrá que calibrar parametros, equilibrar dificultad, etc. indicar en agents.md",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-084",
+    "name": "Referencia de estaciones de Stardew",
+    "description": "buscar estaciones de trabajo de stardew valley para inspiracion",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-085",
+    "name": "Atributo de decoración y confort",
+    "description": "atributo decoración en las estancias (muebles, elementos decorativos, tapices...) mejoran la felicidad",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-086",
+    "name": "Habilidades médicas y veterinarias",
+    "description": "tecnologia de medicina para curar, salvar vidas... veterinarios?",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-087",
+    "name": "Evento de usurpación de propiedad",
+    "description": "reclamar propiedades (evento). tendra consecuencias con el propietario anterior (se cambia el owner) y quizás con su facción. sería un evento, como robo o agresión",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-088",
+    "name": "Agresiones graves y sistema de karma",
+    "description": "agresion sexual (evento) y karma por zona/facción",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-089",
+    "name": "Desarme de personajes indefensos",
+    "description": "desvestir individuos inconscientes o maniatados",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-090",
+    "name": "Pestaña de mobiliario en Build",
+    "description": "pestaña en Build para cofres, estanterias, mesas (algunas tienen inventario), muebles en general, puntos de enganche animal otra pestaña para vallas, añadir ventanas (hueco en la pared, afecta a temperatura)",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-091",
+    "name": "Cálculo térmico en estancias",
+    "description": "temperatura en una estancia: material paredes, techo, fogata, ventana, area total... (añado el atributo, falta la logica para determinar el valor de temperatura en grados, primero habría que obtener la matriz de temperatura del mundo)",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "in progress",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:05:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      },
+      {
+        "from_status": "planned",
+        "to_status": "in progress",
+        "timestamp": "2026-10-16T18:05:00.000Z",
+        "reason": "Marcada en progreso según notas de tl:.md.md"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-092",
+    "name": "Desbloqueo tecnológico por lectura",
+    "description": "los libros desbloquean recetas de todo tipo y aumentan desarrollos tecnologicos en distintas areas segun tematica y calidad del libro, que dependera del talento y habilidades del autor templates para los nombres y contenido de los libros",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-093",
+    "name": "Banco de diálogos parametrizables",
+    "description": "tener una coleccion grande de lineas de dialogo parametrizables",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-094",
+    "name": "Diálogos generativos con LLM",
+    "description": "conectar el juego con la api de opencode o similar. conversaciones en tiempo real entre personajes con contexto",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-095",
+    "name": "Visor externo de recetas",
+    "description": "visor y creador de recetas fuera del juego, en base slo a base de datos. se tiene que desacoplar por completo el codigo de la db",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-096",
+    "name": "Detección y denuncia de crímenes",
+    "description": "eventos: robo, agresión. quien te ha visto, como reacciona. avisar a autoridad, atacarte...",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-097",
+    "name": "Horarios y rutinas de personajes",
+    "description": "es importante pensar como programar tareas, con sus descansos, relaciones con otros del asentamiento, etc, para olvidarnos de algun personaje. algo desatendida se le programa unas horas de descanso y ocio. afectara a la felicidad. podriamos tener un modo automático para algunos players, de quita y pon para la mecanica del juego es importante poder tener individuos controlables pero automatizados y manejar otros mas directamente podremos consultar indiividuos inactivos, recibiremos aviso al completar tarea... tareas con condiciones: cuando haya menos de X piezas de pan, comenzar a preparar más hasta tener Y, etc. si no hay recursos, aparece aviso",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-098",
+    "name": "Ciudades precargadas al iniciar",
+    "description": "simplificar. al empezar la partida, las ciudades ya se han creado, en base a la historia, como dwarf fortress",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-099",
+    "name": "Contenedores y vasijas para granos",
+    "description": "hecho: cofres para guadar todo tipo de items, vasija para guardar grano... (items con inventario especializado, por tipo de item o similar)",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "in progress",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:05:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      },
+      {
+        "from_status": "planned",
+        "to_status": "in progress",
+        "timestamp": "2026-10-16T18:05:00.000Z",
+        "reason": "Marcada en progreso según notas de tl:.md.md"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-100",
+    "name": "Cabaña forestal iniciadora de aldea",
+    "description": "cabaña de cazador en el bosque con comida, una cama... puede atraer la construcción de otros cercanos, dando lugar con el tiempo a un poblado",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-101",
+    "name": "Conversación y afinidad para reclutar",
+    "description": "sistema de conversacion, recuerdo de personajes, aumentar confianza para reclutamiento, regalos en función de su cultura, gustos... generador de npcs de este tipo. ¿se puede reclutar a cualquiera? deberíamos",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-102",
+    "name": "Perímetro oceánico natural",
+    "description": "el mundo deberia estar siempre rodeado de agua, de forma natural, sin artefactos",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-103",
+    "name": "Propiedad individual de items",
+    "description": "los items pueden tener un dueño (lo tienen). sirve para robo, consecuencias...",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-104",
+    "name": "Mecánica de hurto y testigos",
+    "description": "tomar un item que tiene dueño puede ser o no ser robo. si el owner anterior nos autoriza no es robo. si no nos autoriza pero nadie nos ve, tampoco es robo. si nos ve alguien que no es el dueño, depende.",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-105",
+    "name": "Generación procedural de edificios",
+    "description": "creador \"procedural\" configurable de edificios",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-106",
+    "name": "Cursor virtual para gamepad",
+    "description": "implementar cursor para jugar con mando y mapear controles. en teclado, se mueve con las flechas y se selecciona con espacio (alt + espacio para clic derecho)",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-107",
+    "name": "Sprites modulares de cabeza y cuerpo",
+    "description": "personajes al estilo rimworld, cabeza y cuerpo por separado. facil de configurar y dibujar. tendriamos que hacer visible que arma lleva, y diseñar armas compatibles en estilo",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-108",
+    "name": "Peso de animales y rendimiento cárnico",
+    "description": "los animales tienen un peso (añadido). la carne que da depende del peso. la gente tendre requisitos de ingesta",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "in progress",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:05:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      },
+      {
+        "from_status": "planned",
+        "to_status": "in progress",
+        "timestamp": "2026-10-16T18:05:00.000Z",
+        "reason": "Marcada en progreso según notas de tl:.md.md"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-109",
+    "name": "Formaciones con selección múltiple",
+    "description": "hacer formaciones de personajes con selección múltiple",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-110",
+    "name": "Ciclo integral de cultivos",
+    "description": "flujo completo de farming",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-111",
+    "name": "Ciclo de iluminación día y noche",
+    "description": "ciclo dia noche, luz, eventos nocturos y diurnos",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-112",
+    "name": "Asignación de dormitorios",
+    "description": "habitaciones asignadas, como terraria, felicidad",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-113",
+    "name": "Estacionalidad de frutos y cosechas",
+    "description": "frutos de los arboles en funcion de epoca del año, opcional. igual para cultivos",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-114",
+    "name": "Interfaz de trueque y comercio",
+    "description": "menu generico de comercio o trueque, monedas (2 inventarios enfrentados)",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-115",
+    "name": "Cola de órdenes para tala de árboles",
+    "description": "pensar como podemos ordenar a un personaje que tale N arboles que seleccionemos previamente. podría ser al estilo age of emppire 2, con mayus vamos añadiendo tareas a la cola",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-116",
+    "name": "Ciclo vital de PNJs autónomos",
+    "description": "pensar individuos autonomos. se alimentan, duermen, cazan, fabrican armas, se relacionan y reproducen...",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-117",
+    "name": "Zonas de acopio y logística",
+    "description": "zonas de almacenamiento de recursos e items para tener localizados los que tenemos en inventario global. si lo soltamos en el suelo fuera de una de estas zonas, no contabilizará en el inventario global. cadenas de produccion",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-118",
+    "name": "Habitantes no combatientes de facción",
+    "description": "individuos de nuestra faccion pero no controlables. usan nuestros alimentos y recursos y edificios",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-119",
+    "name": "Spritesheets con generación de IA",
+    "description": "buscar sprtesheets chulos y prepararlos con la ia",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-120",
+    "name": "Metalurgia y forja de lingotes",
+    "description": "lingotes de metal para construir cosas: convertimos menas en lingotes y estos en items en recetas",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-121",
+    "name": "Hibridación de especies y razas",
+    "description": "cruzar razas y especies compatibles",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-122",
+    "name": "Compra de inmuebles extranjeros",
+    "description": "comprar edificios en asentamientos ajenos, para comerciar, tactica militar, espionaje, etc",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-123",
+    "name": "Ventaja táctica por elevación",
+    "description": "bonus de altura al disparar",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-124",
+    "name": "Regeneración natural de bosques",
+    "description": "los bosques se autoregeneran, las minas no",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-125",
+    "name": "Escalado de combate según arma",
+    "description": "las estadisticas de combate dependeran de las armas equuipaas",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-126",
+    "name": "Pestaña de destrezas de armas",
+    "description": "una pestaña en el menu de personaje para informacion de armas (abordado), y habilidad relacionada, que dependerá del tipo de arma. en esa pestaña veremos también el caso y las armaduras, asi liberamos la silueta. pensar si vendria bien tambien para equipables",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "in progress",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:05:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      },
+      {
+        "from_status": "planned",
+        "to_status": "in progress",
+        "timestamp": "2026-10-16T18:05:00.000Z",
+        "reason": "Marcada en progreso según notas de tl:.md.md"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-127",
+    "name": "Editor de mapas multicapa",
+    "description": "editor de mundo por capas: elevacion, rios, spawn, etc. se guarda en base de datos. con semillas y valores de ruido para replicarlo. podriamos tener el mismo mundo con distintos rios por ejemplo.",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-128",
+    "name": "Recopilación de stats de referencia",
+    "description": "buscar atributos de kenshi, rimworld, sims...",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-129",
+    "name": "Estructura de datos para comidas",
+    "description": "recetas de comida. heredan de receta o son lo mismo?",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-130",
+    "name": "Vínculos afectivos y sociales",
+    "description": "relaciones entre individuos y con animales domesticados. enamoramiento, amistad, lazo familiar... eventos influyen",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-131",
+    "name": "Pruebas de estrés y rendimiento",
+    "description": "tener pruebas de rendimiento para generar mundos muy grandes y probar todas las capas, con edificios, granjas, etc. simular partidas grandes para monitorizar rendimiento. puede ser un test que se deje en ejecución durante largo tiempo. spawns grandes, muchas unidades, interacción entre ellas, tareas programadas, muchos asentamientos...",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-132",
+    "name": "Botín disperso en tala y minería",
+    "description": "talar suelta en el suelo troncos y ramas, que son recogibles. igual para minerales. se recogen y añaden al inventario, o se dejan en el suelo y se programa tarea de recogida.",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-133",
+    "name": "Construcción de corrales ganaderos",
+    "description": "domesticar animales, corrales",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-134",
+    "name": "Gestión de inventarios múltiples",
+    "description": "gestionar inventarios cuando selección múltiple",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-135",
+    "name": "Simulación de evolución comunitaria",
+    "description": "evolucion autonoma de una comunidad",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-136",
+    "name": "Tablón de órdenes y autoasignación",
+    "description": "automatización de tareas, prioridad: las tareas se crean y los personajes las toman?? o las crea el personaje?? distintos tipos de tareas, tarea automática como tipo de tarea?? para granjas, estaciones de trabajo, tareas de entrenamiento, estudio, escritura...",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-137",
+    "name": "Ficha de datos de libros",
+    "description": "item libro: titulo, tipo (religioso, militar, legal, política, poesia, ficcion, geografia, historia) contenido, faccion creadora. sprite, db, registro de libros de la partida... estacion de trabajo para escribir... de momento sin sprite",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-138",
+    "name": "Factores psicológicos de felicidad",
+    "description": "la felicidad dependera de su cultura y hábitos, además de atributos mentales y gustos y fobias personales. también influirá el entorno, estado de sus atributos de salud y hambre, calidad de su vivienda... la felicidad tendrá influencia en la eficiencia en el trabajo, estudio, evolución de sus atributos (eficiencia de entrenamiento de distinto tipo)",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-139",
+    "name": "Modelo integral de atributos",
+    "description": "hay que definir bien el modelo de los personajes y animales. atributos fisicos, mentales, de combate, artesania, etc.",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-140",
+    "name": "Física de explosiones y metralla",
+    "description": "explosiones, onda expansiva, daño en función de distancia y potencia. afecta a todo tipo de entidades y derivados de character",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-141",
+    "name": "Traumatismos y secuelas físicas",
+    "description": "lesiones: brazos o piernas rotas, heridas con secuelas. reducirán atributos del personaje de forma temporal o permanente. heridos caminarán más despacio y tendrán peores atributos de combates",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-142",
+    "name": "Prisiones y grilletes de cautivos",
+    "description": "cárceles para prisioneros, esclavitud: tareas automatizadas, requisitos de vigilancia, grilletes que afectan a la velocidad. más dificil huir, pero trabajaran peor. si estan bien vigilados y en un cerco, no serán necesario grilletes, pero hay que hacer una inversión mayor. los grilletes serán un equipable que el personaje no podrá quitarse hasta que lo haga otro o se rompa o consiga las llaves.",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-143",
+    "name": "Caravanas y mercaderes itinerantes",
+    "description": "comerciantes ambulantes, tradear, rutas de comerciantes, puntos de concentración en ciudades, templos, puertos",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-144",
+    "name": "Degradación intempestiva de comida",
+    "description": "la comida se deteriora más rápido por estar al extterior o sin techo, como rimworld. también técnicas de conserva (receta en estacion de trabajo o no). atributo estado de conservacion y ritmo de degradación.",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-145",
+    "name": "Acción base de dormir",
+    "description": "añadir acción dormir (base de otras?). hay que hacerlo en",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-146",
+    "name": "Rutinas automáticas de sustento",
+    "description": "opciones para dormir y comer automaticamente. necesitara tener acceso a cama y comida",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-147",
+    "name": "Ingeniería de puentes y viaductos",
+    "description": "puentes con requisitos de cimientos como los techos, para cubrir saltos de elevacion o agua. permitir puentes con cierta elevacion (desarrollo tecnologico)",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-148",
+    "name": "Generación de mundos mediante prompt",
+    "description": "generador de matrices del mundo con lenguaje natural, structured output",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-149",
+    "name": "Gradación de calidad en bienes",
+    "description": "calificacion de producto de lujo en funcion del atributo calidad de la materia prima. en parte sera genetica (cochino negro de sierra morena), pero influira el cuidado (alimentacion, calidad de vida). el tratado de la materia prima influira tambien en la calidad (desarrollo tecnologico de estaciones de trabajo, destreza del trabajador...)",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-150",
+    "name": "Integración LLM en tiempo de juego",
+    "description": "posibilidad de conectar con opencode api o similar para consultas en tiempo de juego",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-151",
+    "name": "Estructuras multinivel",
+    "description": "edificios multiplanta",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-152",
+    "name": "Generador de contexto y lore",
+    "description": "distintas opciones de lore inicial, definidas en un prompt. influye en las facciones, relaciones entre ellas, eventos pasados, personjaes históricos, religiones, etc. estohabría que modelarlo como estructura de datos",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-153",
+    "name": "Selección de era cronológica",
+    "description": "posibilidad de empezar en diferentes epocas (dentro de un rango), partiendo así de un punto de desarrollo tecnológico inicial mayor o menor.",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-154",
+    "name": "Diseño visual con LUIS y fuentes",
+    "description": "usar un tema mas chulo con LUIS y fuentes open source",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-155",
+    "name": "Construcción instantánea de prueba",
+    "description": "edificios de prueba: pasar gratis de blueprint a edificio real, bloque a bloque",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-156",
+    "name": "Modelado de relieve con vgworld",
+    "description": "lo primero seria la elevacion, investigar vgworld",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-157",
+    "name": "Herramientas de pintado de biomas",
+    "description": "con lo anterior, plantear el world editor para biomas, bosques, minas, spawn de plantas, de poblaciones animales...",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-158",
+    "name": "Sistemas de cuevas subterráneas",
+    "description": "cuevas: tienen la entrada a una determinada altura (o varias entradas). ademá, pueden tener distintos niveles, con pasos entre niveles al estilo stardew valley. las posiciones de celda tendrán un valor de elevación y también una distancia vertical respecto al suelo, teniendo en cuenta que las cuevas por defecto son multinivel. se podría estudiar la destrucción de bloques",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-159",
+    "name": "Localización mediante archivos CSV",
+    "description": "multiidioma. estiquetas de texto en un csv para cada idioma. detectar automáticamente los idiomas del csv",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-160",
+    "name": "Asociación botánica especie y fruto",
+    "description": "tipos de arboles -> frutos",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-161",
+    "name": "Marco genérico de interacciones",
+    "description": "interacción -> genérica, con item interactuable (eventual necesidad de equipo). luego, algunas básicas, como recolección de frutos o extracciones sencillas (arcilla, cangrejos, moluscos...)",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-162",
+    "name": "Comportamiento funcional por edificio",
+    "description": "comportamiento del edificio según tipo",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-163",
+    "name": "Reglas de validación arquitectónica",
+    "description": "validar edificio: tiene room techada y puerta de acceso... necesidades según tipo",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-164",
+    "name": "Algoritmo de autoconstrucción urbana",
+    "description": "cuando tengamos clara la estructura de datos de un edificio, implementar generador de edificios",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-165",
+    "name": "Familias modulares de salud y stats",
+    "description": "Atributos del character: de salud: alimentacion (nutrientes), hambre, energía momentánea, estado de ánimo, estrés religioso, militar, académico, político, trabajo porcentaje grasa corporal, fuerza carisma, poder de seducción",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  },
+  {
+    "id": "task-166",
+    "name": "Coberturas y parapetos de visibilidad",
+    "description": "añadir obstaculos de altura media (como vallas) que afectan a la visiblidad (otro nivel de visibilidad, si nos agachamos o reptamos no nos ven)",
+    "openspec-id": "",
+    "priority": "medium",
+    "status": "planned",
+    "created_at": "2026-10-16T18:00:00.000Z",
+    "updated_at": "2026-10-16T18:00:00.000Z",
+    "history": [
+      {
+        "from_status": null,
+        "to_status": "planned",
+        "timestamp": "2026-10-16T18:00:00.000Z",
+        "reason": "Creación inicial de la tarea"
+      }
+    ],
+    "comments": []
+  }
+]
