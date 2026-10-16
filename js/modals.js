@@ -79,67 +79,110 @@
       });
     }
 
-    if (mongoConnectForm) {
-      mongoConnectForm.addEventListener('submit', async (e) => {
+    async function handleMongoConnectSubmit() {
+      const proxyUrlInput = document.getElementById('proxyUrlInput');
+      const apiKeyInput = document.getElementById('proxyApiKeyInput');
+      const dbInput = document.getElementById('proxyDbInput');
+      const mongoUriInput = document.getElementById('proxyMongoUriInput');
+
+      const proxyUrl = (proxyUrlInput ? proxyUrlInput.value : '').trim();
+      const apiKey = (apiKeyInput ? apiKeyInput.value : '').trim();
+      const database = (dbInput ? dbInput.value : '').trim() || 'vg-task-manager';
+      const mongoUri = (mongoUriInput ? mongoUriInput.value : '').trim();
+
+      const errBox = document.getElementById('mongoConnectError');
+      const errText = document.getElementById('mongoConnectErrorText');
+      const succBox = document.getElementById('mongoConnectSuccess');
+      const succText = document.getElementById('mongoConnectSuccessText');
+      const submitBtn = document.getElementById('btnSubmitMongo');
+
+      if (!proxyUrl) {
+        if (errBox && errText) {
+          errBox.style.display = 'block';
+          errText.textContent = 'Please enter the Proxy API URL.';
+        }
+        if (proxyUrlInput) proxyUrlInput.focus();
+        return;
+      }
+
+      if (!apiKey) {
+        if (errBox && errText) {
+          errBox.style.display = 'block';
+          errText.textContent = 'Please enter the Proxy API Key.';
+        }
+        if (apiKeyInput) apiKeyInput.focus();
+        return;
+      }
+
+      if (errBox) errBox.style.display = 'none';
+      if (succBox) succBox.style.display = 'none';
+      if (submitBtn) {
+        submitBtn.classList.add('loading');
+        submitBtn.disabled = true;
+      }
+
+      try {
+        const res = await window.VG.MongoSync.connect({ proxyUrl, apiKey, database, mongoUri });
+        if (submitBtn) {
+          submitBtn.classList.remove('loading');
+          submitBtn.disabled = false;
+        }
+        if (succBox && succText) {
+          succBox.style.display = 'block';
+          succText.textContent = `Connected! Accessing database "${res.database}" via vg-mongo-proxy.`;
+        }
+        setTimeout(async () => {
+          closeMongoModal();
+          if (window.VG.App && window.VG.App.onMongoConnected) {
+            await window.VG.App.onMongoConnected();
+          }
+        }, 450);
+      } catch (err) {
+        if (submitBtn) {
+          submitBtn.classList.remove('loading');
+          submitBtn.disabled = false;
+        }
+        if (errBox && errText) {
+          errBox.style.display = 'block';
+          errText.textContent = err.message || 'Connection failed';
+        }
+      }
+    }
+
+    const btnSubmitMongo = document.getElementById('btnSubmitMongo');
+    if (btnSubmitMongo) {
+      btnSubmitMongo.addEventListener('click', (e) => {
         e.preventDefault();
-        const proxyUrlInput = document.getElementById('proxyUrlInput');
-        const apiKeyInput = document.getElementById('proxyApiKeyInput');
-        const dbInput = document.getElementById('proxyDbInput');
-        const mongoUriInput = document.getElementById('proxyMongoUriInput');
-
-        const proxyUrl = (proxyUrlInput ? proxyUrlInput.value : '').trim();
-        const apiKey = (apiKeyInput ? apiKeyInput.value : '').trim();
-        const database = (dbInput ? dbInput.value : '').trim() || 'vg-task-manager';
-        const mongoUri = (mongoUriInput ? mongoUriInput.value : '').trim();
-
-        const errBox = document.getElementById('mongoConnectError');
-        const errText = document.getElementById('mongoConnectErrorText');
-        const succBox = document.getElementById('mongoConnectSuccess');
-        const succText = document.getElementById('mongoConnectSuccessText');
-        const submitBtn = document.getElementById('btnSubmitMongo');
-
-        if (!proxyUrl) {
-          if (errBox && errText) {
-            errBox.style.display = 'block';
-            errText.textContent = 'Please enter the Proxy API URL.';
-          }
-          return;
-        }
-
-        if (!apiKey) {
-          if (errBox && errText) {
-            errBox.style.display = 'block';
-            errText.textContent = 'Please enter the Proxy API Key.';
-          }
-          return;
-        }
-
-        if (errBox) errBox.style.display = 'none';
-        if (succBox) succBox.style.display = 'none';
-        if (submitBtn) submitBtn.classList.add('loading');
-
-        try {
-          const res = await window.VG.MongoSync.connect({ proxyUrl, apiKey, database, mongoUri });
-          if (submitBtn) submitBtn.classList.remove('loading');
-          if (succBox && succText) {
-            succBox.style.display = 'block';
-            succText.textContent = `Connected! Accessing database "${res.database}" via vg-mongo-proxy.`;
-          }
-          setTimeout(async () => {
-            closeMongoModal();
-            if (window.VG.App && window.VG.App.onMongoConnected) {
-              await window.VG.App.onMongoConnected();
-            }
-          }, 450);
-        } catch (err) {
-          if (submitBtn) submitBtn.classList.remove('loading');
-          if (errBox && errText) {
-            errBox.style.display = 'block';
-            errText.textContent = err.message || 'Connection failed';
-          }
-        }
+        e.stopPropagation();
+        handleMongoConnectSubmit();
       });
     }
+
+    if (mongoConnectForm) {
+      mongoConnectForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        handleMongoConnectSubmit();
+      });
+    }
+
+    const proxyInputs = [
+      document.getElementById('proxyUrlInput'),
+      document.getElementById('proxyApiKeyInput'),
+      document.getElementById('proxyDbInput'),
+      document.getElementById('proxyMongoUriInput')
+    ];
+    proxyInputs.forEach(inp => {
+      if (inp) {
+        inp.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            handleMongoConnectSubmit();
+          }
+        });
+      }
+    });
 
     // Auth modal elements
     const modalAuthOverlay = document.getElementById('modalAuthOverlay');
@@ -237,6 +280,14 @@
             errText.textContent = err.message || 'Registration failed';
           }
         }
+      });
+    }
+
+    if (modalMongoOverlay) {
+      UI.initModal(modalMongoOverlay, {
+        closable: true,
+        autofocus: false,
+        onApprove: () => false
       });
     }
 
