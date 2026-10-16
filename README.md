@@ -20,9 +20,17 @@ Live Demo (GitHub Pages): [https://espinosa012.github.io/vg-task-manager/](https
   - Only tasks with attachments have subdirectories in `attachments/`.
   - Drag and drop or upload `.zip` archives directly to restore all tasks and attachments.
 - **Local Directory Synchronization ("Sincronía")**:
-  - Click **"Open Folder"** to select a directory on your machine via the File System Access API.
-  - Reads `tasks.json` and loads all files under `attachments/<taskId>/`.
-  - Automatically synchronizes edits and new attachments directly to your disk in real time.
+  - Click **"Open Folder"** to link a directory containing `tasks.json` and `attachments/<taskId>/`.
+  - Edits and new attachments are written to disk in real time.
+  - Works in every browser, through the best available backend:
+
+    | Browser | How it syncs |
+    |---|---|
+    | Chrome / Edge | File System Access API: pick any folder, live 2-way sync |
+    | Safari / Firefox + local agent | `node server.js /path/to/folder`: live 2-way sync through the local agent |
+    | Safari / Firefox without agent | Read-only: the folder is loaded, and you save changes with **Download ZIP** |
+
+  - **Local agent**: `server.js` serves the app and exposes a small sync API (`/api/tasks`, `/api/attachments/...`) restricted to `localhost` and the GitHub Pages origin. Open `http://localhost:8766/` (recommended in Safari), or keep it running while you use GitHub Pages: the page detects it on port 8766.
 - **Drag & Drop Workflow**:
   - Drag cards across columns (*Planned*, *In Progress*, *In Review*, *Done*, *Blocked*).
   - Pixel-perfect vertical reordering within columns with live drop indicators.
@@ -50,6 +58,9 @@ cd vg-task-manager
 npm start
 # or
 node server.js
+
+# Sync a specific folder (tasks.json + attachments/) — works in Safari and Firefox too
+node server.js ~/Documents/my-tasks
 ```
 
 ### Option 2: Open directly in your browser

@@ -24,7 +24,7 @@
     Storage.saveLocalTasks(tasks);
 
     // If local folder is connected, save directly to tasks.json on disk ("sincronia")
-    if (FsSync.isLinked()) {
+    if (FsSync.isLiveSync()) {
       FsSync.saveTasksToDirectory(tasks).then(saved => {
         if (saved && notifyMessage) {
           showToast(`${notifyMessage} & synced to folder`, 'success');
@@ -65,16 +65,26 @@
 
     if (!folderBadge || !folderLabel) return;
 
-    if (FsSync.isLinked()) {
+    if (FsSync.isLiveSync()) {
       const dirName = FsSync.getLinkedDirName();
+      const via = FsSync.getMode() === 'agent' ? 'local agent' : 'browser';
       if (folderDot) folderDot.classList.add('synced');
       folderLabel.textContent = `📁 ${dirName} (Synced)`;
-      folderBadge.title = `Connected to local folder: ${dirName}. Click to disconnect.`;
+      folderBadge.title = `Connected to local folder: ${dirName} (via ${via}). Click to disconnect.`;
       if (btnOpenFolder) btnOpenFolder.classList.add('btn-folder-linked');
+    } else if (FsSync.isLinked()) {
+      const dirName = FsSync.getLinkedDirName();
+      if (folderDot) folderDot.classList.remove('synced');
+      folderLabel.textContent = `📁 ${dirName} (Read-only)`;
+      folderBadge.title = `Loaded from "${dirName}". This browser cannot write to disk: use Download ZIP to save changes, or run "npm start" for live sync. Click to disconnect.`;
+      if (btnOpenFolder) btnOpenFolder.classList.remove('btn-folder-linked');
     } else {
+      const agent = FsSync.getAgentStatus();
       if (folderDot) folderDot.classList.remove('synced');
       folderLabel.textContent = 'Standalone (No folder linked)';
-      folderBadge.title = 'Click to select a local folder for live sync';
+      folderBadge.title = agent
+        ? `Local agent detected (folder "${agent.dirName}"). Click to connect.`
+        : 'Click to select a local folder for live sync';
       if (btnOpenFolder) btnOpenFolder.classList.remove('btn-folder-linked');
     }
   }
@@ -88,6 +98,9 @@
       updateFolderBadge();
       Board.renderBoard();
       showToast(`Loaded ${tasks.length} tasks and ${result.attachmentCount} attachments from "${result.dirName}"`, 'success');
+      if (result.mode === 'snapshot') {
+        showToast('Read-only: this browser cannot write to folders. Use Download ZIP to save changes, or run "npm start" for live sync.', 'warning', 8000);
+      }
     } catch (err) {
       if (err.name !== 'AbortError') {
         alert('Could not open folder:\n\n' + err.message);
@@ -220,7 +233,7 @@
     if (folderStatusBadge) {
       folderStatusBadge.addEventListener('click', () => {
         if (FsSync.isLinked()) {
-          if (confirm(`Disconnect folder "${FsSync.getLinkedDirName()}" from live sync?`)) {
+          if (confirm(`Disconnect folder "${FsSync.getLinkedDirName()}"?`)) {
             FsSync.unlink();
             updateFolderBadge();
             showToast('Disconnected from folder', 'info');
@@ -297,6 +310,10 @@
     // 6. Update UI
     updateFolderBadge();
     Board.renderBoard();
+
+    // 7. Detect a running local sync agent (server.js) for browsers without
+    //    the File System Access API (Safari, Firefox)
+    FsSync.probeAgent().then(updateFolderBadge);
   }
 
   window.VG.App = {
