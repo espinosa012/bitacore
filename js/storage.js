@@ -158,6 +158,45 @@
     });
   }
 
+  /*
+   * Attachment blobs are shared by every open tab of the app, so they are only
+   * wiped when this is the sole tab. Each tab holds a shared Web Lock for its
+   * lifetime; counting holders tells how many tabs are open.
+   */
+  const TAB_LOCK = 'vg_task_manager_tab';
+  let tabLockPromise = null;
+
+  /** Resolves once this tab holds its lock, so isOnlyOpenTab() counts it */
+  function registerTab() {
+    if (tabLockPromise) return tabLockPromise;
+    if (!navigator.locks) return (tabLockPromise = Promise.resolve());
+    tabLockPromise = new Promise(granted => {
+      navigator.locks.request(TAB_LOCK, { mode: 'shared' }, () => {
+        granted();
+        return new Promise(() => {}); // held until the tab closes
+      }).catch(granted);
+    });
+    return tabLockPromise;
+  }
+
+  async function isOnlyOpenTab() {
+    if (!navigator.locks || !navigator.locks.query) return false;
+    await registerTab();
+    try {
+      const state = await navigator.locks.query();
+      const holders = (state.held || []).filter(l => l.name === TAB_LOCK).length;
+      return holders <= 1;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /** Drops all attachment blobs unless another tab may still be using them */
+  async function clearAttachmentsIfSoleTab() {
+    if (!(await isOnlyOpenTab())) return false;
+    return clearAllAttachments();
+  }
+
   /* LocalStorage helpers */
   function loadLocalTasks() {
     try {
@@ -207,6 +246,8 @@
     deleteTaskAttachments,
     getAllAttachmentBlobs,
     clearAllAttachments,
+    registerTab,
+    clearAttachmentsIfSoleTab,
     loadLocalTasks,
     saveLocalTasks,
     clearLocalTasks,

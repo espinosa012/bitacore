@@ -103,12 +103,23 @@
     return { valid: true, list };
   }
 
+  function isSafeId(id) {
+    return id.length > 0 && id.length <= 128 && id !== '.' && id !== '..' && !/[/\\\x00-\x1f]/.test(id);
+  }
+
   function normalizeTasks(raw) {
     if (!raw) return [];
     const list = Array.isArray(raw) ? raw : (raw.tasks || []);
 
+    const seenIds = new Set();
+
     return list.map(t => {
-      const id = t.id || `task-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      // Ids name the attachments/<taskId>/ folder: they must be unique and path-safe
+      let id = t.id !== undefined && t.id !== null ? String(t.id).trim() : '';
+      if (!isSafeId(id) || seenIds.has(id)) {
+        id = window.VG.Constants.generateId('task');
+      }
+      seenIds.add(id);
       const name = (t.name !== undefined ? t.name : t.nombre) || 'Untitled';
       const description = (t.description !== undefined ? t.description : t.descripcion) || '';
       const openspecRaw = t['openspec-id'] !== undefined ? t['openspec-id'] : (t.openspec_id !== undefined ? t.openspec_id : '');
@@ -135,7 +146,7 @@
       // Comments normalization
       const rawComments = Array.isArray(t.comments) ? t.comments : (Array.isArray(t.comentarios) ? t.comentarios : []);
       const comments = rawComments.map(c => ({
-        id: c.id || `comm-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        id: c.id || window.VG.Constants.generateId('comm'),
         author: (c.author !== undefined ? c.author : c.autor) || 'User',
         text: (c.text !== undefined ? c.text : c.texto) || '',
         timestamp: c.timestamp || new Date().toISOString()
@@ -148,7 +159,7 @@
         const customName = (a.name !== undefined ? a.name : (a.nombre || '')).trim();
         const customDesc = (a.description !== undefined ? a.description : (a.descripcion || '')).trim();
         return {
-          id: a.id || `att-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+          id: a.id || window.VG.Constants.generateId('att'),
           filename: filename,
           name: customName,
           description: customDesc,

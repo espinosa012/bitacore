@@ -377,3 +377,16 @@
   letter-spacing: 0.5px;
   text-transform: uppercase;
 }
+
+/* Keyboard focus & search highlight */
+.card:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.card mark {
+  background: rgba(250, 204, 21, 0.28);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}

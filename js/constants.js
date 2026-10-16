@@ -81,6 +81,14 @@
     return PRIORITY_MAPPINGS[s] || 'medium';
   }
 
+  /** Collision-free id, safe to use as a folder name (attachments/<taskId>/) */
+  function generateId(prefix) {
+    const rand = (window.crypto && crypto.randomUUID)
+      ? crypto.randomUUID().replace(/-/g, '').slice(0, 10)
+      : Math.random().toString(36).slice(2, 12);
+    return `${prefix}-${Date.now()}-${rand}`;
+  }
+
   function escapeHtml(str) {
     if (str === null || str === undefined) return '';
     return String(str)
@@ -176,6 +184,7 @@
     PRIORITIES,
     canonicalState,
     canonicalPriority,
+    generateId,
     escapeHtml,
     escapeCss,
     formatRelativeTime,

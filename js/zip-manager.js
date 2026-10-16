@@ -99,45 +99,44 @@
     const tasksMap = new Map(tasks.map(t => [t.id, t]));
 
     // 2. Extract attachments under attachments/<taskId>/<filename>
-    let attachmentCount = 0;
-    const attachmentRegex = /^attachments\/([^\/]+)\/(.+)$/;
+    const attachmentRegex = /^attachments\/([^\/]+)\/([^\/]+)$/;
+    const extracted = [];
 
     for (const [relativePath, zipEntry] of Object.entries(zip.files)) {
       if (zipEntry.dir) continue;
-
       const match = relativePath.match(attachmentRegex);
-      if (match) {
-        const taskId = match[1];
-        const filename = match[2];
+      if (!match || !tasksMap.has(match[1])) continue;
+      try {
+        extracted.push({ taskId: match[1], filename: match[2], blob: await zipEntry.async('blob') });
+      } catch (err) {
+        console.warn(`Could not extract attachment ${relativePath}:`, err);
+      }
+    }
 
-        // Ensure task exists
-        let task = tasksMap.get(taskId);
-        if (task) {
-          try {
-            const blob = await zipEntry.async('blob');
-            await Storage.saveAttachmentBlob(taskId, filename, blob);
-            attachmentCount++;
+    // 3. The archive replaces the board: drop blobs of the previous one only
+    //    once everything was read successfully.
+    await Storage.clearAttachmentsIfSoleTab();
 
-            // Ensure attachment is recorded in task.attachments
-            task.attachments = task.attachments || [];
-            let att = task.attachments.find(a => a.filename === filename);
-            if (!att) {
-              task.attachments.push({
-                id: `att-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
-                filename,
-                name: filename,
-                description: '',
-                size: blob.size,
-                type: blob.type || 'application/octet-stream',
-                created_at: new Date().toISOString()
-              });
-            } else if (!att.size) {
-              att.size = blob.size;
-            }
-          } catch (err) {
-            console.warn(`Could not extract attachment ${relativePath}:`, err);
-          }
-        }
+    let attachmentCount = 0;
+    for (const { taskId, filename, blob } of extracted) {
+      const task = tasksMap.get(taskId);
+      await Storage.saveAttachmentBlob(taskId, filename, blob);
+      attachmentCount++;
+
+      // Ensure attachment is recorded in task.attachments
+      const att = task.attachments.find(a => a.filename === filename);
+      if (!att) {
+        task.attachments.push({
+          id: window.VG.Constants.generateId('att'),
+          filename,
+          name: filename,
+          description: '',
+          size: blob.size,
+          type: blob.type || 'application/octet-stream',
+          created_at: new Date().toISOString()
+        });
+      } else if (!att.size) {
+        att.size = blob.size;
       }
     }
 

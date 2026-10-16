@@ -8,6 +8,7 @@
 
   let activeEditingTaskId = null;
   let activeTab = 'tabAttachments';
+  let lastFocusedCard = null;
 
   function initModals() {
     const modalCreateOverlay = document.getElementById('modalCreateOverlay');
@@ -66,6 +67,41 @@
 
     // Attachment upload handlers in Edit Modal
     setupAttachmentUploadHandlers();
+
+    // Cmd/Ctrl+Enter saves the edit modal (or posts the comment being written)
+    if (modalEditOverlay) {
+      modalEditOverlay.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' || !(e.metaKey || e.ctrlKey)) return;
+        e.preventDefault();
+        if (e.target && e.target.id === 'newCommentText') {
+          addCommentForm.requestSubmit();
+        } else {
+          handleSaveTaskDetails();
+        }
+      });
+    }
+
+    // Remember the last comment author
+    const authorInput = document.getElementById('newCommentAuthor');
+    if (authorInput) {
+      try {
+        const saved = localStorage.getItem(COMMENT_AUTHOR_KEY);
+        if (saved) authorInput.value = saved;
+      } catch (e) { /* ignore */ }
+    }
+  }
+
+  const COMMENT_AUTHOR_KEY = 'vg_task_manager_comment_author';
+
+  /** Updates a tab label without wiping its icon */
+  function setTabLabel(tabBtn, text) {
+    if (!tabBtn) return;
+    const label = tabBtn.querySelector('span');
+    if (label) label.textContent = text; else tabBtn.textContent = text;
+  }
+
+  function isAnyModalOpen() {
+    return !!document.querySelector('.modal-overlay.active');
   }
 
   function openCreateModal(defaultState = 'planned') {
@@ -99,7 +135,7 @@
     const name = nameInput.value.trim();
     if (!name) return;
 
-    const id = `task-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const id = window.VG.Constants.generateId('task');
     const now = new Date().toISOString();
     const targetState = canonicalState(stateInput.value);
 
@@ -134,6 +170,7 @@
 
   function openEditModal(task) {
     activeEditingTaskId = task.id;
+    lastFocusedCard = document.activeElement;
     const modalEditOverlay = document.getElementById('modalEditOverlay');
     if (!modalEditOverlay) return;
 
@@ -149,14 +186,29 @@
     renderCommentsTab(task);
     renderHistoryTab(task);
 
+    // Reset any half-filled attachment upload from a previous task
+    const fileInput = document.getElementById('newAttachmentFile');
+    if (fileInput) fileInput.value = '';
+    resetFileInputLabel();
+
     switchTab('tabAttachments');
     modalEditOverlay.classList.add('active');
+    const nameInput = document.getElementById('editTaskName');
+    if (nameInput) setTimeout(() => nameInput.focus(), 50);
   }
 
   function closeEditModal() {
     const modalEditOverlay = document.getElementById('modalEditOverlay');
-    if (modalEditOverlay) modalEditOverlay.classList.remove('active');
+    if (!modalEditOverlay || !modalEditOverlay.classList.contains('active')) return;
+    modalEditOverlay.classList.remove('active');
     activeEditingTaskId = null;
+    // Return focus to the card that opened the modal (keyboard users)
+    const cardId = lastFocusedCard && lastFocusedCard.getAttribute && lastFocusedCard.getAttribute('data-task-id');
+    lastFocusedCard = null;
+    if (cardId) {
+      const card = document.querySelector(`.card[data-task-id="${CSS.escape(cardId)}"]`);
+      if (card) card.focus();
+    }
   }
 
   function switchTab(tabId) {
@@ -225,8 +277,10 @@
     if (confirm(`Are you sure you want to delete task "${task.name}"? All attachments will also be removed.`)) {
       // Remove attachments from IndexedDB and local directory
       await window.VG.Storage.deleteTaskAttachments(task.id);
-      if (window.VG.FsSync && window.VG.FsSync.isLinked()) {
-        // Folder clean up if supported
+      if (window.VG.FsSync && window.VG.FsSync.isLiveSync()) {
+        for (const att of task.attachments || []) {
+          await window.VG.FsSync.deleteAttachmentFile(task.id, att.filename);
+        }
       }
 
       const idx = tasks.findIndex(t => t.id === activeEditingTaskId);
@@ -247,7 +301,7 @@
     const tabBtn = document.getElementById('tabBtnAttachments');
     const count = task.attachments ? task.attachments.length : 0;
 
-    if (tabBtn) tabBtn.textContent = `Attachments (${count})`;
+    setTabLabel(tabBtn, `Attachments (${count})`);
     if (!listEl) return;
 
     if (!task.attachments || task.attachments.length === 0) {
@@ -422,7 +476,7 @@
     const tabBtn = document.getElementById('tabBtnComments');
     const count = task.comments ? task.comments.length : 0;
 
-    if (tabBtn) tabBtn.textContent = `Comments (${count})`;
+    setTabLabel(tabBtn, `Comments (${count})`);
     if (!listEl) return;
 
     if (!task.comments || task.comments.length === 0) {
@@ -459,9 +513,11 @@
     const text = textInput.value.trim();
     if (!text) return;
 
+    try { localStorage.setItem(COMMENT_AUTHOR_KEY, authorInput.value.trim()); } catch (err) { /* ignore */ }
+
     task.comments = task.comments || [];
     task.comments.push({
-      id: `comm-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      id: window.VG.Constants.generateId('comm'),
       author: authorInput.value.trim() || 'User',
       text,
       timestamp: new Date().toISOString()
@@ -479,7 +535,7 @@
     const tabBtn = document.getElementById('tabBtnHistory');
     const count = task.history ? task.history.length : 0;
 
-    if (tabBtn) tabBtn.textContent = `History (${count})`;
+    setTabLabel(tabBtn, `History (${count})`);
     if (!timelineEl) return;
 
     if (!task.history || task.history.length === 0) {
@@ -513,6 +569,7 @@
     closeCreateModal,
     openEditModal,
     closeEditModal,
+    isAnyModalOpen,
     switchTab
   };
 })();

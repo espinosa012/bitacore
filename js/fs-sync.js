@@ -23,6 +23,15 @@
   let agentUrl = null;        // agent only
   let agentStatus = null;     // last successful probe (cached so the click stays synchronous)
 
+  // Writes are chained so two saves never interleave on the same file
+  // (createWritable / PUT requests could otherwise land out of order).
+  let writeQueue = Promise.resolve();
+  function enqueueWrite(fn) {
+    const run = writeQueue.then(fn, fn);
+    writeQueue = run.catch(() => {});
+    return run;
+  }
+
   function isLinked() {
     return mode !== null;
   }
@@ -107,34 +116,39 @@
     const tasks = Validation.normalizeTasks(validation.list);
     const tasksMap = new Map(tasks.map(t => [t.id, t]));
 
-    let loadedAttachmentsCount = 0;
+    const files = [];
     for (const entry of attachmentEntries) {
-      const task = tasksMap.get(entry.taskId);
-      if (!task) continue;
-      task.attachments = task.attachments || [];
-
+      if (!tasksMap.has(entry.taskId)) continue;
       try {
-        const file = await entry.getFile();
-        await Storage.saveAttachmentBlob(entry.taskId, entry.filename, file);
-        loadedAttachmentsCount++;
-
-        // Register attachment in task metadata if not already present
-        const att = task.attachments.find(a => a.filename === entry.filename);
-        if (!att) {
-          task.attachments.push({
-            id: `att-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
-            filename: entry.filename,
-            name: entry.filename,
-            description: '',
-            size: file.size,
-            type: file.type || 'application/octet-stream',
-            created_at: new Date().toISOString()
-          });
-        } else if (!att.size) {
-          att.size = file.size;
-        }
+        files.push({ entry, file: await entry.getFile() });
       } catch (err) {
         console.warn(`Could not read file ${entry.filename} in task ${entry.taskId}:`, err);
+      }
+    }
+
+    // The folder replaces the board: drop blobs of the previous one
+    await Storage.clearAttachmentsIfSoleTab();
+
+    let loadedAttachmentsCount = 0;
+    for (const { entry, file } of files) {
+      const task = tasksMap.get(entry.taskId);
+      await Storage.saveAttachmentBlob(entry.taskId, entry.filename, file);
+      loadedAttachmentsCount++;
+
+      // Register attachment in task metadata if not already present
+      const att = task.attachments.find(a => a.filename === entry.filename);
+      if (!att) {
+        task.attachments.push({
+          id: window.VG.Constants.generateId('att'),
+          filename: entry.filename,
+          name: entry.filename,
+          description: '',
+          size: file.size,
+          type: file.type || 'application/octet-stream',
+          created_at: new Date().toISOString()
+        });
+      } else if (!att.size) {
+        att.size = file.size;
       }
     }
 
@@ -312,7 +326,11 @@
     if (!isLiveSync()) return false;
     const currentTasks = tasks || (window.VG.App ? window.VG.App.getTasks() : []);
     const json = JSON.stringify(currentTasks, null, 2);
+    return enqueueWrite(() => writeTasksJson(json));
+  }
 
+  async function writeTasksJson(json) {
+    if (!isLiveSync()) return false;
     try {
       if (mode === 'agent') {
         const res = await fetch(`${agentUrl}/api/tasks`, {
@@ -336,9 +354,13 @@
   /**
    * Write an attachment file to attachments/<taskId>/<filename> on disk
    */
-  async function writeAttachmentFile(taskId, filename, fileOrBlob) {
-    if (!isLiveSync()) return false;
+  function writeAttachmentFile(taskId, filename, fileOrBlob) {
+    if (!isLiveSync()) return Promise.resolve(false);
+    return enqueueWrite(() => writeAttachmentNow(taskId, filename, fileOrBlob));
+  }
 
+  async function writeAttachmentNow(taskId, filename, fileOrBlob) {
+    if (!isLiveSync()) return false;
     try {
       if (mode === 'agent') {
         const res = await fetch(attachmentUrl(agentUrl, taskId, filename), {
@@ -364,9 +386,13 @@
   /**
    * Delete an attachment file from attachments/<taskId>/<filename> on disk
    */
-  async function deleteAttachmentFile(taskId, filename) {
-    if (!isLiveSync()) return false;
+  function deleteAttachmentFile(taskId, filename) {
+    if (!isLiveSync()) return Promise.resolve(false);
+    return enqueueWrite(() => deleteAttachmentNow(taskId, filename));
+  }
 
+  async function deleteAttachmentNow(taskId, filename) {
+    if (!isLiveSync()) return false;
     try {
       if (mode === 'agent') {
         const res = await fetch(attachmentUrl(agentUrl, taskId, filename), { method: 'DELETE' });
@@ -379,6 +405,10 @@
       if (!taskDir) return false;
 
       await taskDir.removeEntry(filename);
+      // Drop the task folder once it is empty, like the local agent does
+      let isEmpty = true;
+      for await (const _ of taskDir.keys()) { isEmpty = false; break; }
+      if (isEmpty) await attachmentsDir.removeEntry(taskId).catch(() => {});
       return true;
     } catch (err) {
       console.warn(`Could not delete attachment "${filename}" for task ${taskId} from disk:`, err);

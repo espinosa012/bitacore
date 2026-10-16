@@ -8,7 +8,8 @@
   function sanitizeFilename(filename) {
     if (!filename) return 'unnamed_file';
     // Remove directory traversal and dangerous characters
-    return filename.replace(/[/\\?%*:|"<>]/g, '_').trim();
+    // Leading dots would create hidden files that folder sync skips
+    return filename.replace(/[/\\?%*:|"<>\x00-\x1f]/g, '_').trim().replace(/^\.+/, '_') || 'unnamed_file';
   }
 
   function getUniqueFilename(existingAttachments, originalFilename) {
@@ -36,7 +37,7 @@
     task.attachments = task.attachments || [];
 
     const filename = getUniqueFilename(task.attachments, file.name);
-    const id = `att-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    const id = window.VG.Constants.generateId('att');
 
     const attachmentRecord = {
       id,
@@ -57,10 +58,10 @@
 
     // If local directory is synced, save directly to disk
     if (window.VG.FsSync && window.VG.FsSync.isLinked()) {
-      window.VG.FsSync.writeAttachmentFile(task.id, filename, file).catch(err => {
-        console.warn('Could not write attachment to local directory:', err);
-      });
-      window.VG.FsSync.saveTasksToDirectory().catch(() => {});
+      const written = await window.VG.FsSync.writeAttachmentFile(task.id, filename, file);
+      if (!written && window.VG.FsSync.isLiveSync() && window.VG.App) {
+        window.VG.App.showToast(`Could not write "${filename}" to the synced folder`, 'error', 6000);
+      }
     }
 
     return attachmentRecord;
@@ -83,8 +84,7 @@
 
     // If local directory is synced, remove from disk
     if (window.VG.FsSync && window.VG.FsSync.isLinked()) {
-      window.VG.FsSync.deleteAttachmentFile(task.id, att.filename).catch(() => {});
-      window.VG.FsSync.saveTasksToDirectory().catch(() => {});
+      await window.VG.FsSync.deleteAttachmentFile(task.id, att.filename);
     }
 
     return true;
@@ -98,12 +98,23 @@
     att.name = (newName || '').trim();
     att.description = (newDesc || '').trim();
     task.updated_at = new Date().toISOString();
-
-    if (window.VG.FsSync && window.VG.FsSync.isLinked()) {
-      window.VG.FsSync.saveTasksToDirectory().catch(() => {});
-    }
-
     return true;
+  }
+
+  const SAFE_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif', 'image/bmp']);
+  const IMAGE_EXTENSIONS = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', avif: 'image/avif', bmp: 'image/bmp' };
+  const TEXT_EXTENSIONS =new Set(['txt', 'md', 'markdown', 'log', 'csv', 'json', 'js', 'ts', 'css', 'lua', 'py', 'sql', 'yaml', 'yml', 'xml', 'html', 'htm', 'svg']);
+
+  /** MIME type to open an attachment inline with, or null if it should be downloaded */
+  function getSafeViewType(attachment) {
+    const type = (attachment.type || '').toLowerCase().split(';')[0].trim();
+    const ext = (attachment.filename || '').split('.').pop().toLowerCase();
+    if (SAFE_IMAGE_TYPES.has(type)) return type;
+    if (IMAGE_EXTENSIONS[ext]) return IMAGE_EXTENSIONS[ext];
+    if (type === 'application/pdf' || ext === 'pdf') return 'application/pdf';
+    // Text and markup (including HTML/SVG source) is shown as plain text, never rendered
+    if (type.startsWith('text/') || TEXT_EXTENSIONS.has(ext)) return 'text/plain;charset=utf-8';
+    return null;
   }
 
   async function openOrDownloadAttachment(task, attachment, forceDownload = false) {
@@ -117,19 +128,17 @@
       return;
     }
 
-    const url = URL.createObjectURL(blob);
+    // Blob URLs share the app's origin, so active content (HTML, SVG, XML...)
+    // must never be rendered inline: it could read IndexedDB/localStorage.
+    // The blob is re-typed with a safe MIME type before opening it.
+    const viewType = forceDownload ? null : getSafeViewType(attachment);
 
-    // Check if viewable in browser (images, text, pdf) and not forced download
-    const isViewable = !forceDownload && (
-      attachment.type.startsWith('image/') ||
-      attachment.type === 'application/pdf' ||
-      attachment.type.startsWith('text/')
-    );
-
-    if (isViewable) {
-      window.open(url, '_blank');
+    if (viewType) {
+      const url = URL.createObjectURL(new Blob([blob], { type: viewType }));
+      window.open(url, '_blank', 'noopener');
       setTimeout(() => URL.revokeObjectURL(url), 60000);
     } else {
+      const url = URL.createObjectURL(new Blob([blob], { type: 'application/octet-stream' }));
       const a = document.createElement('a');
       a.href = url;
       a.download = attachment.filename;

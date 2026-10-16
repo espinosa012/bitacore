@@ -230,7 +230,9 @@ async function handleApi(req, res, pathname, cors) {
     if (req.method === 'PUT') {
       const body = await readBody(req);
       fs.mkdirSync(taskDir, { recursive: true });
-      fs.writeFileSync(filePath, body);
+      const tmp = filePath + '.tmp';
+      fs.writeFileSync(tmp, body);
+      fs.renameSync(tmp, filePath);
       return sendJson(res, 200, { ok: true, size: body.length }, cors);
     }
     if (req.method === 'DELETE') {
@@ -256,7 +258,9 @@ function serveStatic(req, res, pathname) {
     : path.join(APP_DIR, pathname.replace(/^\/+/, ''));
 
   const safeTarget = path.normalize(targetFile);
-  if (!safeTarget.startsWith(APP_DIR + path.sep) && safeTarget !== INDEX_FILE) {
+  const relative = path.relative(APP_DIR, safeTarget);
+  const isHidden = relative.split(path.sep).some(seg => seg.startsWith('.'));
+  if ((!safeTarget.startsWith(APP_DIR + path.sep) && safeTarget !== INDEX_FILE) || isHidden) {
     res.writeHead(403, { 'Content-Type': 'text/plain' });
     return res.end('Forbidden');
   }
@@ -306,7 +310,14 @@ function createServer() {
       return;
     }
 
-    serveStatic(req, res, decodeURIComponent(pathname));
+    let decoded;
+    try {
+      decoded = decodeURIComponent(pathname);
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'text/plain' });
+      return res.end('Bad Request');
+    }
+    serveStatic(req, res, decoded);
   });
 }
 

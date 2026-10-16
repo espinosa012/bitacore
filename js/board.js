@@ -110,6 +110,7 @@
 
     const counts = {
       total: 0,
+      shown: 0,
       planned: 0,
       'in progress': 0,
       'in review': 0,
@@ -138,7 +139,8 @@
       const matchesPriority = prioFilter === 'all' || t.priority === prioFilter;
 
       if (matchesQuery && matchesPriority) {
-        renderTaskCard(t);
+        renderTaskCard(t, query);
+        counts.shown++;
       }
     });
 
@@ -155,11 +157,28 @@
 
     // Update header statistics
     if (taskStatsCounter) {
-      taskStatsCounter.textContent = `${counts.total} tasks · ${counts['in progress']} in progress · ${counts.blocked} blocked`;
+      const isFiltered = query || prioFilter !== 'all';
+      const shownStr = isFiltered ? ` (${counts.shown} shown)` : '';
+      taskStatsCounter.textContent = `${counts.total} tasks${shownStr} · ${counts['in progress']} in progress · ${counts.blocked} blocked`;
     }
   }
 
-  function renderTaskCard(task) {
+  /** Escapes text and wraps case-insensitive matches of query in <mark> */
+  function highlight(text, query) {
+    const str = String(text || '');
+    if (!query) return escapeHtml(str);
+    const lower = str.toLowerCase();
+    let out = '';
+    let pos = 0;
+    let idx;
+    while ((idx = lower.indexOf(query, pos)) !== -1) {
+      out += escapeHtml(str.slice(pos, idx)) + `<mark>${escapeHtml(str.slice(idx, idx + query.length))}</mark>`;
+      pos = idx + query.length;
+    }
+    return out + escapeHtml(str.slice(pos));
+  }
+
+  function renderTaskCard(task, query = '') {
     const stId = canonicalState(task.status);
     const colId = escapeCss(stId);
     const container = document.getElementById(`col-container-${colId}`);
@@ -172,6 +191,9 @@
     const card = document.createElement('div');
     card.className = 'card';
     card.draggable = true;
+    card.tabIndex = 0;
+    card.setAttribute('role', 'button');
+    card.setAttribute('aria-label', `${task.name} (${prioMeta.label.replace(/^\S+\s/, '')} priority)`);
     card.setAttribute('data-task-id', task.id);
 
     const commentsCount = task.comments ? task.comments.length : 0;
@@ -188,11 +210,11 @@
               <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
               <span>${escapeHtml(openSpecId)}</span>
             </span>` : ''}
-          <span class="card-id">#${task.id.slice(-6)}</span>
+          <span class="card-id">#${escapeHtml(task.id.slice(-6))}</span>
         </div>
       </div>
-      <div class="card-title">${escapeHtml(task.name)}</div>
-      ${task.description ? `<div class="card-desc">${escapeHtml(task.description)}</div>` : ''}
+      <div class="card-title">${highlight(task.name, query)}</div>
+      ${task.description ? `<div class="card-desc">${highlight(task.description, query)}</div>` : ''}
       <div class="card-footer">
         <div class="card-meta-indicators">
           ${attachmentsCount > 0 ? `
@@ -218,6 +240,13 @@
     card.addEventListener('click', (e) => {
       if (isDragging) return;
       if (window.VG.Modals) window.VG.Modals.openEditModal(task);
+    });
+
+    card.addEventListener('keydown', (e) => {
+      if ((e.key === 'Enter' || e.key === ' ') && e.target === card) {
+        e.preventDefault();
+        if (window.VG.Modals) window.VG.Modals.openEditModal(task);
+      }
     });
 
     // Drag start / end

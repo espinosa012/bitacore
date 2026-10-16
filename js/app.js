@@ -20,17 +20,31 @@
     tasks = newTasks || [];
   }
 
+  // True when the board has changes that exist only in this tab
+  // (not written to a synced folder and not exported since).
+  let hasUnsavedChanges = false;
+
+  function markDirty() {
+    hasUnsavedChanges = tasks.length > 0;
+  }
+
+  function markClean() {
+    hasUnsavedChanges = false;
+  }
+
   function persistChanges(notifyMessage = 'Saved') {
     Storage.saveLocalTasks(tasks);
+    if (!FsSync.isLiveSync()) markDirty();
 
     // If local folder is connected, save directly to tasks.json on disk ("sincronia")
     if (FsSync.isLiveSync()) {
       FsSync.saveTasksToDirectory(tasks).then(saved => {
-        if (saved && notifyMessage) {
+        if (!saved) {
+          markDirty();
+          showToast(`Could not write tasks.json to "${FsSync.getLinkedDirName()}". Use Download ZIP to keep your changes.`, 'error', 7000);
+        } else if (notifyMessage) {
           showToast(`${notifyMessage} & synced to folder`, 'success');
         }
-      }).catch(err => {
-        console.warn('Could not sync to local folder:', err);
       });
       return;
     }
@@ -95,6 +109,7 @@
       const result = await FsSync.selectDirectory();
       tasks = result.tasks;
       Storage.saveLocalTasks(tasks);
+      markClean();
       updateFolderBadge();
       Board.renderBoard();
       showToast(`Loaded ${tasks.length} tasks and ${result.attachmentCount} attachments from "${result.dirName}"`, 'success');
@@ -118,6 +133,7 @@
     try {
       showToast('Building ZIP archive...', 'info');
       const res = await ZipManager.exportTasksZip(tasks, 'tasks.zip');
+      markClean();
       showToast(`Downloaded tasks.zip (${res.taskCount} tasks, ${res.attachmentCount} attachments)`, 'success');
     } catch (err) {
       alert('Error creating ZIP archive: ' + err.message);
@@ -137,6 +153,7 @@
         const res = await ZipManager.importTasksZip(file);
         tasks = res.tasks;
         Storage.saveLocalTasks(tasks);
+        markClean();
         Board.renderBoard();
         showToast(`Imported ${tasks.length} tasks and ${res.attachmentCount} attachments from ${file.name}`, 'success');
       } catch (err) {
@@ -161,6 +178,7 @@
 
           tasks = Validation.normalizeTasks(validation.list);
           Storage.saveLocalTasks(tasks);
+          markClean();
           Board.renderBoard();
           showToast(`Loaded ${tasks.length} tasks from ${file.name}`, 'success');
         } catch (err) {
@@ -184,8 +202,9 @@
     if (confirm(`Clear all ${tasks.length} tasks from the board?\n\nTip: You can click "Download ZIP" before clearing if you want to keep a complete backup.`)) {
       tasks = [];
       Storage.clearLocalTasks();
-      await Storage.clearAllAttachments();
+      await Storage.clearAttachmentsIfSoleTab();
       FsSync.unlink();
+      markClean();
       updateFolderBadge();
       Board.renderBoard();
       showToast('Board cleared', 'info');
@@ -197,13 +216,16 @@
       showToast('Board is empty. Create a task or upload files first.', 'warning');
       return;
     }
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(tasks, null, 2));
+    const blob = new Blob([JSON.stringify(tasks, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = dataStr;
+    a.href = url;
     a.download = 'tasks.json';
     document.body.appendChild(a);
     a.click();
     a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    markClean();
     showToast(`Downloaded tasks.json (${tasks.length} tasks)`, 'success');
   }
 
@@ -266,11 +288,40 @@
       btnClearBoard.addEventListener('click', handleClearBoard);
     }
 
-    // Escape key closes modals
+    // Keyboard shortcuts: Escape closes modals, "/" focuses search, "n" creates a task
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
+        if (document.activeElement === searchInput && searchInput.value) {
+          searchInput.value = '';
+          Board.renderBoard();
+          return;
+        }
         Modals.closeCreateModal();
         Modals.closeEditModal();
+        return;
+      }
+
+      if (e.metaKey || e.ctrlKey || e.altKey || Modals.isAnyModalOpen()) return;
+      const target = e.target;
+      const isTyping = target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
+      if (isTyping) return;
+
+      if (e.key === '/' && searchInput) {
+        e.preventDefault();
+        searchInput.focus();
+        searchInput.select();
+      } else if (e.key === 'n' || e.key === 'N') {
+        e.preventDefault();
+        Modals.openCreateModal('planned');
+      }
+    });
+
+    // Warn before leaving when changes only live in this tab: the board
+    // starts empty on every visit, so they would be lost.
+    window.addEventListener('beforeunload', (e) => {
+      if (hasUnsavedChanges && !FsSync.isLiveSync()) {
+        e.preventDefault();
+        e.returnValue = '';
       }
     });
 
@@ -291,6 +342,7 @@
   async function initApp() {
     // 1. Initialize IndexedDB
     await Storage.initDb();
+    await Storage.registerTab();
 
     // 2. Setup modals
     Modals.initModals();
@@ -304,8 +356,10 @@
     // 5. Always start with a clean empty board on page entry
     tasks = [];
 
-    // Clear any stale cached tasks from earlier localStorage
+    // Clear any stale cached tasks from earlier localStorage, and the attachment
+    // blobs of previous visits (nothing references them on an empty board)
     Storage.clearLocalTasks();
+    await Storage.clearAttachmentsIfSoleTab();
 
     // 6. Update UI
     updateFolderBadge();
