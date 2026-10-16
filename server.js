@@ -68,7 +68,7 @@ async function connectMongo(uri) {
   if (!uri || typeof uri !== 'string') {
     throw new Error('A valid MongoDB connection URI is required');
   }
-  const cleanUri = uri.trim();
+  const cleanUri = uri.trim().replace(/^["']|["']$/g, '');
 
   if (mongoClient) {
     try {
@@ -160,6 +160,14 @@ function isLoopbackOrigin(origin) {
 function corsHeaders(req) {
   const origin = req.headers.origin;
   if (!origin) return {};
+  if (origin === 'null') {
+    return {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, PUT, POST, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Private-Network': 'true'
+    };
+  }
   if (!ALLOWED_ORIGINS.has(origin) && !isLoopbackOrigin(origin)) return null;
   return {
     'Access-Control-Allow-Origin': origin,

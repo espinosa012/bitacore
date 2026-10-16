@@ -120,7 +120,8 @@
     // If not in local IndexedDB cache, fetch from MongoDB
     if (!blob) {
       try {
-        const url = `/api/attachments/${encodeURIComponent(task.id)}/${encodeURIComponent(attachment.filename)}`;
+        const endpoint = `/api/attachments/${encodeURIComponent(task.id)}/${encodeURIComponent(attachment.filename)}`;
+        const url = window.VG.MongoSync ? window.VG.MongoSync.apiUrl(endpoint) : endpoint;
         const res = await fetch(url, { cache: 'no-store' });
         if (res.ok) {
           blob = await res.blob();
