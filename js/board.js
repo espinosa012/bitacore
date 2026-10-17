@@ -11,6 +11,7 @@
   let isDragging = false;
   let selectedTaskIds = new Set();
   let visibleTasks = [];
+  let bulkBarDismissed = false;
 
   const EMPTY_COLUMN_HTML = '<div class="column-empty">No tasks</div>';
 
@@ -217,11 +218,39 @@
       }
     });
 
+    const activeFilterCount = (query ? 1 : 0) +
+      (prioFilter !== 'all' ? 1 : 0) +
+      (tagFilter !== 'all' ? 1 : 0) +
+      (userFilter !== 'all' ? 1 : 0) +
+      (criteriaCount < 4 ? 1 : 0);
+    const hasActiveFilter = activeFilterCount > 0;
+
     // Update header statistics
     if (taskStatsCounter) {
-      const isFiltered = query || prioFilter !== 'all' || tagFilter !== 'all' || userFilter !== 'all';
-      const shownStr = isFiltered ? ` (${counts.shown} shown)` : '';
+      const shownStr = hasActiveFilter ? ` (${counts.shown} shown)` : '';
       taskStatsCounter.textContent = `${counts.total} tasks${shownStr} · ${counts['in progress']} in progress · ${counts.blocked} blocked`;
+    }
+
+    // Update Clear Filters button
+    const btnClearFilters = document.getElementById('btnClearFilters');
+    const btnClearFiltersText = document.getElementById('btnClearFiltersText');
+    if (btnClearFilters) {
+      btnClearFilters.disabled = !hasActiveFilter;
+      btnClearFilters.classList.toggle('has-active-filters', hasActiveFilter);
+      btnClearFilters.title = hasActiveFilter ? `Clear all applied filters (${activeFilterCount})` : 'No filters applied';
+      if (btnClearFiltersText) {
+        btnClearFiltersText.textContent = activeFilterCount > 1 ? `Clear Filters (${activeFilterCount})` : 'Clear Filters';
+      }
+    }
+
+    // Update Search clear button
+    const btnClearSearch = document.getElementById('btnClearSearch');
+    const searchIcon = document.getElementById('searchIcon');
+    if (btnClearSearch) {
+      btnClearSearch.style.display = query ? 'flex' : 'none';
+    }
+    if (searchIcon) {
+      searchIcon.style.display = query ? 'none' : '';
     }
   }
 
@@ -523,6 +552,7 @@
   }
 
   function toggleTaskSelection(taskId, isSelected) {
+    bulkBarDismissed = false;
     if (isSelected) {
       selectedTaskIds.add(taskId);
     } else {
@@ -538,6 +568,7 @@
   }
 
   function selectAllVisible() {
+    bulkBarDismissed = false;
     visibleTasks.forEach(t => {
       selectedTaskIds.add(t.id);
       const card = document.querySelector(`.task-card[data-task-id="${CSS.escape(t.id)}"]`);
@@ -560,6 +591,25 @@
     updateBulkActionUI();
   }
 
+  function dismissBulkBar() {
+    bulkBarDismissed = true;
+    selectedTaskIds.clear();
+    document.querySelectorAll('.task-card.is-selected').forEach(card => {
+      card.classList.remove('is-selected');
+      const cb = card.querySelector('.card-select-checkbox');
+      if (cb) cb.checked = false;
+    });
+    const bulkActionBar = document.getElementById('bulkActionBar');
+    if (bulkActionBar) {
+      bulkActionBar.hidden = true;
+    }
+    updateBulkActionUI();
+  }
+
+  function resetBulkBarDismissed() {
+    bulkBarDismissed = false;
+  }
+
   function getSelectedTaskIds() {
     return Array.from(selectedTaskIds);
   }
@@ -573,11 +623,22 @@
     const searchInput = document.getElementById('searchInput');
     const priorityFilter = document.getElementById('priorityFilter');
     const tagFilterEl = document.getElementById('tagFilter');
+    const userFilterEl = document.getElementById('userFilter');
+
+    const chkAssignee = document.getElementById('chkCriteriaAssignee');
+    const chkCreator = document.getElementById('chkCriteriaCreator');
+    const chkCommenter = document.getElementById('chkCriteriaCommenter');
+    const chkUploader = document.getElementById('chkCriteriaUploader');
+    const criteriaCount = (chkAssignee && chkAssignee.checked ? 1 : 0) +
+      (chkCreator && chkCreator.checked ? 1 : 0) +
+      (chkCommenter && chkCommenter.checked ? 1 : 0) +
+      (chkUploader && chkUploader.checked ? 1 : 0);
 
     const query = searchInput ? searchInput.value.trim() : '';
     const prioFilter = priorityFilter ? priorityFilter.value : 'all';
     const tagFilter = tagFilterEl && !tagFilterEl.disabled ? tagFilterEl.value : 'all';
-    const isFiltered = !!query || prioFilter !== 'all' || tagFilter !== 'all';
+    const userFilter = userFilterEl && !userFilterEl.disabled ? userFilterEl.value : 'all';
+    const isFiltered = !!query || prioFilter !== 'all' || tagFilter !== 'all' || userFilter !== 'all' || criteriaCount < 4;
 
     const btnBulkTag = document.getElementById('btnBulkTag');
     const btnBulkTagText = document.getElementById('btnBulkTagText');
@@ -621,7 +682,7 @@
         if (bulkBarCount) bulkBarCount.textContent = selectedCount;
         if (bulkBarLabel) bulkBarLabel.textContent = selectedCount === 1 ? 'task selected' : 'tasks selected';
         if (btnBulkBarTag) btnBulkBarTag.innerHTML = '<i class="tags icon"></i> Assign Tags...';
-      } else if (isFiltered && visibleCount > 0) {
+      } else if (!bulkBarDismissed && isFiltered && visibleCount > 0) {
         // Also display the bar when filtered so bulk action is immediately accessible
         bulkActionBar.hidden = false;
         if (bulkBarCount) bulkBarCount.textContent = visibleCount;
@@ -824,6 +885,8 @@
     toggleTaskSelection,
     selectAllVisible,
     clearSelection,
+    dismissBulkBar,
+    resetBulkBarDismissed,
     getSelectedTaskIds,
     getVisibleTasks,
     updateBulkActionUI,

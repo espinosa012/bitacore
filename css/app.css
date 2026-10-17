@@ -96,6 +96,53 @@ body {
   width: 215px;
 }
 
+.search-input-container {
+  position: relative !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+.search-clear-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--app-muted);
+  cursor: pointer;
+  padding: 4px;
+  margin: 0;
+  border-radius: 50%;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  z-index: 3;
+  width: 22px;
+  height: 22px;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.search-clear-btn:hover {
+  color: #fff !important;
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.search-clear-btn i.icon {
+  margin: 0 !important;
+  font-size: 0.9em !important;
+  width: auto !important;
+  height: auto !important;
+  line-height: 1 !important;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.search-clear-btn:hover i.icon {
+  opacity: 1;
+}
+
 .app-menu select.ui.dropdown {
   max-width: 120px;
   padding-left: 8px !important;
@@ -103,6 +150,35 @@ body {
   font-size: 0.88em !important;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+.clear-filters-btn {
+  white-space: nowrap;
+  font-size: 0.88em !important;
+  padding-left: 9px !important;
+  padding-right: 10px !important;
+  transition: all 0.18s ease !important;
+}
+
+.clear-filters-btn:disabled {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+}
+
+.clear-filters-btn.has-active-filters {
+  opacity: 1 !important;
+  color: #00b5ad !important;
+  border-color: rgba(0, 181, 173, 0.6) !important;
+  background: rgba(0, 181, 173, 0.1) !important;
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
+
+.clear-filters-btn.has-active-filters:hover {
+  background: rgba(0, 181, 173, 0.22) !important;
+  color: #fff !important;
+  border-color: #00b5ad !important;
 }
 
 #btnBulkTag {
@@ -1211,6 +1287,7 @@ select.ui.dropdown option {
   border-radius: 50% !important;
   color: var(--app-muted) !important;
   margin-left: 2px !important;
+  cursor: pointer !important;
 }
 
 .bulk-bar-close:hover {

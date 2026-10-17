@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>vg-task-manager</title>
 
-  <link rel="stylesheet" href="vendor/fomantic-ui/semantic.min.css?v=20261017.1" />
-  <link rel="stylesheet" href="vendor/easymde/easymde.min.css?v=20261017.1" />
-  <link rel="stylesheet" href="css/app.css?v=20261017.1" />
-  <link rel="stylesheet" href="css/markdown.css?v=20261017.1" />
+  <link rel="stylesheet" href="vendor/fomantic-ui/semantic.min.css?v=20261017.2" />
+  <link rel="stylesheet" href="vendor/easymde/easymde.min.css?v=20261017.2" />
+  <link rel="stylesheet" href="css/app.css?v=20261017.2" />
+  <link rel="stylesheet" href="css/markdown.css?v=20261017.2" />
 </head>
 <body>
 
@@ -24,9 +24,12 @@
       </div>
 
       <div class="item board-only">
-        <div class="ui icon input">
+        <div class="ui icon input search-input-container">
           <input type="text" id="searchInput" placeholder="Search tasks or files... ( / )" autocomplete="off" aria-label="Search tasks" />
-          <i class="search icon"></i>
+          <button type="button" id="btnClearSearch" class="search-clear-btn" title="Clear search text" aria-label="Clear search text" style="display: none;">
+            <i class="close icon"></i>
+          </button>
+          <i class="search icon" id="searchIcon"></i>
         </div>
       </div>
 
@@ -86,6 +89,13 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <div class="item board-only">
+        <button type="button" id="btnClearFilters" class="ui small basic inverted button clear-filters-btn" title="No filters applied" disabled>
+          <i class="times circle outline icon"></i>
+          <span id="btnClearFiltersText">Clear Filters</span>
+        </button>
       </div>
 
       <div class="item board-only">
@@ -787,22 +797,22 @@
   </div>
 
   <!-- Scripts -->
-  <script src="vendor/jquery/jquery.min.js?v=20261017.1"></script>
-  <script src="vendor/fomantic-ui/semantic.min.js?v=20261017.1"></script>
-  <script src="vendor/dompurify/purify.min.js?v=20261017.1"></script>
-  <script src="vendor/easymde/easymde.min.js?v=20261017.1"></script>
-  <script src="js/constants.js?v=20261017.1"></script>
-  <script src="js/ui.js?v=20261017.1"></script>
-  <script src="js/tags.js?v=20261017.1"></script>
-  <script src="js/storage.js?v=20261017.1"></script>
-  <script src="js/validation.js?v=20261017.1"></script>
-  <script src="js/markdown.js?v=20261017.1"></script>
-  <script src="js/attachments.js?v=20261017.1"></script>
-  <script src="js/mongo-sync.js?v=20261017.1"></script>
-  <script src="js/auth.js?v=20261017.1"></script>
-  <script src="js/board.js?v=20261017.1"></script>
-  <script src="js/modals.js?v=20261017.1"></script>
-  <script src="js/task-page.js?v=20261017.1"></script>
-  <script src="js/app.js?v=20261017.1"></script>
+  <script src="vendor/jquery/jquery.min.js?v=20261017.2"></script>
+  <script src="vendor/fomantic-ui/semantic.min.js?v=20261017.2"></script>
+  <script src="vendor/dompurify/purify.min.js?v=20261017.2"></script>
+  <script src="vendor/easymde/easymde.min.js?v=20261017.2"></script>
+  <script src="js/constants.js?v=20261017.2"></script>
+  <script src="js/ui.js?v=20261017.2"></script>
+  <script src="js/tags.js?v=20261017.2"></script>
+  <script src="js/storage.js?v=20261017.2"></script>
+  <script src="js/validation.js?v=20261017.2"></script>
+  <script src="js/markdown.js?v=20261017.2"></script>
+  <script src="js/attachments.js?v=20261017.2"></script>
+  <script src="js/mongo-sync.js?v=20261017.2"></script>
+  <script src="js/auth.js?v=20261017.2"></script>
+  <script src="js/board.js?v=20261017.2"></script>
+  <script src="js/modals.js?v=20261017.2"></script>
+  <script src="js/task-page.js?v=20261017.2"></script>
+  <script src="js/app.js?v=20261017.2"></script>
 </body>
 </html>

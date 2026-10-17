@@ -298,8 +298,74 @@
     const btnOpenAuth = document.getElementById('btnOpenAuth');
     const btnSwitchUser = document.getElementById('btnSwitchUser');
     const btnLogoutUser = document.getElementById('btnLogoutUser');
+    const btnClearSearch = document.getElementById('btnClearSearch');
+    const searchIcon = document.getElementById('searchIcon');
+    const btnClearFilters = document.getElementById('btnClearFilters');
 
-    if (searchInput) searchInput.addEventListener('input', () => Board.renderBoard());
+    function updateSearchClearBtn() {
+      const hasText = !!(searchInput && searchInput.value && searchInput.value.length > 0);
+      if (btnClearSearch) {
+        btnClearSearch.style.display = hasText ? 'flex' : 'none';
+      }
+      if (searchIcon) {
+        searchIcon.style.display = hasText ? 'none' : '';
+      }
+    }
+
+    if (searchInput) {
+      searchInput.addEventListener('input', () => {
+        updateSearchClearBtn();
+        Board.renderBoard();
+      });
+    }
+
+    if (btnClearSearch) {
+      btnClearSearch.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (searchInput) {
+          searchInput.value = '';
+          updateSearchClearBtn();
+          searchInput.focus();
+        }
+        Board.renderBoard();
+      });
+    }
+
+    function clearAllFilters() {
+      if (searchInput) searchInput.value = '';
+      updateSearchClearBtn();
+
+      if (priorityFilter) priorityFilter.value = 'all';
+      if (tagFilter) tagFilter.value = 'all';
+      if (userFilter) userFilter.value = 'all';
+
+      [chkCriteriaAssignee, chkCriteriaCreator, chkCriteriaCommenter, chkCriteriaUploader].forEach(c => {
+        if (c) c.checked = true;
+      });
+
+      const userCriteriaBadge = document.getElementById('userCriteriaBadge');
+      if (userCriteriaBadge) {
+        userCriteriaBadge.textContent = 'Criteria (4/4)';
+      }
+
+      if (Board.resetBulkBarDismissed) {
+        Board.resetBulkBarDismissed();
+      }
+
+      Board.renderBoard();
+    }
+
+    window.VG.App.clearAllFilters = clearAllFilters;
+    window.VG.App.updateSearchClearBtn = updateSearchClearBtn;
+
+    if (btnClearFilters) {
+      btnClearFilters.addEventListener('click', (e) => {
+        e.preventDefault();
+        clearAllFilters();
+      });
+    }
+
     if (priorityFilter) priorityFilter.addEventListener('change', () => Board.renderBoard());
     if (tagFilter) tagFilter.addEventListener('change', () => Board.renderBoard());
     if (userFilter) userFilter.addEventListener('change', () => Board.renderBoard());
@@ -444,7 +510,11 @@
       btnBulkBarClear.addEventListener('click', () => Board.clearSelection());
     }
     if (btnBulkBarClose) {
-      btnBulkBarClose.addEventListener('click', () => Board.clearSelection());
+      btnBulkBarClose.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        Board.dismissBulkBar();
+      });
     }
 
     // Keyboard shortcuts
@@ -452,11 +522,17 @@
       if (e.key === 'Escape') {
         closeAllPopovers();
         if (Board && Board.getSelectedTaskIds && Board.getSelectedTaskIds().length > 0) {
-          Board.clearSelection();
+          Board.dismissBulkBar();
+          return;
+        }
+        const bulkActionBar = document.getElementById('bulkActionBar');
+        if (bulkActionBar && !bulkActionBar.hidden) {
+          Board.dismissBulkBar();
           return;
         }
         if (document.activeElement === searchInput && searchInput.value) {
           searchInput.value = '';
+          updateSearchClearBtn();
           Board.renderBoard();
           return;
         }
