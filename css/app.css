@@ -1362,9 +1362,12 @@ select.ui.dropdown option {
   white-space: nowrap;
 }
 
+/* Fixed positioning (computed in JS from the trigger's rect) so the popover
+   escapes the menu's overflow-x: auto, which would otherwise clip it and force
+   a scrollbar inside the menu. */
 .user-criteria-popover {
-  position: absolute;
-  top: calc(100% + 8px);
+  position: fixed;
+  top: 0;
   left: 0;
   z-index: 100;
   min-width: 230px;
@@ -1444,8 +1447,8 @@ select.ui.dropdown option {
 }
 
 .user-session-popover {
-  position: absolute;
-  top: calc(100% + 8px);
+  position: fixed;
+  top: 0;
   right: 0;
   z-index: 100;
   min-width: 210px;

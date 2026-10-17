@@ -165,12 +165,44 @@
     }
   }
 
+  /**
+   * Position a header popover with fixed coordinates derived from its trigger.
+   * The header menu scrolls horizontally (overflow-x: auto), which clips
+   * absolutely-positioned children; fixed positioning escapes that clipping.
+   */
+  function positionHeaderPopover(popover, anchor, align) {
+    if (!popover || !anchor) return;
+    const gap = 8;
+    const rect = anchor.getBoundingClientRect();
+    popover.style.top = `${Math.round(rect.bottom + gap)}px`;
+    const popWidth = popover.offsetWidth;
+    let left = align === 'right' ? rect.right - popWidth : rect.left;
+    // Keep the popover inside the viewport.
+    left = Math.min(Math.max(gap, left), window.innerWidth - popWidth - gap);
+    popover.style.left = `${Math.round(left)}px`;
+    popover.style.right = 'auto';
+  }
+
+  function repositionOpenPopovers() {
+    const criteriaPopover = document.getElementById('userCriteriaPopover');
+    if (criteriaPopover && criteriaPopover.style.display !== 'none') {
+      positionHeaderPopover(criteriaPopover, document.getElementById('btnUserCriteria'), 'left');
+    }
+    const sessionPopover = document.getElementById('userSessionPopover');
+    if (sessionPopover && sessionPopover.style.display !== 'none') {
+      positionHeaderPopover(sessionPopover, document.getElementById('btnOpenAuth'), 'right');
+    }
+  }
+
   function toggleCriteriaPopover(force) {
     const popover = document.getElementById('userCriteriaPopover');
     if (!popover) return;
     const isShowing = popover.style.display !== 'none';
     const show = force !== undefined ? force : !isShowing;
     popover.style.display = show ? 'flex' : 'none';
+    if (show) {
+      positionHeaderPopover(popover, document.getElementById('btnUserCriteria'), 'left');
+    }
     const btn = document.getElementById('btnUserCriteria');
     if (btn) btn.setAttribute('aria-expanded', String(show));
   }
@@ -181,6 +213,9 @@
     const isShowing = popover.style.display !== 'none';
     const show = force !== undefined ? force : !isShowing;
     popover.style.display = show ? 'block' : 'none';
+    if (show) {
+      positionHeaderPopover(popover, document.getElementById('btnOpenAuth'), 'right');
+    }
   }
 
   function closeAllPopovers() {
@@ -338,6 +373,10 @@
         Modals.openAuthModal('login');
       });
     }
+
+    // Keep open popovers anchored when the page or the menu scrolls/resizes.
+    window.addEventListener('resize', repositionOpenPopovers);
+    window.addEventListener('scroll', repositionOpenPopovers, true);
 
     // Dismiss popovers when clicking outside
     document.addEventListener('click', (e) => {
