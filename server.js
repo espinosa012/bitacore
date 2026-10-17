@@ -6,6 +6,7 @@
  *   - Connecting to MongoDB Atlas (vg-task-manager database, tasks and attachments collections)
  *   - Querying, creating, updating, and deleting tasks
  *   - Storing, streaming, and deleting attachment files in MongoDB
+ *   - User authentication and authorization via JWT
  *
  * Usage:
  *   node server.js [mongo-uri]
@@ -15,6 +16,7 @@
  *   VG_MONGO_URI        MongoDB Atlas connection string (optional default)
  *   VG_ALLOWED_ORIGINS  extra comma-separated origins allowed for CORS
  *   VG_NO_OPEN=1        do not open the browser automatically
+ *   API_JWT_SECRET      override the JWT signing secret (default: built-in static key)
  */
 
 const http = require('http');
@@ -24,6 +26,7 @@ const net = require('net');
 const { exec } = require('child_process');
 const { MongoClient } = require('mongodb');
 const crypto = require('crypto');
+const { createToken, verifyToken, verifyRequest } = require('./auth');
 
 const APP_DIR = __dirname;
 const INDEX_FILE = path.join(APP_DIR, 'index.html');
@@ -186,7 +189,7 @@ function corsHeaders(req) {
     return {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, PUT, POST, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       'Access-Control-Allow-Private-Network': 'true'
     };
   }
@@ -194,7 +197,7 @@ function corsHeaders(req) {
   return {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'GET, PUT, POST, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Private-Network': 'true',
     'Vary': 'Origin'
   };
@@ -230,6 +233,108 @@ function readBody(req) {
 function isSafeSegment(name) {
   return typeof name === 'string' && name.length > 0 && name.length <= 255 &&
     !name.includes('/') && !name.includes('\\') && !name.includes('\0');
+}
+
+/** Parse multipart/form-data body from raw Buffer using manual parsing */
+function parseMultipartBody(bodyBuffer, contentType) {
+  const boundaryMatch = contentType.match(/boundary=([^;\s]+)/);
+  if (!boundaryMatch) {
+    return { fields: {}, files: [] }; // Not multipart - no files
+  }
+  const boundary = '--' + boundaryMatch[1];
+  const parts = bodyBuffer.split(Buffer.from('\r\n' + boundary));
+  const fields = {};
+  const files = [];
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (!part || part === '\r\n' || part === '--\r\n' || part === '\r\n' + boundary || part === '--\r\n') continue;
+    const headerEnd = part.indexOf('\r\n\r\n');
+    if (headerEnd === -1) continue;
+    const headerStr = part.slice(0, headerEnd).toString('utf8');
+    const data = part.slice(headerEnd + 4);
+
+    const nameMatch = headerStr.match(/name="([^"]+)"/);
+    if (!nameMatch) continue;
+    const name = nameMatch[1];
+    const filenameMatch = headerStr.match(/filename="([^\"]*)\"/);
+    if (filenameMatch) {
+      files.push({ name, filename: filenameMatch[1] || null, data });
+    } else {
+      fields[name] = data.toString('utf8');
+    }
+  }
+  return { fields, files };
+}
+
+/** Parse multipart/form-data body from raw Buffer using manual parsing */
+function parseMultipartBody(bodyBuffer, contentType) {
+  const boundaryMatch = contentType.match(/boundary=([^;\s]+)/);
+  if (!boundaryMatch) {
+    return { fields: {}, files: [] }; // Not multipart - no files
+  }
+  const boundary = '--' + boundaryMatch[1];
+  const parts = bodyBuffer.split(Buffer.from('\r\n' + boundary));
+  const fields = {};
+  const files = [];
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (!part || part === '\r\n' || part === '--\r\n' || part === '\r\n' + boundary || part === '--\r\n') continue;
+    const headerEnd = part.indexOf('\r\n\r\n');
+    if (headerEnd === -1) continue;
+    const headerStr = part.slice(0, headerEnd).toString('utf8');
+    const data = part.slice(headerEnd + 4);
+
+    const nameMatch = headerStr.match(/name="([^"]+)"/);
+    if (!nameMatch) continue;
+    const name = nameMatch[1];
+    const filenameMatch = headerStr.match(/filename="([^"]*)"/);
+    if (filenameMatch) {
+      files.push({ name, filename: filenameMatch[1] || null, data });
+    } else {
+      fields[name] = data.toString('utf8');
+    }
+  }
+  return { fields, files };
+}
+
+/** Parse multipart/form-data body from a raw Buffer */
+function parseMultipart(bodyBuffer, contentType) {
+  const boundaryMatch = contentType.match(/boundary=([^;\s]+)/);
+  if (!boundaryMatch) throw new Error('Missing multipart boundary');
+  const boundary = '--' + boundaryMatch[1];
+
+  const parts = bodyBuffer.split(Buffer.from('\r\n' + boundary));
+  const fields = {};
+  const files = [];
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (!part.length || part.toString().includes('--\r\n')) continue;
+
+    const headerEnd = part.indexOf('\r\n\r\n');
+    if (headerEnd === -1) continue;
+    const headerStr = part.slice(0, headerEnd).toString('utf8');
+    const body = part.slice(headerEnd + 4).replace(/\r\n$/, '');
+
+    const dispositionMatch = headerStr.match(/Content-Disposition:\s*form-data;\s*name="([^"]+)"/);
+    if (!dispositionMatch) continue;
+    const fieldName = dispositionMatch[1];
+
+    const filenameMatch = headerStr.match(/filename="([^"]+)"/);
+    if (filenameMatch) {
+      files.push({
+        fieldName: fieldName,
+        filename: filenameMatch[1],
+        data: body
+      });
+    } else {
+      fields[fieldName] = body.toString('utf8');
+    }
+  }
+
+  return { fields, files };
 }
 
 async function handleApi(req, res, pathname, cors) {
@@ -283,13 +388,13 @@ async function handleApi(req, res, pathname, cors) {
     }
   }
 
-  // 3. Disconnect from MongoDB: POST /api/mongo/disconnect
+  // 2.1 Disconnect from MongoDB: POST /api/mongo/disconnect
   if (pathname === '/api/mongo/disconnect' && req.method === 'POST') {
     await disconnectMongo();
     return sendJson(res, 200, { ok: true, connected: false }, cors);
   }
 
-  // 3.1 Register User: POST /api/auth/register
+  // 3. Register User: POST /api/auth/register
   if (pathname === '/api/auth/register' && req.method === 'POST') {
     if (!mongoDb) {
       return sendJson(res, 403, { ok: false, error: 'Not connected to MongoDB. Please connect first.' }, cors);
@@ -317,13 +422,7 @@ async function handleApi(req, res, pathname, cors) {
     try {
       const usersCol = mongoDb.collection('users');
       const lower = username.toLowerCase();
-      const escaped = username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const existing = await usersCol.findOne({
-        $or: [
-          { usernameLower: lower },
-          { username: { $regex: new RegExp(`^${escaped}$`, 'i') } }
-        ]
-      });
+      const existing = await usersCol.findOne({ usernameLower: lower });
       if (existing) {
         return sendJson(res, 409, { ok: false, error: 'Username is already taken. Please choose another or log in.' }, cors);
       }
@@ -336,8 +435,10 @@ async function handleApi(req, res, pathname, cors) {
         createdAt: new Date().toISOString()
       };
       await usersCol.insertOne(userDoc);
+      const token = createToken(username);
       return sendJson(res, 201, {
         ok: true,
+        token,
         user: { username, createdAt: userDoc.createdAt }
       }, cors);
     } catch (err) {
@@ -345,7 +446,7 @@ async function handleApi(req, res, pathname, cors) {
     }
   }
 
-  // 3.2 Login User: POST /api/auth/login
+  // 3.1 Login User: POST /api/auth/login
   if (pathname === '/api/auth/login' && req.method === 'POST') {
     if (!mongoDb) {
       return sendJson(res, 403, { ok: false, error: 'Not connected to MongoDB. Please connect first.' }, cors);
@@ -367,24 +468,27 @@ async function handleApi(req, res, pathname, cors) {
     try {
       const usersCol = mongoDb.collection('users');
       const lower = username.toLowerCase();
-      const escaped = username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const userDoc = await usersCol.findOne({
-        $or: [
-          { usernameLower: lower },
-          { username: { $regex: new RegExp(`^${escaped}$`, 'i') } }
-        ]
-      });
+      const userDoc = await usersCol.findOne({ usernameLower: lower });
       if (!userDoc || !verifyPassword(password, userDoc.password)) {
         return sendJson(res, 401, { ok: false, error: 'Invalid username or password.' }, cors);
       }
 
+      const token = createToken(userDoc.username);
       return sendJson(res, 200, {
         ok: true,
+        token,
         user: { username: userDoc.username, createdAt: userDoc.createdAt }
       }, cors);
     } catch (err) {
       return sendJson(res, 500, { ok: false, error: 'Failed to authenticate: ' + err.message }, cors);
     }
+  }
+
+  // 3.2 Logout User: POST /api/auth/logout
+  if (pathname === '/api/auth/logout' && req.method === 'POST') {
+    // JWT tokens can't be invalidated server-side.
+    // Server returns success; clients must discard the token.
+    return sendJson(res, 200, { ok: true, message: 'Logged out. Discard your token.' }, cors);
   }
 
   // 3.3 List Users: GET /api/users
@@ -412,7 +516,27 @@ async function handleApi(req, res, pathname, cors) {
 
     if (req.method === 'GET') {
       try {
-        const rawTasks = await mongoDb.collection('tasks').find({}).toArray();
+        // Parse query parameters for filtering/pagination
+        const params = new URLSearchParams(pathname.includes('?') ? pathname.split('?')[1] : '');
+        const urlObj = new URL(req.url, 'http://localhost');
+        const queryParams = new URLSearchParams(urlObj.search);
+
+        const filter = {};
+        // Build MongoDB filter from query params
+        if (queryParams.get('status')) filter.status = { $in: [queryParams.get('status')] };
+        if (queryParams.get('priority')) filter.priority = queryParams.get('priority');
+        if (queryParams.get('assignee')) filter.assignee = queryParams.get('assignee');
+        if (queryParams.get('tag')) filter.tags = queryParams.get('tag');
+
+        let query = mongoDb.collection('tasks').find(filter || {}).sort({});
+
+        // Pagination
+        const limit = parseInt(queryParams.get('limit') || '1000', 10);
+        const offset = parseInt(queryParams.get('offset') || '0', 10);
+        if (!isNaN(limit) && limit > 0) query = query.limit(limit);
+        if (!isNaN(offset) && offset > 0) query = query.skip(offset);
+
+        const rawTasks = await query.toArray();
         const normalized = rawTasks.map(t => {
           const id = t.id || t._id;
           const copy = { ...t, id: String(id) };
@@ -420,11 +544,32 @@ async function handleApi(req, res, pathname, cors) {
           return copy;
         });
 
-        // Load tag registry if stored in 'tags' collection
+        // Load tag registry
         const tagDoc = await mongoDb.collection('tags').findOne({ _id: 'registry' }).catch(() => null);
         const tags = tagDoc && Array.isArray(tagDoc.tags) ? tagDoc.tags : [];
 
-        return sendJson(res, 200, { tags, tasks: normalized }, cors);
+        // Optional search via query param (client-side filtering still possible)
+        const search = queryParams.get('search');
+        let finalTasks = normalized;
+        if (search) {
+          const term = search.toLowerCase();
+          finalTasks = normalized.filter(t => {
+            const text = [t.name, t.description, t['openspec-id'], ...(t.tags || [])]
+              .join(' ').toLowerCase();
+            return text.includes(term) || (t.attachments || []).some(a => a.filename.toLowerCase().includes(term));
+          });
+        }
+
+        return sendJson(res, 200, {
+          tags,
+          tasks: finalTasks,
+          pagination: {
+            total: normalized.length,
+            returned: finalTasks.length,
+            limit: parseInt(queryParams.get('limit') || '1000', 10),
+            offset: parseInt(queryParams.get('offset') || '0', 10)
+          }
+        }, cors);
       } catch (err) {
         return sendJson(res, 500, { ok: false, error: 'Failed to read tasks from MongoDB: ' + err.message }, cors);
       }
@@ -487,10 +632,25 @@ async function handleApi(req, res, pathname, cors) {
     if (!mongoDb) return sendJson(res, 403, { ok: false, error: 'Not connected to MongoDB' }, cors);
     const taskId = decodeURIComponent(taskMatch[1]);
 
+    // GET method for single task
+    if (req.method === 'GET') {
+      try {
+        const doc = await mongoDb.collection('tasks').findOne({ _id: taskId });
+        if (!doc) {
+          return sendJson(res, 404, { ok: false, error: 'Task not found' }, cors);
+        }
+        const id = doc.id || doc._id;
+        const normalized = { ...doc, id: String(id) };
+        delete normalized._id;
+        return sendJson(res, 200, { ok: true, task: normalized }, cors);
+      } catch (err) {
+        return sendJson(res, 500, { ok: false, error: err.message }, cors);
+      }
+    }
+
     if (req.method === 'DELETE') {
       try {
         await mongoDb.collection('tasks').deleteOne({ _id: taskId });
-        // Also remove any attachments for this task
         await mongoDb.collection('attachments').deleteMany({ taskId });
         return sendJson(res, 200, { ok: true }, cors);
       } catch (err) {
@@ -502,8 +662,38 @@ async function handleApi(req, res, pathname, cors) {
       try {
         const body = await readBody(req);
         const task = JSON.parse(body.toString('utf8'));
-        const doc = { ...task, _id: taskId, id: taskId };
-        await mongoDb.collection('tasks').updateOne({ _id: taskId }, { $set: doc }, { upsert: true });
+        const now = new Date().toISOString();
+
+        // Check if status changed to record history entry
+        const existing = await mongoDb.collection('tasks').findOne({ _id: taskId });
+        if (existing) {
+          task._id = taskId;
+          task.id = taskId;
+          // Preserve created_at, update updated_at
+          task.updated_at = now;
+          if (!task.history) task.history = existing.history || [];
+
+          // If status changed, append a history entry
+          const prevStatus = existing.status;
+          const newStatus = task.status;
+          if (prevStatus !== newStatus) {
+            task.history.push({
+              from_status: prevStatus || null,
+              to_status: newStatus,
+              timestamp: now,
+              reason: 'Status changed via API',
+              user: req.user && req.user.username
+            });
+          }
+        } else {
+          task._id = taskId;
+          task.id = taskId;
+          task.created_at = now;
+          task.updated_at = now;
+          if (!task.history) task.history = [];
+        }
+
+        await mongoDb.collection('tasks').updateOne({ _id: taskId }, { $set: task }, { upsert: true });
         return sendJson(res, 200, { ok: true }, cors);
       } catch (err) {
         return sendJson(res, 500, { ok: false, error: err.message }, cors);
@@ -511,7 +701,181 @@ async function handleApi(req, res, pathname, cors) {
     }
   }
 
-  // 6. List attachments: GET /api/attachments
+  // 6. Attachment endpoints: /api/tasks/<id>/attachments
+  const taskAttachmentsMatch = pathname.match(/^\/api\/tasks\/([^/]+)\/attachments\/?(.*)$/);
+  if (taskAttachmentsMatch) {
+    if (!mongoDb) return sendJson(res, 403, { ok: false, error: 'Not connected to MongoDB' }, cors);
+    const taskId = encodeURIComponent(taskAttachmentsMatch[1]);
+
+    if (req.method === 'GET') {
+             // List attachments
+      try {
+        const task = await mongoDb.collection('tasks').findOne({ _id: taskId });
+        if (!task) return sendJson(res, 404, { ok: false, error: 'Task not found' }, cors);
+        return sendJson(res, 200, { ok: true, attachments: task.attachments || [] }, cors);
+      } catch (err) {
+        return sendJson(res, 500, { ok: false, error: err.message }, cors);
+      }
+    }
+
+    if (req.method === 'POST') {
+      // Upload file to task
+      try {
+        const body = await readBody(req);
+        const contentType = req.headers['content-type'] || '';
+        const { fields, files } = parseMultipartBody(body, contentType);
+        if (files.length === 0) return sendJson(res, 400, { ok: false, error: 'No file uploaded' }, cors);
+        if (files.length > 1) return sendJson(res, 400, { ok: false, error: 'Only one file can be uploaded at a time' }, cors);
+        const file = files[0];
+        if (!file.filename || !file.data) return sendJson(res, 400, { ok: false, error: 'Invalid file data' }, cors);
+        const attachment = {
+          filename: file.filename,
+          contentType: MIME_TYPES[path.extname(file.filename).toLowerCase()] || 'application/octet-stream',
+          size: file.data.length,
+          uploadedAt: new Date().toISOString(),
+          userId: req.user?.username || null
+        };
+        const result = await mongoDb.collection('tasks').updateOne(
+          { _id: taskId },
+          { $push: { attachments: attachment }, $set: { updated_at: new Date().toISOString() } }
+        );
+        if (result.matchedCount === 0) return sendJson(res, 404, { ok: false, error: 'Task not found' }, cors);
+        return sendJson(res, 200, { ok: true, attachment, message: 'File uploaded successfully' }, cors);
+      } catch (err) {
+        return sendJson(res, 500, { ok: false, error: 'Failed to upload file: ' + err.message }, cors);
+      }
+    }
+
+    if (req.method === 'DELETE') {
+      // Delete all attachments for a task
+      try {
+        await mongoDb.collection('tasks').updateOne(
+          { _id: taskId },
+          { $set: { 'attachments': [], 'updated_at': new Date().toISOString() } }
+        );
+        return sendJson(res, 200, { ok: true, message: 'All attachments deleted' }, cors);
+      } catch (err) {
+        return sendJson(res, 500, { ok: false, error: err.message }, cors);
+      }
+    }
+  }
+
+  // 7. Single attachment CRUD for a task: /api/tasks/<id>/attachments/<filename>
+  const singleAttachmentMatch = pathname.match(/^\/api\/tasks\/([^/]+)\/attachments\/([^/]+)$/);
+  if (singleAttachmentMatch) {
+    if (!mongoDb) return sendJson(res, 403, { ok: false, error: 'Not connected to MongoDB' }, cors);
+    const taskId = decodeURIComponent(singleAttachmentMatch[1]);
+    const filename = decodeURIComponent(singleAttachmentMatch[2]);
+
+    if (!isSafeSegment(taskId) || !isSafeSegment(filename)) {
+      return sendJson(res, 400, { ok: false, error: 'Invalid task id or filename' }, cors);
+    }
+
+    if (req.method === 'GET') {
+      try {
+        const task = await mongoDb.collection('tasks').findOne({ _id: taskId });
+        if (!task || !task.attachments) return sendJson(res, 404, { ok: false, error: 'Attachment not found' }, cors);
+        const att = task.attachments.find(a => a.filename === filename);
+        if (!att) return sendJson(res, 404, { ok: false, error: 'Attachment not found' }, cors);
+        return sendJson(res, 200, { ok: true, attachment: att }, cors);
+      } catch (err) {
+        return sendJson(res, 500, { ok: false, error: err.message }, cors);
+      }
+    }
+
+    if (req.method === 'PUT') {
+      // Upload/update file for task
+      try {
+        const body = await readBody(req);
+        const contentType = req.headers['content-type'] || '';
+        
+        // Parse multipart data
+        const { fields, files } = parseMultipartBody(body, contentType);
+        
+        // Expect exactly one file
+        if (files.length === 0) {
+          return sendJson(res, 400, { ok: false, error: 'No file uploaded' }, cors);
+        }
+        if (files.length > 1) {
+          return sendJson(res, 400, { ok: false, error: 'Only one file can be uploaded at a time' }, cors);
+        }
+        
+        const file = files[0];
+        if (!file.filename || !file.data) {
+          return sendJson(res, 400, { ok: false, error: 'Invalid file data' }, cors);
+        }
+        
+        // Validate file size (already done in readBody via MAX_BODY)
+        
+        // Create/update attachment object
+        const attachment = {
+          filename: file.filename,
+          contentType: req.headers['content-type']?.includes('boundary') 
+            ? (file.data.length > 0 ? 'application/octet-stream' : '') // Will be set properly below
+            : 'application/octet-stream',
+          size: file.data.length,
+          uploadedAt: new Date().toISOString(),
+          userId: req.user?.username || null
+        };
+        
+        // Try to detect content type from filename if not set
+        if (attachment.contentType === 'application/octet-stream') {
+          const ext = path.extname(file.filename).toLowerCase();
+          attachment.contentType = MIME_TYPES[ext] || 'application/octet-stream';
+        }
+        
+        // First remove any existing attachment with same filename, then add new one
+        await mongoDb.collection('tasks').updateOne(
+          { _id: taskId },
+          { 
+            $pull: { attachments: { filename: file.filename } },
+            $set: { updated_at: new Date().toISOString() }
+          }
+        );
+        
+        // Then add the new attachment
+        const result = await mongoDb.collection('tasks').updateOne(
+          { _id: taskId },
+          { 
+            $push: { attachments: attachment },
+            $set: { updated_at: new Date().toISOString() }
+          }
+        );
+        
+        if (result.matchedCount === 0) {
+          return sendJson(res, 404, { ok: false, error: 'Task not found' }, cors);
+        }
+        
+        return sendJson(res, 200, { 
+          ok: true, 
+          attachment: attachment,
+          message: 'File uploaded successfully' 
+        }, cors);
+      } catch (err) {
+        return sendJson(res, 500, { ok: false, error: 'Failed to upload file: ' + err.message }, cors);
+      }
+    }
+
+    if (req.method === 'DELETE') {
+      try {
+        const result = await mongoDb.collection('tasks').updateOne(
+          { _id: taskId },
+          { $pull: { attachments: { filename: filename } }, $set: { updated_at: new Date().toISOString() } }
+        );
+        if (result.matchedCount === 0) {
+          return sendJson(res, 404, { ok: false, error: 'Task not found' }, cors);
+        }
+        if (result.modifiedCount === 0) {
+          return sendJson(res, 404, { ok: false, error: 'Attachment not found' }, cors);
+        }
+        return sendJson(res, 200, { ok: true }, cors);
+      } catch (err) {
+        return sendJson(res, 500, { ok: false, error: err.message }, cors);
+      }
+    }
+  }
+
+  // Legacy attachment endpoints (backwards-compatible with original /api/attachments)
   if (pathname === '/api/attachments' && req.method === 'GET') {
     if (!mongoDb) return sendJson(res, 200, [], cors);
     try {
@@ -524,7 +888,7 @@ async function handleApi(req, res, pathname, cors) {
     }
   }
 
-  // 7. Single attachment: GET / PUT / DELETE /api/attachments/<taskId>/<filename>
+  // Legacy single attachment: GET / PUT / DELETE /api/attachments/<taskId>/<filename>
   const attMatch = pathname.match(/^\/api\/attachments\/([^/]+)\/([^/]+)$/);
   if (attMatch) {
     if (!mongoDb) return sendJson(res, 403, { ok: false, error: 'Not connected to MongoDB' }, cors);
@@ -648,6 +1012,13 @@ function createServer() {
         res.writeHead(204, cors);
         return res.end();
       }
+
+      // JWT auth middleware - verifyRequest protects all routes except public ones
+      const verify = verifyRequest(req, res, pathname);
+      if (!verify.valid) {
+        return sendJson(res, 401, verify.error, cors);
+      }
+
       try {
         await handleApi(req, res, pathname, cors);
       } catch (err) {

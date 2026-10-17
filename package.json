@@ -16,6 +16,7 @@
   "author": "Adrián R. Espinosa",
   "license": "MIT",
   "dependencies": {
+    "jsonwebtoken": "^9.0.2",
     "mongodb": "^7.7.0"
   }
 }
