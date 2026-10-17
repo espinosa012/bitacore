@@ -220,6 +220,7 @@ main[hidden],
   min-width: 260px;
   max-width: 380px;
   margin: 0;
+  transition: max-width 0.15s ease;
   padding: 12px;
   background: var(--app-surface);
   display: flex;
@@ -313,6 +314,11 @@ main[hidden],
 .board-column.collapsed .col-btn-add,
 .board-column.collapsed .column-cards-container {
   display: none;
+}
+
+/* When any column is collapsed, the expanded ones widen to fill the freed space */
+.board.has-collapsed-columns .ui.segment.board-column:not(.collapsed) {
+  max-width: none;
 }
 
 /* Task cards */

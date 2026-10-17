@@ -35,6 +35,8 @@
     if (!kanbanBoard) return;
 
     kanbanBoard.innerHTML = '';
+    const anyCollapsed = STATES.some(st => collapsedColumns.has(st.id));
+    kanbanBoard.classList.toggle('has-collapsed-columns', anyCollapsed);
     STATES.forEach(st => {
       const isCollapsed = collapsedColumns.has(st.id);
       const colEl = document.createElement('div');
