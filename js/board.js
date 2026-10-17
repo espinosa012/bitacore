@@ -413,11 +413,21 @@
       const emptyMsg = container.querySelector('.column-empty');
       if (emptyMsg) emptyMsg.remove();
 
-      const afterElement = getDragAfterElement(container, e.clientY);
-      if (afterElement == null) {
-        container.appendChild(dropPlaceholder);
+      const tasks = window.VG.App ? window.VG.App.getTasks() : [];
+      const draggedTask = draggedTaskId ? tasks.find(t => t.id === draggedTaskId) : null;
+      const isChangingColumn = draggedTask && canonicalState(draggedTask.status) !== canonicalState(stateId);
+
+      if (isChangingColumn) {
+        if (container.firstChild !== dropPlaceholder) {
+          container.insertBefore(dropPlaceholder, container.firstChild);
+        }
       } else {
-        container.insertBefore(dropPlaceholder, afterElement);
+        const afterElement = getDragAfterElement(container, e.clientY);
+        if (afterElement == null) {
+          container.appendChild(dropPlaceholder);
+        } else {
+          container.insertBefore(dropPlaceholder, afterElement);
+        }
       }
     });
 
@@ -445,29 +455,39 @@
       const [movedTask] = tasks.splice(taskIndex, 1);
       const prevStatus = movedTask.status;
       const targetState = canonicalState(stateId);
+      const isChangingColumn = canonicalState(prevStatus) !== targetState;
 
       // Determine insert index
       let targetInsertIndex = tasks.length;
-      if (dropPlaceholder.parentNode) {
-        const nextCard = dropPlaceholder.nextElementSibling;
-        dropPlaceholder.remove();
+      if (isChangingColumn) {
+        if (dropPlaceholder.parentNode) {
+          dropPlaceholder.remove();
+        }
+        // When changing column, place it first in that column
+        const firstIndexInCol = tasks.findIndex(t => canonicalState(t.status) === targetState);
+        targetInsertIndex = firstIndexInCol !== -1 ? firstIndexInCol : 0;
+      } else {
+        if (dropPlaceholder.parentNode) {
+          const nextCard = dropPlaceholder.nextElementSibling;
+          dropPlaceholder.remove();
 
-        if (nextCard && nextCard.classList.contains('card')) {
-          const nextTaskId = nextCard.getAttribute('data-task-id');
-          const nextIndex = tasks.findIndex(t => t.id === nextTaskId);
-          if (nextIndex !== -1) {
-            targetInsertIndex = nextIndex;
-          }
-        } else {
-          // Find last task with this target state
-          let lastIndexInCol = -1;
-          for (let i = 0; i < tasks.length; i++) {
-            if (canonicalState(tasks[i].status) === targetState) {
-              lastIndexInCol = i;
+          if (nextCard && nextCard.classList.contains('card')) {
+            const nextTaskId = nextCard.getAttribute('data-task-id');
+            const nextIndex = tasks.findIndex(t => t.id === nextTaskId);
+            if (nextIndex !== -1) {
+              targetInsertIndex = nextIndex;
             }
-          }
-          if (lastIndexInCol !== -1) {
-            targetInsertIndex = lastIndexInCol + 1;
+          } else {
+            // Find last task with this target state
+            let lastIndexInCol = -1;
+            for (let i = 0; i < tasks.length; i++) {
+              if (canonicalState(tasks[i].status) === targetState) {
+                lastIndexInCol = i;
+              }
+            }
+            if (lastIndexInCol !== -1) {
+              targetInsertIndex = lastIndexInCol + 1;
+            }
           }
         }
       }
@@ -476,7 +496,7 @@
       movedTask.status = targetState;
       movedTask.updated_at = new Date().toISOString();
 
-      if (canonicalState(prevStatus) !== targetState) {
+      if (isChangingColumn) {
         const currentUser = window.VG.Auth && window.VG.Auth.getCurrentUser();
         const currentUname = (currentUser && currentUser.username) ? currentUser.username : null;
         movedTask.history = movedTask.history || [];

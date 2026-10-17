@@ -714,6 +714,16 @@
         reason,
         user: currentUname
       });
+
+      // When changing column, place it first in that column
+      const tasks = window.VG.App ? window.VG.App.getTasks() : [];
+      const taskIndex = tasks.findIndex(t => t.id === task.id);
+      if (taskIndex !== -1) {
+        tasks.splice(taskIndex, 1);
+        const firstIndexInCol = tasks.findIndex(t => canonicalState(t.status) === newStatus);
+        const targetInsertIndex = firstIndexInCol !== -1 ? firstIndexInCol : 0;
+        tasks.splice(targetInsertIndex, 0, task);
+      }
     }
     return null;
   }
