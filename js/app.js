@@ -92,6 +92,8 @@
     const mongoStatusLabel = document.getElementById('mongoStatusLabel');
     const mongoEmptyState = document.getElementById('mongoEmptyState');
     const authEmptyState = document.getElementById('authEmptyState');
+    const projectEmptyState = document.getElementById('projectEmptyState');
+    const projectSelectorContainer = document.getElementById('projectSelectorContainer');
     const kanbanBoard = document.getElementById('kanbanBoard');
     const priorityFilter = document.getElementById('priorityFilter');
     const tagFilter = document.getElementById('tagFilter');
@@ -100,12 +102,15 @@
     const headerUserLabel = document.getElementById('headerUserLabel');
     const sessionUserName = document.getElementById('sessionUserName');
     const btnOpenAuth = document.getElementById('btnOpenAuth');
+    const btnNewTask = document.getElementById('btnNewTask');
 
     if (!btnMongoStatus || !mongoStatusLabel) return;
 
     const isConnected = MongoSync && MongoSync.isConnected();
     const currentUser = window.VG.Auth && window.VG.Auth.getCurrentUser();
     const isLoggedIn = !!currentUser;
+    const userProjects = window.VG.Auth ? window.VG.Auth.getUserProjects() : [];
+    const hasProjects = isLoggedIn && Array.isArray(userProjects) && userProjects.length > 0;
 
     // Update user button in header
     if (headerUserLabel && btnOpenAuth) {
@@ -136,19 +141,41 @@
 
       if (isLoggedIn) {
         if (authEmptyState) authEmptyState.style.display = 'none';
-        if (kanbanBoard) kanbanBoard.style.display = 'flex';
-        if (priorityFilter) priorityFilter.disabled = false;
-        const typeFilter = document.getElementById('typeFilter');
-        if (typeFilter) typeFilter.disabled = false;
-        if (searchInput) searchInput.disabled = false;
-        if (userFilter) userFilter.disabled = false;
-        const btnFiltersMenu = document.getElementById('btnFiltersMenu');
-        if (btnFiltersMenu) btnFiltersMenu.disabled = false;
-        const btnFilterFav = document.getElementById('btnFilterFavorite');
-        if (btnFilterFav) btnFilterFav.disabled = false;
+        if (!hasProjects) {
+          if (projectEmptyState) projectEmptyState.style.display = 'block';
+          if (kanbanBoard) kanbanBoard.style.display = 'none';
+          if (projectSelectorContainer) projectSelectorContainer.style.display = 'none';
+          if (priorityFilter) priorityFilter.disabled = true;
+          const typeFilter = document.getElementById('typeFilter');
+          if (typeFilter) typeFilter.disabled = true;
+          if (searchInput) searchInput.disabled = true;
+          if (userFilter) userFilter.disabled = true;
+          const btnFiltersMenu = document.getElementById('btnFiltersMenu');
+          if (btnFiltersMenu) btnFiltersMenu.disabled = true;
+          toggleFiltersPopover(false);
+          const btnFilterFav = document.getElementById('btnFilterFavorite');
+          if (btnFilterFav) btnFilterFav.disabled = true;
+          if (btnNewTask) btnNewTask.disabled = true;
+        } else {
+          if (projectEmptyState) projectEmptyState.style.display = 'none';
+          if (kanbanBoard) kanbanBoard.style.display = 'flex';
+          if (projectSelectorContainer) projectSelectorContainer.style.display = '';
+          if (priorityFilter) priorityFilter.disabled = false;
+          const typeFilter = document.getElementById('typeFilter');
+          if (typeFilter) typeFilter.disabled = false;
+          if (searchInput) searchInput.disabled = false;
+          if (userFilter) userFilter.disabled = false;
+          const btnFiltersMenu = document.getElementById('btnFiltersMenu');
+          if (btnFiltersMenu) btnFiltersMenu.disabled = false;
+          const btnFilterFav = document.getElementById('btnFilterFavorite');
+          if (btnFilterFav) btnFilterFav.disabled = false;
+          if (btnNewTask) btnNewTask.disabled = false;
+        }
       } else {
+        if (projectEmptyState) projectEmptyState.style.display = 'none';
         if (authEmptyState) authEmptyState.style.display = 'block';
         if (kanbanBoard) kanbanBoard.style.display = 'none';
+        if (projectSelectorContainer) projectSelectorContainer.style.display = 'none';
         if (priorityFilter) priorityFilter.disabled = true;
         const typeFilter = document.getElementById('typeFilter');
         if (typeFilter) typeFilter.disabled = true;
@@ -159,6 +186,7 @@
         toggleFiltersPopover(false);
         const btnFilterFav = document.getElementById('btnFilterFavorite');
         if (btnFilterFav) btnFilterFav.disabled = true;
+        if (btnNewTask) btnNewTask.disabled = true;
       }
     } else {
       btnMongoStatus.classList.remove('green');
@@ -171,6 +199,8 @@
 
       if (mongoEmptyState) mongoEmptyState.style.display = 'block';
       if (authEmptyState) authEmptyState.style.display = 'none';
+      if (projectEmptyState) projectEmptyState.style.display = 'none';
+      if (projectSelectorContainer) projectSelectorContainer.style.display = 'none';
       if (kanbanBoard) kanbanBoard.style.display = 'none';
       if (priorityFilter) priorityFilter.disabled = true;
       const typeFilter = document.getElementById('typeFilter');
@@ -182,6 +212,7 @@
       toggleFiltersPopover(false);
       const btnFilterFav = document.getElementById('btnFilterFavorite');
       if (btnFilterFav) btnFilterFav.disabled = true;
+      if (btnNewTask) btnNewTask.disabled = true;
     }
   }
 
@@ -246,11 +277,160 @@
     toggleUserSessionPopover(false);
   }
 
+  let activeProjectId = null;
+
+  function refreshTaskTypeDropdowns() {
+    const taskTypes = window.VG.Constants.TASK_TYPES;
+    const escapeHtml = window.VG.Constants.escapeHtml;
+
+    // 1. #typeFilter
+    const typeFilter = document.getElementById('typeFilter');
+    if (typeFilter) {
+      const currentVal = typeFilter.value;
+      let html = '<option value="all">All types</option>';
+      Object.entries(taskTypes).forEach(([id, meta]) => {
+        html += `<option value="${escapeHtml(id)}">${escapeHtml(meta.label || id)}</option>`;
+      });
+      typeFilter.innerHTML = html;
+      if (currentVal && (currentVal === 'all' || taskTypes[currentVal])) {
+        typeFilter.value = currentVal;
+      } else {
+        typeFilter.value = 'all';
+      }
+    }
+
+    // 2. #newTaskType
+    const newTaskType = document.getElementById('newTaskType');
+    if (newTaskType) {
+      const currentVal = newTaskType.value;
+      let html = '';
+      Object.entries(taskTypes).forEach(([id, meta]) => {
+        html += `<option value="${escapeHtml(id)}">${escapeHtml(meta.label || id)}</option>`;
+      });
+      newTaskType.innerHTML = html;
+      if (currentVal && taskTypes[currentVal]) {
+        newTaskType.value = currentVal;
+      } else {
+        newTaskType.value = Object.keys(taskTypes)[0] || 'task';
+      }
+    }
+
+    // 3. #editTaskType
+    const editTaskType = document.getElementById('editTaskType');
+    if (editTaskType) {
+      const currentVal = editTaskType.value;
+      let html = '';
+      Object.entries(taskTypes).forEach(([id, meta]) => {
+        html += `<option value="${escapeHtml(id)}">${escapeHtml(meta.label || id)}</option>`;
+      });
+      editTaskType.innerHTML = html;
+      if (currentVal && taskTypes[currentVal]) {
+        editTaskType.value = currentVal;
+      } else {
+        editTaskType.value = Object.keys(taskTypes)[0] || 'task';
+      }
+    }
+
+    // 4 & 5. #pageTaskType and #newPageSubtaskType in TaskPage
+    if (window.VG.TaskPage && typeof window.VG.TaskPage.refreshTaskTypes === 'function') {
+      window.VG.TaskPage.refreshTaskTypes();
+    }
+  }
+
+  async function populateProjectSelector() {
+    const projectSelector = document.getElementById('projectSelector');
+    const projectSelectorContainer = document.getElementById('projectSelectorContainer');
+    const projectEmptyState = document.getElementById('projectEmptyState');
+    const kanbanBoard = document.getElementById('kanbanBoard');
+    const userProjects = window.VG.Auth ? window.VG.Auth.getUserProjects() : [];
+    const currentUser = window.VG.Auth ? window.VG.Auth.getCurrentUser() : null;
+
+    if (!currentUser) {
+      if (projectSelectorContainer) projectSelectorContainer.style.display = 'none';
+      if (projectEmptyState) projectEmptyState.style.display = 'none';
+      return null;
+    }
+
+    if (!userProjects || userProjects.length === 0) {
+      if (projectSelectorContainer) projectSelectorContainer.style.display = 'none';
+      if (projectEmptyState) projectEmptyState.style.display = 'block';
+      if (kanbanBoard) kanbanBoard.style.display = 'none';
+      replaceBoard([], []);
+      Board.renderBoard();
+      return null;
+    }
+
+    if (projectEmptyState) projectEmptyState.style.display = 'none';
+    if (projectSelectorContainer) projectSelectorContainer.style.display = '';
+
+    const projects = await MongoSync.fetchProjects(userProjects);
+    if (!projects || projects.length === 0) {
+      if (projectEmptyState) projectEmptyState.style.display = 'block';
+      if (kanbanBoard) kanbanBoard.style.display = 'none';
+      replaceBoard([], []);
+      Board.renderBoard();
+      return null;
+    }
+
+    const savedProjectId = localStorage.getItem('vg_active_project');
+    const matchedProject = projects.find(p => p.id === savedProjectId);
+    const activeProject = matchedProject || projects[0];
+    activeProjectId = activeProject.id;
+    localStorage.setItem('vg_active_project', activeProjectId);
+
+    if (projectSelector) {
+      projectSelector.innerHTML = projects.map(p =>
+        `<option value="${window.VG.Constants.escapeHtml(p.id)}"${p.id === activeProjectId ? ' selected' : ''}>${window.VG.Constants.escapeHtml(p.name || p.id)}</option>`
+      ).join('');
+      projectSelector.value = activeProjectId;
+    }
+
+    MongoSync.setCurrentDb(activeProject.dbName);
+
+    // Fetch and update task types for this active project
+    const types = await MongoSync.fetchProjectTaskTypes(activeProject.dbName);
+    window.VG.Constants.updateTaskTypes(types);
+    refreshTaskTypeDropdowns();
+
+    return activeProject;
+  }
+
+  async function onProjectChanged(newProjectId) {
+    if (!newProjectId) return;
+    const userProjects = window.VG.Auth ? window.VG.Auth.getUserProjects() : [];
+    if (!userProjects.includes(newProjectId)) {
+      showToast('You do not have permission to access this project', 'error');
+      return;
+    }
+
+    const projects = await MongoSync.fetchProjects(userProjects);
+    const selectedProject = projects.find(p => p.id === newProjectId);
+    if (!selectedProject) return;
+
+    activeProjectId = selectedProject.id;
+    localStorage.setItem('vg_active_project', activeProjectId);
+
+    MongoSync.setCurrentDb(selectedProject.dbName);
+    updateMongoBadge();
+
+    // Fetch and update task types for new project
+    const types = await MongoSync.fetchProjectTaskTypes(selectedProject.dbName);
+    window.VG.Constants.updateTaskTypes(types);
+    refreshTaskTypeDropdowns();
+
+    // Reload tasks from MongoDB for new project database
+    await loadFromMongo();
+  }
+
   async function onUserLoggedIn(user) {
     updateMongoBadge();
     const users = await window.VG.Auth.fetchUsers();
     Modals.populateUserDropdowns(users);
-    await loadFromMongo();
+    const activeProject = await populateProjectSelector();
+    if (activeProject) {
+      await loadFromMongo();
+    }
+    updateMongoBadge();
     showToast(`Welcome back, ${user.username}!`, 'success');
   }
 
@@ -260,7 +440,10 @@
     Modals.populateUserDropdowns(users);
     const currentUser = window.VG.Auth.getCurrentUser();
     if (currentUser) {
-      await loadFromMongo();
+      const activeProject = await populateProjectSelector();
+      if (activeProject) {
+        await loadFromMongo();
+      }
     } else {
       updateMongoBadge();
       setTimeout(() => {
@@ -272,6 +455,8 @@
   function logoutUser() {
     window.VG.Auth.logout();
     replaceBoard([], []);
+    const projectSelector = document.getElementById('projectSelector');
+    if (projectSelector) projectSelector.innerHTML = '';
     updateMongoBadge();
     Board.renderBoard();
     showToast('Logged out successfully', 'info');
@@ -282,6 +467,16 @@
 
   async function loadFromMongo() {
     try {
+      const currentUser = window.VG.Auth && window.VG.Auth.getCurrentUser();
+      const userProjects = window.VG.Auth ? window.VG.Auth.getUserProjects() : [];
+      if (currentUser && userProjects.length === 0) {
+        replaceBoard([], []);
+        markClean();
+        updateMongoBadge();
+        Board.renderBoard();
+        return true;
+      }
+
       showToast('Loading tasks from MongoDB...', 'info');
       const data = await MongoSync.loadTasks();
       const validation = Validation.validateTasksJson(data);
@@ -557,7 +752,19 @@
           Modals.openAuthModal('login');
           return;
         }
+        const userProjects = window.VG.Auth ? window.VG.Auth.getUserProjects() : [];
+        if (!userProjects || userProjects.length === 0) {
+          showToast('You must be assigned to at least one project to create tasks', 'warning');
+          return;
+        }
         Modals.openCreateModal('planned');
+      });
+    }
+
+    const projectSelector = document.getElementById('projectSelector');
+    if (projectSelector) {
+      projectSelector.addEventListener('change', async (e) => {
+        await onProjectChanged(e.target.value);
       });
     }
 
@@ -714,7 +921,10 @@
 
       const currentUser = window.VG.Auth.getCurrentUser();
       if (currentUser) {
-        await loadFromMongo();
+        const activeProject = await populateProjectSelector();
+        if (activeProject) {
+          await loadFromMongo();
+        }
       } else {
         updateMongoBadge();
         setTimeout(() => {
@@ -742,7 +952,10 @@
     loadFromMongo,
     onMongoConnected,
     onUserLoggedIn,
-    logoutUser
+    logoutUser,
+    populateProjectSelector,
+    onProjectChanged,
+    refreshTaskTypeDropdowns
   };
 
   document.addEventListener('DOMContentLoaded', initApp);

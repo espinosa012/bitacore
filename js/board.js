@@ -326,7 +326,7 @@
     const prioKey = canonicalPriority(task.priority);
     const prioMeta = PRIORITIES[prioKey] || PRIORITIES['medium'];
     const typeKey = canonicalTaskType(task.type);
-    const typeMeta = TASK_TYPES[typeKey] || TASK_TYPES['task'];
+    const typeMeta = TASK_TYPES[typeKey] || TASK_TYPES['task'] || Object.values(TASK_TYPES)[0] || { label: typeKey, icon: 'tasks', color: 'grey' };
 
     const allTasks = window.VG.App ? window.VG.App.getTasks() : [];
     const parentTask = task.parentId ? allTasks.find(t => t.id === task.parentId) : null;

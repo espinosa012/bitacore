@@ -87,6 +87,33 @@ body {
   white-space: nowrap;
 }
 
+.project-selector-item {
+  padding-left: 6px !important;
+  padding-right: 6px !important;
+}
+
+.project-selector-dropdown {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #e2e8f0 !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 4px !important;
+  padding: 0.45em 0.85em !important;
+  font-weight: 600 !important;
+  font-size: 0.88em !important;
+  max-width: 170px;
+  cursor: pointer;
+}
+
+.project-selector-dropdown:focus,
+.project-selector-dropdown:hover {
+  border-color: rgba(100, 181, 246, 0.5) !important;
+}
+
+.project-selector-dropdown option {
+  background: #1e293b;
+  color: #f1f5f9;
+}
+
 .app-menu #searchInput {
   width: 155px;
   transition: width 0.2s ease;

@@ -566,7 +566,7 @@
     }
 
     listEl.innerHTML = subtasks.map(sub => {
-      const typeMeta = TASK_TYPES[canonicalTaskType(sub.type)] || TASK_TYPES['task'];
+      const typeMeta = TASK_TYPES[canonicalTaskType(sub.type)] || TASK_TYPES['task'] || Object.values(TASK_TYPES)[0] || { label: sub.type, icon: 'tasks', color: 'grey' };
       const stId = canonicalState(sub.status);
       const stColor = STATES.find(s => s.id === stId)?.color || 'grey';
       const isDone = stId === 'done';
@@ -829,6 +829,7 @@
     route,
     isOpen,
     isDirty,
-    onTasksReplaced
+    onTasksReplaced,
+    refreshTaskTypes: fillSelects
   };
 })();

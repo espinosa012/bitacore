@@ -42,6 +42,21 @@
     'mejora': 'feature'
   };
 
+  function updateTaskTypes(typesArray) {
+    if (!Array.isArray(typesArray) || typesArray.length === 0) return;
+    Object.keys(TASK_TYPES).forEach(k => delete TASK_TYPES[k]);
+    typesArray.forEach(t => {
+      const id = String(t.id || t._id).toLowerCase();
+      TASK_TYPES[id] = {
+        id,
+        label: t.name || t.label || id,
+        icon: t.icon || 'check square outline',
+        color: t.color || 'blue'
+      };
+      TASK_TYPE_MAPPINGS[id] = id;
+    });
+  }
+
   const STATE_MAPPINGS = {
     'planificada': 'planned',
     'planificadas': 'planned',
@@ -104,9 +119,10 @@
   }
 
   function canonicalTaskType(val) {
-    if (!val) return 'task';
+    const defaultType = Object.keys(TASK_TYPES)[0] || 'task';
+    if (!val) return defaultType;
     const s = String(val).trim().toLowerCase();
-    return TASK_TYPE_MAPPINGS[s] || (TASK_TYPES[s] ? s : 'task');
+    return TASK_TYPE_MAPPINGS[s] || (TASK_TYPES[s] ? s : defaultType);
   }
 
   /**
@@ -288,6 +304,7 @@
     STATES,
     PRIORITIES,
     TASK_TYPES,
+    updateTaskTypes,
     canonicalState,
     canonicalPriority,
     canonicalTaskType,

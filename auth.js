@@ -17,17 +17,21 @@ const JWT_EXPIRES_IN = '24h';
 /**
  * Create a signed JWT for a user.
  * @param {string} username - The authenticated user's username.
+ * @param {string[]} [projects] - Array of authorized project IDs.
  * @returns {string} Signed JWT token string.
  */
-function createToken(username) {
-  const payload = { username };
+function createToken(username, projects = ['project-ludum']) {
+  const payload = {
+    username,
+    projects: Array.isArray(projects) ? projects : ['project-ludum']
+  };
   return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 }
 
 /**
  * Verify a JWT token.
  * @param {string} token - The token string to verify.
- * @returns {{username: string}|null} Decoded payload if valid, null otherwise.
+ * @returns {{username: string, projects?: string[]}|null} Decoded payload if valid, null otherwise.
  */
 function verifyToken(token) {
   if (!token) return null;
@@ -41,12 +45,12 @@ function verifyToken(token) {
 /**
  * Middleware that validates JWT token from Authorization header.
  * Exempts auth and status endpoints.
- * Sets req.user = { username } on valid requests.
+ * Sets req.user = { username, projects } on valid requests.
  *
  * @param {http.IncomingMessage} req
  * @param {http.ServerResponse} res
  * @param {string} pathname
- * @returns {object} { valid: boolean, user?: { username: string }, error?: { status: number, ok: boolean, error: string } }
+ * @returns {object} { valid: boolean, user?: { username: string, projects: string[] }, error?: { status: number, ok: boolean, error: string } }
  */
 function verifyRequest(req, res, pathname) {
   // Public endpoints that don't require auth
@@ -72,7 +76,10 @@ function verifyRequest(req, res, pathname) {
   }
 
   // Attach user info to request
-  req.user = { username: decoded.username };
+  req.user = {
+    username: decoded.username,
+    projects: Array.isArray(decoded.projects) ? decoded.projects : ['project-ludum']
+  };
   return { valid: true, user: req.user };
 }
 

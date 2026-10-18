@@ -226,10 +226,12 @@
     const passwordHash = await hashPassword(password);
     const createdAtIso = new Date().toISOString();
 
+    const projects = ['project-ludum'];
     const userDoc = {
       username: cleanUser,
       usernameLower: lower,
       password: passwordHash,
+      projects: projects,
       createdAt: { '$date': createdAtIso }
     };
 
@@ -237,7 +239,7 @@
       document: userDoc
     });
 
-    const userObj = { username: cleanUser, createdAt: createdAtIso };
+    const userObj = { username: cleanUser, projects, createdAt: createdAtIso };
     setCurrentUser(userObj);
     await fetchUsers().catch(() => {});
     return userObj;
@@ -275,7 +277,11 @@
       ? userDoc.createdAt.$date
       : (userDoc.createdAt || new Date().toISOString());
 
-    const userObj = { username: userDoc.username, createdAt };
+    const projects = Array.isArray(userDoc.projects) && userDoc.projects.length > 0
+      ? userDoc.projects
+      : ['project-ludum'];
+
+    const userObj = { username: userDoc.username, projects, createdAt };
     setCurrentUser(userObj);
     await fetchUsers().catch(() => {});
     return userObj;
@@ -283,6 +289,13 @@
 
   function logout() {
     setCurrentUser(null);
+  }
+
+  function getUserProjects() {
+    if (!currentUser) return [];
+    return Array.isArray(currentUser.projects) && currentUser.projects.length > 0
+      ? currentUser.projects
+      : ['project-ludum'];
   }
 
   /**
@@ -304,6 +317,7 @@
       if (res && Array.isArray(res.documents)) {
         cachedUsers = res.documents.map(u => ({
           username: u.username,
+          projects: Array.isArray(u.projects) && u.projects.length > 0 ? u.projects : ['project-ludum'],
           createdAt: (u.createdAt && u.createdAt.$date) ? u.createdAt.$date : u.createdAt
         }));
       }
@@ -324,6 +338,7 @@
     register,
     login,
     logout,
+    getUserProjects,
     fetchUsers,
     getCachedUsers,
     onAuthChange

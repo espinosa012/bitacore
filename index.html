@@ -23,6 +23,16 @@
         </div>
       </div>
 
+      <!-- Project Selector Item -->
+      <div class="item board-only project-selector-item" id="projectSelectorContainer">
+        <div style="display: flex; align-items: center;">
+          <i class="folder open outline icon" style="color: #64b5f6; margin-right: 6px; font-size: 1.1rem;"></i>
+          <select id="projectSelector" class="ui compact inverted selection dropdown project-selector-dropdown" aria-label="Select Project">
+            <option value="project-ludum">Project Ludum</option>
+          </select>
+        </div>
+      </div>
+
       <div class="item board-only">
         <div class="ui icon input search-input-container">
           <input type="text" id="searchInput" placeholder="Search tasks or files... ( / )" autocomplete="off" aria-label="Search tasks" />
@@ -218,6 +228,18 @@
         <i class="sign-in icon"></i>
         Log In / Register
       </button>
+    </div>
+
+    <div class="ui inverted placeholder segment project-empty-state" id="projectEmptyState" style="display: none;">
+      <div class="ui icon header">
+        <i class="folder open outline icon" style="font-size: 3.5rem; color: #f2711c; margin-bottom: 0.5rem;"></i>
+        <div class="content" style="font-size: 1.4rem; font-weight: 700; margin-top: 0.5rem;">
+          No Projects Assigned
+          <div class="sub header" style="color: #9ab; max-width: 520px; margin: 0.75rem auto 1.5rem; line-height: 1.5;">
+            Your account is not assigned to any project. Please contact an administrator to add your username to one or more projects in the database.
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="board" id="kanbanBoard">

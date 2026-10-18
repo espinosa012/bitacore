@@ -578,6 +578,86 @@
     return false;
   }
 
+  function setCurrentDb(dbName) {
+    if (!dbName) return;
+    currentDb = String(dbName).trim();
+    notifyChange();
+  }
+
+  async function fetchProjects(projectIds) {
+    if (!isConnected) return [];
+    if (Array.isArray(projectIds) && projectIds.length === 0) {
+      return [];
+    }
+    try {
+      const filter = Array.isArray(projectIds) && projectIds.length > 0
+        ? { _id: { $in: projectIds } }
+        : {};
+      const res = await action('find', 'projects', { filter, database: DEFAULT_DB });
+      const docs = (res && Array.isArray(res.documents)) ? res.documents : [];
+      const list = docs.map(p => ({
+        id: p.id || p._id,
+        name: p.name || p.id || p._id,
+        dbName: p.dbName || p.id || p._id,
+        description: p.description || ''
+      }));
+      if ((!projectIds || projectIds.includes('project-ludum')) && !list.some(p => p.id === 'project-ludum')) {
+        list.unshift({
+          id: 'project-ludum',
+          name: 'Project Ludum',
+          dbName: 'vg-task-manager',
+          description: 'Default primary project'
+        });
+      }
+      return list;
+    } catch (err) {
+      console.warn('[MongoSync] Error fetching projects:', err.message);
+      if (Array.isArray(projectIds) && !projectIds.includes('project-ludum')) {
+        return [];
+      }
+      return [{
+        id: 'project-ludum',
+        name: 'Project Ludum',
+        dbName: 'vg-task-manager',
+        description: 'Default primary project'
+      }];
+    }
+  }
+
+  async function fetchProjectTaskTypes(targetDb = currentDb) {
+    if (!isConnected) return [];
+    try {
+      const res = await action('find', 'task_types', {
+        filter: {},
+        sort: { name: 1 },
+        database: targetDb || currentDb
+      });
+      const docs = (res && Array.isArray(res.documents)) ? res.documents : [];
+      if (docs.length === 0) {
+        return [
+          { id: 'task', label: 'Task', icon: 'check square outline', color: 'blue' },
+          { id: 'bug', label: 'Bug', icon: 'bug', color: 'red' },
+          { id: 'analysis', label: 'Analysis', icon: 'search', color: 'teal' },
+          { id: 'feature', label: 'Feature', icon: 'star', color: 'green' }
+        ];
+      }
+      return docs.map(t => ({
+        id: t.id || t._id,
+        label: t.name || t.label || t.id,
+        icon: t.icon || 'check square outline',
+        color: t.color || 'blue'
+      }));
+    } catch (err) {
+      console.warn('[MongoSync] Error fetching task types:', err.message);
+      return [
+        { id: 'task', label: 'Task', icon: 'check square outline', color: 'blue' },
+        { id: 'bug', label: 'Bug', icon: 'bug', color: 'red' },
+        { id: 'analysis', label: 'Analysis', icon: 'search', color: 'teal' },
+        { id: 'feature', label: 'Feature', icon: 'star', color: 'green' }
+      ];
+    }
+  }
+
   window.VG.MongoSync = {
     DEFAULT_URI,
     DEFAULT_DB,
@@ -587,6 +667,9 @@
     isServedByBackend,
     isConnected: () => isConnected,
     getCurrentDb: () => currentDb,
+    setCurrentDb,
+    fetchProjects,
+    fetchProjectTaskTypes,
     getProxyUrl: () => proxyUrl,
     getApiKey: () => apiKey,
     getMaskedUri: () => (proxyUrl ? `${proxyUrl} (${currentDb})` : ''),
