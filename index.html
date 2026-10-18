@@ -7,7 +7,7 @@
 
   <link rel="stylesheet" href="vendor/fomantic-ui/semantic.min.css?v=20261017.3" />
   <link rel="stylesheet" href="vendor/easymde/easymde.min.css?v=20261017.3" />
-  <link rel="stylesheet" href="css/app.css?v=20261018.1" />
+  <link rel="stylesheet" href="css/app.css?v=20261018.2" />
   <link rel="stylesheet" href="css/markdown.css?v=20261017.3" />
 </head>
 <body>
@@ -33,47 +33,77 @@
         </div>
       </div>
 
-      <div class="item board-only">
-        <select id="typeFilter" class="ui dropdown" aria-label="Filter by type">
-          <option value="all">All types</option>
-          <option value="task">Task</option>
-          <option value="bug">Bug</option>
-          <option value="analysis">Analysis</option>
-          <option value="feature">Feature</option>
-        </select>
-      </div>
-
-      <div class="item board-only">
-        <select id="priorityFilter" class="ui dropdown" aria-label="Filter by priority">
-          <option value="all">All priorities</option>
-          <option value="blocker">Blocker</option>
-          <option value="high">High</option>
-          <option value="medium-high">Medium-High</option>
-          <option value="medium">Medium</option>
-          <option value="low">Low</option>
-        </select>
-      </div>
-
-      <div class="item board-only">
-        <select id="tagFilter" class="ui dropdown" aria-label="Filter by tag" disabled>
-          <option value="all">All tags</option>
-        </select>
-      </div>
-
-      <!-- User Filter & Criteria Checkboxes -->
-      <div class="item board-only user-filter-container">
-        <select id="userFilter" class="ui dropdown" aria-label="Filter by user" disabled>
-          <option value="all">All users</option>
-        </select>
-        <div class="user-criteria-wrapper">
-          <button type="button" class="ui mini basic inverted button user-criteria-btn" id="btnUserCriteria" title="Filter criteria for selected user" aria-haspopup="true" aria-expanded="false">
-            <i class="filter icon"></i>
-            <span id="userCriteriaBadge"><span class="criteria-label-text">Criteria </span>(4/4)</span>
-            <i class="dropdown icon"></i>
-          </button>
-          <div class="user-criteria-popover" id="userCriteriaPopover" style="display: none;">
+      <!-- Grouped Filters Dropdown Item -->
+      <div class="item board-only filters-menu-container">
+        <button type="button" class="ui small basic inverted button filters-menu-btn" id="btnFiltersMenu" aria-haspopup="true" aria-expanded="false" title="Filter tasks by type, priority, tag, or user">
+          <i class="filter icon"></i>
+          <span id="btnFiltersMenuText">Filters</span>
+          <span class="ui circular mini teal label filters-active-badge" id="filtersActiveBadge" style="display: none; margin-left: 5px;">0</span>
+          <i class="dropdown icon" style="margin-left: 4px; margin-right: 0;"></i>
+        </button>
+        <div class="filters-popover" id="filtersPopover" style="display: none;" role="dialog" aria-label="Filters Menu">
+          <div class="filters-popover-header">
+            <div class="filters-popover-title">
+              <i class="sliders horizontal icon"></i>
+              <span>Filters</span>
+            </div>
+            <button type="button" class="filters-popover-close-btn" id="btnCloseFiltersPopover" title="Close filters" aria-label="Close filters">
+              <i class="times icon"></i>
+            </button>
+          </div>
+          <div class="filters-grid">
+            <div class="filter-field">
+              <label for="typeFilter" class="filter-field-label">
+                <i class="shapes icon"></i> Type
+              </label>
+              <select id="typeFilter" class="ui dropdown" aria-label="Filter by type">
+                <option value="all">All types</option>
+                <option value="task">Task</option>
+                <option value="bug">Bug</option>
+                <option value="analysis">Analysis</option>
+                <option value="feature">Feature</option>
+              </select>
+            </div>
+            <div class="filter-field">
+              <label for="priorityFilter" class="filter-field-label">
+                <i class="flag icon"></i> Priority
+              </label>
+              <select id="priorityFilter" class="ui dropdown" aria-label="Filter by priority">
+                <option value="all">All priorities</option>
+                <option value="blocker">Blocker</option>
+                <option value="high">High</option>
+                <option value="medium-high">Medium-High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+            <div class="filter-field">
+              <label for="tagFilter" class="filter-field-label">
+                <i class="tags icon"></i> Tag
+              </label>
+              <select id="tagFilter" class="ui dropdown" aria-label="Filter by tag" disabled>
+                <option value="all">All tags</option>
+              </select>
+            </div>
+            <div class="filter-field">
+              <label for="userFilter" class="filter-field-label">
+                <i class="user icon"></i> User
+              </label>
+              <select id="userFilter" class="ui dropdown" aria-label="Filter by user" disabled>
+                <option value="all">All users</option>
+              </select>
+            </div>
+          </div>
+          <div class="filter-criteria-section">
             <div class="criteria-header">
-              <i class="user check icon"></i> User Filter Criteria
+              <div class="criteria-header-left">
+                <i class="user check icon"></i> User Criteria
+                <span id="userCriteriaBadge"><span class="criteria-label-text">Criteria </span>(4/4)</span>
+              </div>
+              <div class="criteria-header-actions">
+                <button type="button" class="ui mini basic inverted compact button criteria-action-btn" id="btnCriteriaSelectAll">All</button>
+                <button type="button" class="ui mini basic inverted compact button criteria-action-btn" id="btnCriteriaClear">Clear</button>
+              </div>
             </div>
             <div class="criteria-list">
               <label class="criteria-checkbox-label">
@@ -93,10 +123,14 @@
                 <span><i class="paperclip icon"></i> Has attached files</span>
               </label>
             </div>
-            <div class="criteria-footer">
-              <button type="button" class="ui mini basic inverted compact button" id="btnCriteriaSelectAll">All</button>
-              <button type="button" class="ui mini basic inverted compact button" id="btnCriteriaClear">Clear</button>
-            </div>
+          </div>
+          <div class="filters-popover-footer">
+            <button type="button" class="ui mini basic inverted compact button" id="btnResetGroupedFilters" title="Reset all filters in this menu">
+              <i class="undo icon"></i> Reset
+            </button>
+            <button type="button" class="ui mini teal compact button" id="btnApplyFilters">
+              Done
+            </button>
           </div>
         </div>
       </div>

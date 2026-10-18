@@ -142,6 +142,8 @@
         if (typeFilter) typeFilter.disabled = false;
         if (searchInput) searchInput.disabled = false;
         if (userFilter) userFilter.disabled = false;
+        const btnFiltersMenu = document.getElementById('btnFiltersMenu');
+        if (btnFiltersMenu) btnFiltersMenu.disabled = false;
         const btnFilterFav = document.getElementById('btnFilterFavorite');
         if (btnFilterFav) btnFilterFav.disabled = false;
       } else {
@@ -152,6 +154,9 @@
         if (typeFilter) typeFilter.disabled = true;
         if (searchInput) searchInput.disabled = true;
         if (userFilter) userFilter.disabled = true;
+        const btnFiltersMenu = document.getElementById('btnFiltersMenu');
+        if (btnFiltersMenu) btnFiltersMenu.disabled = true;
+        toggleFiltersPopover(false);
         const btnFilterFav = document.getElementById('btnFilterFavorite');
         if (btnFilterFav) btnFilterFav.disabled = true;
       }
@@ -172,6 +177,9 @@
       if (typeFilter) typeFilter.disabled = true;
       if (searchInput) searchInput.disabled = true;
       if (userFilter) userFilter.disabled = true;
+      const btnFiltersMenu = document.getElementById('btnFiltersMenu');
+      if (btnFiltersMenu) btnFiltersMenu.disabled = true;
+      toggleFiltersPopover(false);
       const btnFilterFav = document.getElementById('btnFilterFavorite');
       if (btnFilterFav) btnFilterFav.disabled = true;
     }
@@ -196,9 +204,9 @@
   }
 
   function repositionOpenPopovers() {
-    const criteriaPopover = document.getElementById('userCriteriaPopover');
-    if (criteriaPopover && criteriaPopover.style.display !== 'none') {
-      positionHeaderPopover(criteriaPopover, document.getElementById('btnUserCriteria'), 'left');
+    const filtersPopover = document.getElementById('filtersPopover');
+    if (filtersPopover && filtersPopover.style.display !== 'none') {
+      positionHeaderPopover(filtersPopover, document.getElementById('btnFiltersMenu'), 'left');
     }
     const sessionPopover = document.getElementById('userSessionPopover');
     if (sessionPopover && sessionPopover.style.display !== 'none') {
@@ -206,17 +214,20 @@
     }
   }
 
-  function toggleCriteriaPopover(force) {
-    const popover = document.getElementById('userCriteriaPopover');
+  function toggleFiltersPopover(force) {
+    const popover = document.getElementById('filtersPopover');
     if (!popover) return;
     const isShowing = popover.style.display !== 'none';
     const show = force !== undefined ? force : !isShowing;
     popover.style.display = show ? 'flex' : 'none';
     if (show) {
-      positionHeaderPopover(popover, document.getElementById('btnUserCriteria'), 'left');
+      positionHeaderPopover(popover, document.getElementById('btnFiltersMenu'), 'left');
     }
-    const btn = document.getElementById('btnUserCriteria');
-    if (btn) btn.setAttribute('aria-expanded', String(show));
+    const btn = document.getElementById('btnFiltersMenu');
+    if (btn) {
+      btn.setAttribute('aria-expanded', String(show));
+      btn.classList.toggle('active', show);
+    }
   }
 
   function toggleUserSessionPopover(force) {
@@ -231,7 +242,7 @@
   }
 
   function closeAllPopovers() {
-    toggleCriteriaPopover(false);
+    toggleFiltersPopover(false);
     toggleUserSessionPopover(false);
   }
 
@@ -300,7 +311,10 @@
     const btnLoginEmptyState = document.getElementById('btnLoginEmptyState');
     const tagFilter = document.getElementById('tagFilter');
     const userFilter = document.getElementById('userFilter');
-    const btnUserCriteria = document.getElementById('btnUserCriteria');
+    const btnFiltersMenu = document.getElementById('btnFiltersMenu');
+    const btnCloseFiltersPopover = document.getElementById('btnCloseFiltersPopover');
+    const btnApplyFilters = document.getElementById('btnApplyFilters');
+    const btnResetGroupedFilters = document.getElementById('btnResetGroupedFilters');
     const chkCriteriaAssignee = document.getElementById('chkCriteriaAssignee');
     const chkCriteriaCreator = document.getElementById('chkCriteriaCreator');
     const chkCriteriaCommenter = document.getElementById('chkCriteriaCommenter');
@@ -404,11 +418,44 @@
     if (tagFilter) tagFilter.addEventListener('change', () => Board.renderBoard());
     if (userFilter) userFilter.addEventListener('change', () => Board.renderBoard());
 
-    if (btnUserCriteria) {
-      btnUserCriteria.addEventListener('click', (e) => {
+    if (btnFiltersMenu) {
+      btnFiltersMenu.addEventListener('click', (e) => {
         e.stopPropagation();
         toggleUserSessionPopover(false);
-        toggleCriteriaPopover();
+        toggleFiltersPopover();
+      });
+    }
+
+    if (btnCloseFiltersPopover) {
+      btnCloseFiltersPopover.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleFiltersPopover(false);
+      });
+    }
+
+    if (btnApplyFilters) {
+      btnApplyFilters.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleFiltersPopover(false);
+      });
+    }
+
+    if (btnResetGroupedFilters) {
+      btnResetGroupedFilters.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (priorityFilter) priorityFilter.value = 'all';
+        const typeFilter = document.getElementById('typeFilter');
+        if (typeFilter) typeFilter.value = 'all';
+        if (tagFilter) tagFilter.value = 'all';
+        if (userFilter) userFilter.value = 'all';
+        [chkCriteriaAssignee, chkCriteriaCreator, chkCriteriaCommenter, chkCriteriaUploader].forEach(c => {
+          if (c) c.checked = true;
+        });
+        const userCriteriaBadge = document.getElementById('userCriteriaBadge');
+        if (userCriteriaBadge) {
+          userCriteriaBadge.innerHTML = '<span class="criteria-label-text">Criteria </span>(4/4)';
+        }
+        Board.renderBoard();
       });
     }
 
@@ -439,7 +486,7 @@
     if (btnOpenAuth) {
       btnOpenAuth.addEventListener('click', (e) => {
         e.stopPropagation();
-        toggleCriteriaPopover(false);
+        toggleFiltersPopover(false);
         if (!MongoSync.isConnected()) {
           Modals.openMongoModal();
           return;
@@ -480,12 +527,20 @@
 
     // Dismiss popovers when clicking outside
     document.addEventListener('click', (e) => {
-      const criteriaWrapper = document.querySelector('.user-criteria-wrapper');
-      if (criteriaWrapper && !criteriaWrapper.contains(e.target)) {
-        toggleCriteriaPopover(false);
+      const filtersContainer = document.querySelector('.filters-menu-container');
+      const filtersPopover = document.getElementById('filtersPopover');
+      if (
+        (!filtersContainer || !filtersContainer.contains(e.target)) &&
+        (!filtersPopover || !filtersPopover.contains(e.target))
+      ) {
+        toggleFiltersPopover(false);
       }
       const sessionContainer = document.querySelector('.user-session-container');
-      if (sessionContainer && !sessionContainer.contains(e.target)) {
+      const sessionPopover = document.getElementById('userSessionPopover');
+      if (
+        (!sessionContainer || !sessionContainer.contains(e.target)) &&
+        (!sessionPopover || !sessionPopover.contains(e.target))
+      ) {
         toggleUserSessionPopover(false);
       }
     });

@@ -1541,51 +1541,147 @@ select.ui.dropdown option {
   margin-top: 2px !important;
 }
 
-/* User Filter & Criteria Popover */
-.user-filter-container {
-  display: flex !important;
-  align-items: center;
-  gap: 6px;
-}
-
-.user-filter-container select.ui.dropdown {
-  max-width: 130px;
-}
-
-.user-criteria-wrapper {
+/* Grouped Filters Menu & Popover */
+.filters-menu-container {
   position: relative;
 }
 
-.user-criteria-btn {
-  padding: 0.55em 0.8em !important;
-  font-size: 0.82em !important;
+.filters-menu-btn {
   display: inline-flex !important;
   align-items: center;
   gap: 4px;
   white-space: nowrap;
+  font-weight: 600 !important;
+  transition: all 0.2s ease !important;
 }
 
-/* Fixed positioning (computed in JS from the trigger's rect) so the popover
-   escapes the menu's overflow-x: auto, which would otherwise clip it and force
-   a scrollbar inside the menu. */
-.user-criteria-popover {
+.filters-menu-btn.active,
+.filters-menu-btn.has-active-filters {
+  border-color: #00b5ad !important;
+  color: #e2fbf9 !important;
+}
+
+.filters-menu-btn[aria-expanded="true"] i.dropdown.icon {
+  transform: rotate(180deg);
+  transition: transform 0.2s ease;
+}
+
+.filters-menu-btn i.dropdown.icon {
+  transition: transform 0.2s ease;
+}
+
+.filters-active-badge {
+  background-color: #00b5ad !important;
+  color: #111 !important;
+  font-weight: 700 !important;
+  font-size: 0.72em !important;
+  padding: 0.22em 0.52em !important;
+}
+
+.filters-popover {
   position: fixed;
   top: 0;
   left: 0;
   z-index: 100;
-  min-width: 230px;
+  width: 340px;
+  max-width: calc(100vw - 20px);
   background: #1a1e24;
   border: 1px solid var(--app-border-strong);
   border-radius: 8px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65);
-  padding: 10px 12px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.75);
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
+}
+
+.filters-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--app-border);
+}
+
+.filters-popover-title {
+  font-size: 0.9em;
+  font-weight: 700;
+  color: #e6e8eb;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.02em;
+}
+
+.filters-popover-title i.icon {
+  color: #00b5ad;
+}
+
+.filters-popover-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--app-muted);
+  cursor: pointer;
+  padding: 2px 5px;
+  font-size: 0.9em;
+  border-radius: 4px;
+  line-height: 1;
+  transition: all 0.15s ease;
+}
+
+.filters-popover-close-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.filters-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.filter-field-label {
+  font-size: 0.74em;
+  font-weight: 700;
+  color: #9ab;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+
+.filters-popover select.ui.dropdown {
+  width: 100% !important;
+  max-width: 100% !important;
+  font-size: 0.85em !important;
+  padding: 6px 8px !important;
+  border-radius: 4px !important;
+  min-width: 0 !important;
+}
+
+.filter-criteria-section {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--app-border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .criteria-header {
-  font-size: 0.82em;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8em;
   font-weight: 700;
   color: #9ab;
   text-transform: uppercase;
@@ -1594,10 +1690,30 @@ select.ui.dropdown option {
   border-bottom: 1px solid var(--app-border);
 }
 
+.criteria-header-left {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.criteria-header-left .criteria-label-text {
+  display: none;
+}
+
+.criteria-header-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.criteria-action-btn {
+  padding: 3px 6px !important;
+  font-size: 0.75em !important;
+}
+
 .criteria-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
 }
 
 .criteria-checkbox-label {
@@ -1607,7 +1723,7 @@ select.ui.dropdown option {
   font-size: 0.86em;
   color: var(--app-text);
   cursor: pointer;
-  padding: 4px 6px;
+  padding: 3px 5px;
   border-radius: 4px;
   transition: background 0.15s ease;
 }
@@ -1623,11 +1739,11 @@ select.ui.dropdown option {
   height: 14px;
 }
 
-.criteria-footer {
+.filters-popover-footer {
   display: flex;
-  justify-content: flex-end;
-  gap: 6px;
-  padding-top: 6px;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 8px;
   border-top: 1px solid var(--app-border);
 }
 

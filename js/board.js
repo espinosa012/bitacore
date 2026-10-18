@@ -253,6 +253,26 @@
       (filterFavoriteOnly ? 1 : 0);
     const hasActiveFilter = activeFilterCount > 0;
 
+    const activeGroupedFiltersCount =
+      (typeFilter !== 'all' ? 1 : 0) +
+      (prioFilter !== 'all' ? 1 : 0) +
+      (tagFilter !== 'all' ? 1 : 0) +
+      (userFilter !== 'all' ? 1 : 0) +
+      (criteriaCount < 4 ? 1 : 0);
+
+    const filtersActiveBadge = document.getElementById('filtersActiveBadge');
+    const btnFiltersMenu = document.getElementById('btnFiltersMenu');
+    if (filtersActiveBadge) {
+      filtersActiveBadge.textContent = String(activeGroupedFiltersCount);
+      filtersActiveBadge.style.display = activeGroupedFiltersCount > 0 ? 'inline-block' : 'none';
+    }
+    if (btnFiltersMenu) {
+      btnFiltersMenu.classList.toggle('has-active-filters', activeGroupedFiltersCount > 0);
+      btnFiltersMenu.title = activeGroupedFiltersCount > 0
+        ? `Filters (${activeGroupedFiltersCount} active)`
+        : 'Filter tasks by type, priority, tag, or user';
+    }
+
     // Update header statistics
     if (taskStatsCounter) {
       const shownStr = hasActiveFilter ? ` (${counts.shown} shown)` : '';
@@ -708,6 +728,7 @@
     const tasks = window.VG.App ? window.VG.App.getTasks() : [];
     const searchInput = document.getElementById('searchInput');
     const priorityFilter = document.getElementById('priorityFilter');
+    const typeFilterEl = document.getElementById('typeFilter');
     const tagFilterEl = document.getElementById('tagFilter');
     const userFilterEl = document.getElementById('userFilter');
 
@@ -722,9 +743,10 @@
 
     const query = searchInput ? searchInput.value.trim() : '';
     const prioFilter = priorityFilter ? priorityFilter.value : 'all';
+    const typeFilter = typeFilterEl ? typeFilterEl.value : 'all';
     const tagFilter = tagFilterEl && !tagFilterEl.disabled ? tagFilterEl.value : 'all';
     const userFilter = userFilterEl && !userFilterEl.disabled ? userFilterEl.value : 'all';
-    const isFiltered = !!query || prioFilter !== 'all' || tagFilter !== 'all' || userFilter !== 'all' || criteriaCount < 4;
+    const isFiltered = !!query || prioFilter !== 'all' || typeFilter !== 'all' || tagFilter !== 'all' || userFilter !== 'all' || criteriaCount < 4;
 
     const bulkActionBar = document.getElementById('bulkActionBar');
     const bulkBarCount = document.getElementById('bulkBarCount');
