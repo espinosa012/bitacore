@@ -138,6 +138,8 @@
         if (authEmptyState) authEmptyState.style.display = 'none';
         if (kanbanBoard) kanbanBoard.style.display = 'flex';
         if (priorityFilter) priorityFilter.disabled = false;
+        const typeFilter = document.getElementById('typeFilter');
+        if (typeFilter) typeFilter.disabled = false;
         if (searchInput) searchInput.disabled = false;
         if (userFilter) userFilter.disabled = false;
         const btnFilterFav = document.getElementById('btnFilterFavorite');
@@ -146,6 +148,8 @@
         if (authEmptyState) authEmptyState.style.display = 'block';
         if (kanbanBoard) kanbanBoard.style.display = 'none';
         if (priorityFilter) priorityFilter.disabled = true;
+        const typeFilter = document.getElementById('typeFilter');
+        if (typeFilter) typeFilter.disabled = true;
         if (searchInput) searchInput.disabled = true;
         if (userFilter) userFilter.disabled = true;
         const btnFilterFav = document.getElementById('btnFilterFavorite');
@@ -164,6 +168,8 @@
       if (authEmptyState) authEmptyState.style.display = 'none';
       if (kanbanBoard) kanbanBoard.style.display = 'none';
       if (priorityFilter) priorityFilter.disabled = true;
+      const typeFilter = document.getElementById('typeFilter');
+      if (typeFilter) typeFilter.disabled = true;
       if (searchInput) searchInput.disabled = true;
       if (userFilter) userFilter.disabled = true;
       const btnFilterFav = document.getElementById('btnFilterFavorite');
@@ -347,6 +353,8 @@
       updateSearchClearBtn();
 
       if (priorityFilter) priorityFilter.value = 'all';
+      const typeFilter = document.getElementById('typeFilter');
+      if (typeFilter) typeFilter.value = 'all';
       if (tagFilter) tagFilter.value = 'all';
       if (userFilter) userFilter.value = 'all';
 
@@ -391,6 +399,8 @@
     }
 
     if (priorityFilter) priorityFilter.addEventListener('change', () => Board.renderBoard());
+    const typeFilterEl = document.getElementById('typeFilter');
+    if (typeFilterEl) typeFilterEl.addEventListener('change', () => Board.renderBoard());
     if (tagFilter) tagFilter.addEventListener('change', () => Board.renderBoard());
     if (userFilter) userFilter.addEventListener('change', () => Board.renderBoard());
 

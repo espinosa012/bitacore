@@ -34,6 +34,16 @@
       </div>
 
       <div class="item board-only">
+        <select id="typeFilter" class="ui dropdown" aria-label="Filter by type">
+          <option value="all">All types</option>
+          <option value="task">Task</option>
+          <option value="bug">Bug</option>
+          <option value="analysis">Analysis</option>
+          <option value="feature">Feature</option>
+        </select>
+      </div>
+
+      <div class="item board-only">
         <select id="priorityFilter" class="ui dropdown" aria-label="Filter by priority">
           <option value="all">All priorities</option>
           <option value="blocker">Blocker</option>
@@ -225,6 +235,16 @@
             </div>
           </div>
 
+          <!-- Parent Task Banner -->
+          <div id="pageTaskParentBanner" class="task-parent-banner" style="display: none; padding: 8px 16px; background: rgba(33, 133, 208, 0.15); border-left: 3px solid #2185d0; margin-bottom: 14px; border-radius: 4px;">
+            <span style="font-size: 0.9em; color: #a0aec0;"><i class="level up alternate icon"></i> Subtask of:</span>
+            <a href="javascript:void(0)" id="pageTaskParentLink" style="font-weight: bold; color: #63b3ed; margin-left: 6px; cursor: pointer;"></a>
+            <span id="pageTaskParentStatus" class="ui mini label" style="margin-left: 6px;"></span>
+            <button type="button" class="ui mini compact basic inverted icon button" id="btnPageUnlinkParent" title="Unlink from parent" style="margin-left: 10px; padding: 3px 6px;">
+              <i class="unlink icon"></i> Unlink
+            </button>
+          </div>
+
           <h4 class="ui inverted dividing header">
             <i class="align left icon"></i>
             <div class="content">Description</div>
@@ -232,6 +252,45 @@
           <div class="ui inverted form">
             <textarea id="pageTaskDesc" placeholder="Write the task details in Markdown..."></textarea>
           </div>
+
+          <!-- Subtasks Section -->
+          <h4 class="ui inverted dividing header task-page-section-head">
+            <i class="sitemap icon"></i>
+            <div class="content" id="pageSubtasksTitle">Subtasks (0)</div>
+          </h4>
+          <div class="ui inverted secondary segment subtask-quick-add" style="margin-bottom: 14px;">
+            <div class="ui inverted form">
+              <div class="fields" style="margin-bottom: 0;">
+                <div class="nine wide field">
+                  <input type="text" id="newPageSubtaskTitle" placeholder="Subtask title and press Enter..." autocomplete="off" />
+                </div>
+                <div class="four wide field">
+                  <select id="newPageSubtaskType" class="ui fluid dropdown">
+                    <option value="task" selected>Task</option>
+                    <option value="bug">Bug</option>
+                    <option value="analysis">Analysis</option>
+                    <option value="feature">Feature</option>
+                  </select>
+                </div>
+                <div class="three wide field">
+                  <button type="button" class="ui primary fluid button" id="btnPageQuickAddSubtask">
+                    <i class="plus icon"></i> Add
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="ui inverted secondary segment subtask-link-existing" style="margin-bottom: 14px;">
+            <div class="ui action input fluid">
+              <select id="pageLinkExistingSubtaskSelect" class="ui fluid dropdown" style="background: #1b1c1d; color: #fff;">
+                <option value="">Select an existing task to link...</option>
+              </select>
+              <button type="button" class="ui teal button" id="btnPageLinkExistingSubtask">
+                <i class="linkify icon"></i> Link
+              </button>
+            </div>
+          </div>
+          <div id="pageSubtasksList" class="ui inverted divided items" style="margin-bottom: 20px;"></div>
 
           <h4 class="ui inverted dividing header task-page-section-head">
             <i class="paperclip icon"></i>
@@ -273,6 +332,15 @@
           <div class="task-page-sidebar">
             <div class="ui inverted segment">
               <div class="ui inverted form">
+                <div class="field">
+                  <label for="pageTaskType">Type</label>
+                  <select id="pageTaskType" class="ui fluid dropdown">
+                    <option value="task" selected>Task</option>
+                    <option value="bug">Bug</option>
+                    <option value="analysis">Analysis</option>
+                    <option value="feature">Feature</option>
+                  </select>
+                </div>
                 <div class="field">
                   <label for="pageTaskState">Status</label>
                   <select id="pageTaskState" class="ui fluid dropdown"></select>
@@ -369,7 +437,16 @@
           <input type="text" id="newTaskName" placeholder="e.g. Implement crafting menu" required autocomplete="off" />
         </div>
 
-        <div class="two fields">
+        <div class="three fields">
+          <div class="field">
+            <label for="newTaskType">Type</label>
+            <select id="newTaskType" class="ui fluid dropdown">
+              <option value="task" selected>Task</option>
+              <option value="bug">Bug</option>
+              <option value="analysis">Analysis</option>
+              <option value="feature">Feature</option>
+            </select>
+          </div>
           <div class="field">
             <label for="newTaskPriority">Priority</label>
             <select id="newTaskPriority" class="ui fluid dropdown">
@@ -450,6 +527,16 @@
     </div>
 
     <div class="scrolling content">
+      <!-- Parent Task Banner -->
+      <div id="editTaskParentBanner" class="task-parent-banner" style="display: none; padding: 8px 16px; background: rgba(33, 133, 208, 0.15); border-left: 3px solid #2185d0; margin-bottom: 14px; border-radius: 4px;">
+        <span style="font-size: 0.9em; color: #a0aec0;"><i class="level up alternate icon"></i> Subtask of:</span>
+        <a href="javascript:void(0)" id="editTaskParentLink" style="font-weight: bold; color: #63b3ed; margin-left: 6px; cursor: pointer;"></a>
+        <span id="editTaskParentStatus" class="ui mini label" style="margin-left: 6px;"></span>
+        <button type="button" class="ui mini compact basic inverted icon button" id="btnEditUnlinkParent" title="Unlink from parent" style="margin-left: 10px; padding: 3px 6px;">
+          <i class="unlink icon"></i> Unlink
+        </button>
+      </div>
+
       <div class="ui stackable grid">
         <div class="eleven wide column">
           <div class="ui inverted form">
@@ -469,6 +556,10 @@
 
           <!-- Tabs -->
           <div class="ui top attached inverted tabular menu edit-tabs">
+            <a class="item" id="tabBtnSubtasks">
+              <i class="sitemap icon"></i>
+              <span>Subtasks (0)</span>
+            </a>
             <a class="active item" id="tabBtnAttachments">
               <i class="paperclip icon"></i>
               <span>Attachments (0)</span>
@@ -481,6 +572,52 @@
               <i class="history icon"></i>
               <span>History (0)</span>
             </a>
+          </div>
+
+          <!-- Tab: Subtasks -->
+          <div class="ui bottom attached inverted tab segment" id="tabSubtasks">
+            <div class="ui inverted secondary segment subtask-quick-add" style="margin-bottom: 14px;">
+              <h5 class="ui inverted header" style="margin-top: 0; margin-bottom: 8px;">
+                <i class="plus circle icon"></i> Quick Add Subtask
+              </h5>
+              <div class="ui inverted form">
+                <div class="fields" style="margin-bottom: 0;">
+                  <div class="nine wide field">
+                    <input type="text" id="newSubtaskTitle" placeholder="Subtask title and press Enter..." autocomplete="off" />
+                  </div>
+                  <div class="four wide field">
+                    <select id="newSubtaskType" class="ui fluid dropdown">
+                      <option value="task" selected>Task</option>
+                      <option value="bug">Bug</option>
+                      <option value="analysis">Analysis</option>
+                      <option value="feature">Feature</option>
+                    </select>
+                  </div>
+                  <div class="three wide field">
+                    <button type="button" class="ui primary fluid button" id="btnQuickAddSubtask">
+                      <i class="plus icon"></i> Add
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="ui inverted secondary segment subtask-link-existing" style="margin-bottom: 14px;">
+              <h5 class="ui inverted header" style="margin-top: 0; margin-bottom: 8px;">
+                <i class="linkify icon"></i> Link Existing Task as Subtask
+              </h5>
+              <div class="ui action input fluid">
+                <select id="linkExistingSubtaskSelect" class="ui fluid dropdown" style="background: #1b1c1d; color: #fff;">
+                  <option value="">Select an existing task to link...</option>
+                </select>
+                <button type="button" class="ui teal button" id="btnLinkExistingSubtask">
+                  <i class="linkify icon"></i> Link
+                </button>
+              </div>
+            </div>
+
+            <h5 class="ui inverted dividing header" style="margin-top: 14px; margin-bottom: 8px;">Current Subtasks</h5>
+            <div id="subtasksList" class="ui inverted divided items"></div>
           </div>
 
           <!-- Tab: Attachments -->
@@ -537,6 +674,15 @@
 
         <div class="five wide column">
           <div class="ui inverted form">
+            <div class="field">
+              <label for="editTaskType">Type</label>
+              <select id="editTaskType" class="ui fluid dropdown">
+                <option value="task" selected>Task</option>
+                <option value="bug">Bug</option>
+                <option value="analysis">Analysis</option>
+                <option value="feature">Feature</option>
+              </select>
+            </div>
             <div class="field">
               <label for="editTaskState">Status</label>
               <select id="editTaskState" class="ui fluid dropdown">

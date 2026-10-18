@@ -8,7 +8,7 @@
  */
 (function() {
   window.VG = window.VG || {};
-  const { STATES, PRIORITIES, canonicalState, canonicalPriority, escapeHtml, formatRelativeTime, formatFileSize, getFileIcon } = window.VG.Constants;
+  const { STATES, PRIORITIES, TASK_TYPES, canonicalState, canonicalPriority, canonicalTaskType, escapeHtml, formatRelativeTime, formatFileSize, getFileIcon, validateSubtaskRelationship, getEligibleSubtasks } = window.VG.Constants;
   const Storage = window.VG.Storage;
   const Attachments = window.VG.Attachments;
   const Markdown = window.VG.Markdown;
@@ -56,6 +56,7 @@
       name: el('pageTaskName').value,
       description: Markdown.getValue(descEditor, el('pageTaskDesc')),
       'openspec-id': el('pageTaskOpenspecId').value,
+      type: el('pageTaskType') ? el('pageTaskType').value : 'task',
       priority: el('pageTaskPriority').value,
       status: el('pageTaskState').value,
       favorite: el('pageTaskFavorite') ? el('pageTaskFavorite').checked : false,
@@ -69,6 +70,7 @@
       name: (f.name || '').trim(),
       description: (f.description || '').trim(),
       'openspec-id': (f['openspec-id'] || '').trim(),
+      type: canonicalTaskType(f.type),
       priority: canonicalPriority(f.priority),
       status: canonicalState(f.status),
       favorite: Boolean(f.favorite),
@@ -112,6 +114,7 @@
   function fillFields(fields) {
     el('pageTaskName').value = fields.name || '';
     el('pageTaskOpenspecId').value = fields['openspec-id'] || '';
+    if (el('pageTaskType')) el('pageTaskType').value = canonicalTaskType(fields.type);
     el('pageTaskPriority').value = canonicalPriority(fields.priority);
     el('pageTaskState').value = canonicalState(fields.status);
     if (el('pageTaskFavorite')) el('pageTaskFavorite').checked = Boolean(fields.favorite);
@@ -218,6 +221,8 @@
     fillFields(pendingDraft ? { ...task, ...pendingDraft } : task);
     pendingDraft = null;
 
+    renderParentBanner(task);
+    renderSubtasks(task);
     renderAttachments(task);
     renderComments(task);
     renderSidebar(task);
@@ -273,6 +278,8 @@
 
     window.VG.App.persistChanges('Task updated successfully');
     document.title = `${task.name} · ${BASE_TITLE}`;
+    renderParentBanner(task);
+    renderSubtasks(task);
     renderSidebar(task);
     updateDirtyState();
   }
@@ -496,6 +503,184 @@
     ].join('');
   }
 
+  function renderParentBanner(task) {
+    const banner = el('pageTaskParentBanner');
+    const link = el('pageTaskParentLink');
+    const status = el('pageTaskParentStatus');
+    const unlinkBtn = el('btnPageUnlinkParent');
+    if (!banner) return;
+
+    if (task.parentId) {
+      const allTasks = window.VG.App.getTasks();
+      const parentTask = allTasks.find(t => t.id === task.parentId);
+      if (parentTask) {
+        banner.style.display = 'block';
+        if (link) {
+          link.textContent = `#${parentTask.id.slice(-6)}: ${parentTask.name}`;
+          link.onclick = () => open(parentTask.id);
+        }
+        if (status) {
+          const pSt = canonicalState(parentTask.status);
+          const pColor = STATES.find(s => s.id === pSt)?.color || 'grey';
+          status.textContent = parentTask.status;
+          status.className = `ui mini ${pColor} label`;
+        }
+        if (unlinkBtn) {
+          unlinkBtn.onclick = () => {
+            task.parentId = null;
+            window.VG.App.persistChanges('Subtask unlinked');
+            renderParentBanner(task);
+            if (window.VG.Board) window.VG.Board.renderBoard();
+          };
+        }
+      } else {
+        banner.style.display = 'none';
+      }
+    } else {
+      banner.style.display = 'none';
+    }
+  }
+
+  function renderSubtasks(task) {
+    const listEl = el('pageSubtasksList');
+    const titleEl = el('pageSubtasksTitle');
+    const linkSelect = el('pageLinkExistingSubtaskSelect');
+    if (!listEl) return;
+
+    const allTasks = window.VG.App.getTasks();
+    const subtasks = allTasks.filter(t => t.parentId === task.id);
+
+    if (titleEl) {
+      titleEl.textContent = `Subtasks (${subtasks.length})`;
+    }
+
+    if (linkSelect) {
+      const eligible = getEligibleSubtasks(task.id, allTasks);
+      linkSelect.innerHTML = '<option value="">Select an existing task to link...</option>' +
+        eligible.map(t => `<option value="${escapeHtml(t.id)}">#${t.id.slice(-6)} - ${escapeHtml(t.name)} (${t.status})</option>`).join('');
+    }
+
+    if (subtasks.length === 0) {
+      listEl.innerHTML = '<div class="ui message empty-message" style="background: rgba(255,255,255,0.05); color: #a0aec0;">No subtasks yet. You can add one quickly above or link an existing task.</div>';
+      return;
+    }
+
+    listEl.innerHTML = subtasks.map(sub => {
+      const typeMeta = TASK_TYPES[canonicalTaskType(sub.type)] || TASK_TYPES['task'];
+      const stId = canonicalState(sub.status);
+      const stColor = STATES.find(s => s.id === stId)?.color || 'grey';
+      const isDone = stId === 'done';
+      return `
+        <div class="item subtask-list-item" style="padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;">
+            <span class="ui mini ${typeMeta.color} label" title="Type: ${typeMeta.label}">
+              <i class="${typeMeta.icon} icon"></i>${escapeHtml(typeMeta.label)}
+            </span>
+            <span class="ui mini ${stColor} label">${escapeHtml(sub.status)}</span>
+            <a href="javascript:void(0)" class="subtask-page-link" data-subtask-id="${escapeHtml(sub.id)}" style="font-weight: 500; color: #fff; text-decoration: ${isDone ? 'line-through' : 'none'}; opacity: ${isDone ? 0.7 : 1}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              #${escapeHtml(sub.id.slice(-6))} ${escapeHtml(sub.name)}
+            </a>
+          </div>
+          <div>
+            <button type="button" class="ui mini compact basic inverted icon button subtask-unlink-btn" data-subtask-id="${escapeHtml(sub.id)}" title="Unlink subtask">
+              <i class="unlink icon"></i>
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    listEl.querySelectorAll('.subtask-page-link').forEach(a => {
+      a.addEventListener('click', () => {
+        const subId = a.getAttribute('data-subtask-id');
+        open(subId);
+      });
+    });
+
+    listEl.querySelectorAll('.subtask-unlink-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const subId = btn.getAttribute('data-subtask-id');
+        const target = allTasks.find(t => t.id === subId);
+        if (target) {
+          target.parentId = null;
+          window.VG.App.persistChanges('Subtask unlinked');
+          renderSubtasks(task);
+          if (window.VG.Board) window.VG.Board.renderBoard();
+        }
+      });
+    });
+  }
+
+  function handleQuickAddSubtask() {
+    const task = getCurrentTask();
+    if (!task) return;
+    const titleInput = el('newPageSubtaskTitle');
+    const typeSelect = el('newPageSubtaskType');
+    const title = (titleInput ? titleInput.value : '').trim();
+    if (!title) return;
+
+    const allTasks = window.VG.App.getTasks();
+    const subType = typeSelect ? canonicalTaskType(typeSelect.value) : 'task';
+    const now = new Date().toISOString();
+    const currentUser = window.VG.Auth && window.VG.Auth.getCurrentUser();
+    const reporter = (currentUser && currentUser.username) ? currentUser.username : 'User';
+
+    const newSub = {
+      id: window.VG.Constants.generateId('task'),
+      name: title,
+      description: '',
+      'openspec-id': '',
+      type: subType,
+      parentId: task.id,
+      status: 'planned',
+      priority: 'medium',
+      favorite: false,
+      assignee: null,
+      reporter,
+      tags: [],
+      created_at: now,
+      updated_at: now,
+      history: [{
+        from_status: null,
+        to_status: 'planned',
+        timestamp: now,
+        reason: `Subtask of #${task.id}`,
+        user: (currentUser && currentUser.username) ? currentUser.username : null
+      }],
+      comments: [],
+      attachments: []
+    };
+
+    allTasks.unshift(newSub);
+    if (titleInput) titleInput.value = '';
+    window.VG.App.persistChanges('Subtask created');
+    renderSubtasks(task);
+    if (window.VG.Board) window.VG.Board.renderBoard();
+  }
+
+  function handleLinkExistingSubtask() {
+    const task = getCurrentTask();
+    if (!task) return;
+    const linkSelect = el('pageLinkExistingSubtaskSelect');
+    const selectedId = linkSelect ? linkSelect.value : '';
+    if (!selectedId) return;
+
+    const allTasks = window.VG.App.getTasks();
+    const childTask = allTasks.find(t => t.id === selectedId);
+    if (!childTask) return;
+
+    const check = validateSubtaskRelationship(task.id, childTask.id, allTasks);
+    if (!check.valid) {
+      UI.toast(check.error, 'error');
+      return;
+    }
+
+    childTask.parentId = task.id;
+    window.VG.App.persistChanges('Subtask linked');
+    renderSubtasks(task);
+    if (window.VG.Board) window.VG.Board.renderBoard();
+  }
+
   /* -------------------------------------------------------------
    * SETUP
    * ------------------------------------------------------------- */
@@ -507,6 +692,16 @@
     el('pageTaskPriority').innerHTML = Object.entries(PRIORITIES)
       .map(([id, meta]) => `<option value="${escapeHtml(id)}">${escapeHtml(meta.label)}</option>`)
       .join('');
+    if (el('pageTaskType')) {
+      el('pageTaskType').innerHTML = Object.entries(TASK_TYPES)
+        .map(([id, meta]) => `<option value="${escapeHtml(id)}">${escapeHtml(meta.label)}</option>`)
+        .join('');
+    }
+    if (el('newPageSubtaskType')) {
+      el('newPageSubtaskType').innerHTML = Object.entries(TASK_TYPES)
+        .map(([id, meta]) => `<option value="${escapeHtml(id)}">${escapeHtml(meta.label)}</option>`)
+        .join('');
+    }
   }
 
   function init() {
@@ -533,10 +728,24 @@
       const element = el(id);
       if (element) element.addEventListener('input', updateDirtyState);
     });
-    ['pageTaskState', 'pageTaskPriority', 'pageTaskAssignee'].forEach(id => {
+    ['pageTaskType', 'pageTaskState', 'pageTaskPriority', 'pageTaskAssignee'].forEach(id => {
       const element = el(id);
       if (element) element.addEventListener('change', updateDirtyState);
     });
+
+    const btnQuickAdd = el('btnPageQuickAddSubtask');
+    if (btnQuickAdd) btnQuickAdd.addEventListener('click', handleQuickAddSubtask);
+    const newSubTitle = el('newPageSubtaskTitle');
+    if (newSubTitle) {
+      newSubTitle.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleQuickAddSubtask();
+        }
+      });
+    }
+    const btnLink = el('btnPageLinkExistingSubtask');
+    if (btnLink) btnLink.addEventListener('click', handleLinkExistingSubtask);
 
     const pageFavBtn = el('pageFavBtn');
     if (pageFavBtn) {

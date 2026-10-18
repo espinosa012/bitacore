@@ -3,7 +3,7 @@
  */
 (function() {
   window.VG = window.VG || {};
-  const { STATES, canonicalState, canonicalPriority, escapeHtml, formatRelativeTime, formatFileSize, getFileIcon } = window.VG.Constants;
+  const { STATES, TASK_TYPES, canonicalState, canonicalPriority, canonicalTaskType, getAncestorIds, getDescendantIds, getSiblingIds, validateSubtaskRelationship, getEligibleSubtasks, escapeHtml, formatRelativeTime, formatFileSize, getFileIcon } = window.VG.Constants;
   const Attachments = window.VG.Attachments;
   const UI = window.VG.UI;
 
@@ -423,6 +423,97 @@
         if (saved) authorInput.value = saved;
       } catch (e) { /* ignore */ }
     }
+
+    // Subtask tab and form listeners
+    const tabBtnSubtasks = document.getElementById('tabBtnSubtasks');
+    if (tabBtnSubtasks) {
+      tabBtnSubtasks.addEventListener('click', () => switchTab('tabSubtasks'));
+    }
+
+    const btnQuickAddSubtask = document.getElementById('btnQuickAddSubtask');
+    const newSubtaskTitle = document.getElementById('newSubtaskTitle');
+    const newSubtaskType = document.getElementById('newSubtaskType');
+
+    function handleQuickAddSubtask() {
+      if (!activeEditingTaskId) return;
+      const title = (newSubtaskTitle ? newSubtaskTitle.value : '').trim();
+      if (!title) return;
+      const allTasks = window.VG.App.getTasks();
+      const parentTask = allTasks.find(t => t.id === activeEditingTaskId);
+      if (!parentTask) return;
+
+      const subType = newSubtaskType ? canonicalTaskType(newSubtaskType.value) : 'task';
+      const now = new Date().toISOString();
+      const currentUser = window.VG.Auth && window.VG.Auth.getCurrentUser();
+      const reporter = (currentUser && currentUser.username) ? currentUser.username : 'User';
+
+      const newSub = {
+        id: window.VG.Constants.generateId('task'),
+        name: title,
+        description: '',
+        'openspec-id': '',
+        type: subType,
+        parentId: activeEditingTaskId,
+        status: 'planned',
+        priority: 'medium',
+        favorite: false,
+        assignee: null,
+        reporter,
+        tags: [],
+        created_at: now,
+        updated_at: now,
+        history: [{
+          from_status: null,
+          to_status: 'planned',
+          timestamp: now,
+          reason: `Subtask of #${activeEditingTaskId}`,
+          user: (currentUser && currentUser.username) ? currentUser.username : null
+        }],
+        comments: [],
+        attachments: []
+      };
+
+      allTasks.unshift(newSub);
+      if (newSubtaskTitle) newSubtaskTitle.value = '';
+      window.VG.App.persistChanges('Subtask created');
+      renderSubtasksTab(parentTask);
+      window.VG.Board.renderBoard();
+    }
+
+    if (btnQuickAddSubtask) btnQuickAddSubtask.addEventListener('click', handleQuickAddSubtask);
+    if (newSubtaskTitle) {
+      newSubtaskTitle.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleQuickAddSubtask();
+        }
+      });
+    }
+
+    const btnLinkExistingSubtask = document.getElementById('btnLinkExistingSubtask');
+    if (btnLinkExistingSubtask) {
+      btnLinkExistingSubtask.addEventListener('click', () => {
+        if (!activeEditingTaskId) return;
+        const linkSelect = document.getElementById('linkExistingSubtaskSelect');
+        const selectedId = linkSelect ? linkSelect.value : '';
+        if (!selectedId) return;
+        const allTasks = window.VG.App.getTasks();
+        const parentTask = allTasks.find(t => t.id === activeEditingTaskId);
+        const childTask = allTasks.find(t => t.id === selectedId);
+        if (!parentTask || !childTask) return;
+
+        const check = validateSubtaskRelationship(parentTask.id, childTask.id, allTasks);
+        if (!check.valid) {
+          UI.toast(check.error, 'error');
+          return;
+        }
+
+        childTask.parentId = parentTask.id;
+        window.VG.App.persistChanges('Subtask linked');
+        renderSubtasksTab(parentTask);
+        window.VG.Board.renderBoard();
+      });
+    }
   }
 
   const COMMENT_AUTHOR_KEY = 'vg_task_manager_comment_author';
@@ -442,9 +533,11 @@
     const modalCreateOverlay = document.getElementById('modalCreateOverlay');
     const createTaskForm = document.getElementById('createTaskForm');
     const taskStateSelect = document.getElementById('newTaskState');
+    const newTaskType = document.getElementById('newTaskType');
 
     if (createTaskForm) createTaskForm.reset();
     if (taskStateSelect) taskStateSelect.value = defaultState;
+    if (newTaskType) newTaskType.value = 'task';
     const newTaskFav = document.getElementById('newTaskFavorite');
     if (newTaskFav) newTaskFav.checked = false;
     window.VG.Markdown.setValue(createDescEditor, document.getElementById('newTaskDesc'), '');
@@ -577,6 +670,7 @@
     const prioInput = document.getElementById('newTaskPriority');
     const stateInput = document.getElementById('newTaskState');
     const assigneeInput = document.getElementById('newTaskAssignee');
+    const typeInput = document.getElementById('newTaskType');
 
     const name = nameInput.value.trim();
     if (!name) return;
@@ -584,6 +678,7 @@
     const id = window.VG.Constants.generateId('task');
     const now = new Date().toISOString();
     const targetState = canonicalState(stateInput.value);
+    const type = canonicalTaskType(typeInput ? typeInput.value : 'task');
 
     const currentUser = window.VG.Auth && window.VG.Auth.getCurrentUser();
     const reporter = (currentUser && currentUser.username) ? currentUser.username : 'User';
@@ -596,6 +691,8 @@
       name,
       description: window.VG.Markdown.getValue(createDescEditor, descInput).trim(),
       'openspec-id': openspecInput.value.trim(),
+      type,
+      parentId: null,
       priority: canonicalPriority(prioInput.value),
       status: targetState,
       favorite,
@@ -651,6 +748,10 @@
     document.getElementById('editTaskName').value = task.name || '';
     window.VG.Markdown.setValue(editDescEditor, document.getElementById('editTaskDesc'), task.description || '');
     document.getElementById('editTaskOpenspecId').value = task['openspec-id'] || '';
+
+    const editTypeSelect = document.getElementById('editTaskType');
+    if (editTypeSelect) editTypeSelect.value = canonicalTaskType(task.type);
+
     document.getElementById('editTaskPriority').value = canonicalPriority(task.priority);
     document.getElementById('editTaskState').value = canonicalState(task.status);
     if (editTagPicker) editTagPicker.setValue(task.tags || []);
@@ -664,6 +765,44 @@
     const editReporterEl = document.getElementById('editTaskReporter');
     if (editReporterEl) editReporterEl.textContent = task.reporter || 'None';
 
+    // Parent Task Banner
+    const parentBanner = document.getElementById('editTaskParentBanner');
+    const parentLink = document.getElementById('editTaskParentLink');
+    const parentStatus = document.getElementById('editTaskParentStatus');
+    const unlinkBtn = document.getElementById('btnEditUnlinkParent');
+    if (task.parentId) {
+      const allTasks = window.VG.App.getTasks();
+      const parentTask = allTasks.find(t => t.id === task.parentId);
+      if (parentTask) {
+        if (parentBanner) parentBanner.style.display = 'block';
+        if (parentLink) {
+          parentLink.textContent = `#${parentTask.id.slice(-6)}: ${parentTask.name}`;
+          parentLink.onclick = () => {
+            openEditModal(parentTask);
+          };
+        }
+        if (parentStatus) {
+          const pSt = canonicalState(parentTask.status);
+          const pColor = STATES.find(s => s.id === pSt)?.color || 'grey';
+          parentStatus.textContent = parentTask.status;
+          parentStatus.className = `ui mini ${pColor} label`;
+        }
+        if (unlinkBtn) {
+          unlinkBtn.onclick = () => {
+            task.parentId = null;
+            window.VG.App.persistChanges('Subtask unlinked');
+            openEditModal(task);
+            window.VG.Board.renderBoard();
+          };
+        }
+      } else if (parentBanner) {
+        parentBanner.style.display = 'none';
+      }
+    } else if (parentBanner) {
+      parentBanner.style.display = 'none';
+    }
+
+    renderSubtasksTab(task);
     renderAttachmentsTab(task);
     renderCommentsTab(task);
     renderHistoryTab(task);
@@ -688,18 +827,22 @@
   function switchTab(tabId) {
     activeTab = tabId;
 
+    const tabBtnSubtasks = document.getElementById('tabBtnSubtasks');
     const tabBtnAttachments = document.getElementById('tabBtnAttachments');
     const tabBtnComments = document.getElementById('tabBtnComments');
     const tabBtnHistory = document.getElementById('tabBtnHistory');
 
+    const tabSubtasks = document.getElementById('tabSubtasks');
     const tabAttachments = document.getElementById('tabAttachments');
     const tabComments = document.getElementById('tabComments');
     const tabHistory = document.getElementById('tabHistory');
 
+    if (tabBtnSubtasks) tabBtnSubtasks.classList.toggle('active', tabId === 'tabSubtasks');
     if (tabBtnAttachments) tabBtnAttachments.classList.toggle('active', tabId === 'tabAttachments');
     if (tabBtnComments) tabBtnComments.classList.toggle('active', tabId === 'tabComments');
     if (tabBtnHistory) tabBtnHistory.classList.toggle('active', tabId === 'tabHistory');
 
+    if (tabSubtasks) tabSubtasks.classList.toggle('active', tabId === 'tabSubtasks');
     if (tabAttachments) tabAttachments.classList.toggle('active', tabId === 'tabAttachments');
     if (tabComments) tabComments.classList.toggle('active', tabId === 'tabComments');
     if (tabHistory) tabHistory.classList.toggle('active', tabId === 'tabHistory');
@@ -708,10 +851,12 @@
   /** Current (possibly unsaved) values of the edit modal's task fields */
   function readEditDraft() {
     const editAssigneeSelect = document.getElementById('editTaskAssignee');
+    const editTypeSelect = document.getElementById('editTaskType');
     return {
       name: document.getElementById('editTaskName').value,
       description: window.VG.Markdown.getValue(editDescEditor, document.getElementById('editTaskDesc')),
       'openspec-id': document.getElementById('editTaskOpenspecId').value,
+      type: editTypeSelect ? editTypeSelect.value : undefined,
       priority: document.getElementById('editTaskPriority').value,
       status: document.getElementById('editTaskState').value,
       favorite: document.getElementById('editTaskFavorite') ? document.getElementById('editTaskFavorite').checked : undefined,
@@ -739,6 +884,7 @@
     task.name = name;
     task.description = (fields.description || '').trim();
     task['openspec-id'] = (fields['openspec-id'] || '').trim();
+    if (fields.type !== undefined) task.type = canonicalTaskType(fields.type);
     task.priority = canonicalPriority(fields.priority);
     task.status = newStatus;
     if (fields.favorite !== undefined) {
@@ -791,25 +937,119 @@
     window.VG.Board.renderBoard();
   }
 
-  /** Removes a task with its attachments (IndexedDB and MongoDB) */
+  /* -------------------------------------------------------------
+   * SUBTASKS TAB RENDERING & HANDLING
+   * ------------------------------------------------------------- */
+
+  function renderSubtasksTab(task) {
+    const listEl = document.getElementById('subtasksList');
+    const tabBtnSubtasks = document.getElementById('tabBtnSubtasks');
+    const linkSelect = document.getElementById('linkExistingSubtaskSelect');
+    if (!listEl) return;
+
+    const allTasks = window.VG.App.getTasks();
+    const subtasks = allTasks.filter(t => t.parentId === task.id);
+
+    if (tabBtnSubtasks) {
+      const countSpan = tabBtnSubtasks.querySelector('span');
+      if (countSpan) countSpan.textContent = `Subtasks (${subtasks.length})`;
+    }
+
+    // Populate link existing dropdown
+    if (linkSelect) {
+      const eligible = getEligibleSubtasks(task.id, allTasks);
+      linkSelect.innerHTML = '<option value="">Select an existing task to link...</option>' +
+        eligible.map(t => `<option value="${escapeHtml(t.id)}">#${t.id.slice(-6)} - ${escapeHtml(t.name)} (${t.status})</option>`).join('');
+    }
+
+    if (subtasks.length === 0) {
+      listEl.innerHTML = '<div class="ui message empty-message" style="background: rgba(255,255,255,0.05); color: #a0aec0;">No subtasks yet. You can add one quickly above or link an existing task.</div>';
+      return;
+    }
+
+    listEl.innerHTML = subtasks.map(sub => {
+      const typeMeta = TASK_TYPES[canonicalTaskType(sub.type)] || TASK_TYPES['task'];
+      const stId = canonicalState(sub.status);
+      const stColor = STATES.find(s => s.id === stId)?.color || 'grey';
+      const isDone = stId === 'done';
+      return `
+        <div class="item subtask-list-item" style="padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;">
+            <span class="ui mini ${typeMeta.color} label" title="Type: ${typeMeta.label}">
+              <i class="${typeMeta.icon} icon"></i>${escapeHtml(typeMeta.label)}
+            </span>
+            <span class="ui mini ${stColor} label">${escapeHtml(sub.status)}</span>
+            <a href="javascript:void(0)" class="subtask-open-link" data-subtask-id="${escapeHtml(sub.id)}" style="font-weight: 500; color: #fff; text-decoration: ${isDone ? 'line-through' : 'none'}; opacity: ${isDone ? 0.7 : 1}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              #${escapeHtml(sub.id.slice(-6))} ${escapeHtml(sub.name)}
+            </a>
+          </div>
+          <div>
+            <button type="button" class="ui mini compact basic inverted icon button subtask-unlink-btn" data-subtask-id="${escapeHtml(sub.id)}" title="Unlink subtask">
+              <i class="unlink icon"></i>
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Wire clicks to open subtask
+    listEl.querySelectorAll('.subtask-open-link').forEach(a => {
+      a.addEventListener('click', () => {
+        const subId = a.getAttribute('data-subtask-id');
+        const target = allTasks.find(t => t.id === subId);
+        if (target) openEditModal(target);
+      });
+    });
+
+    // Wire clicks to unlink subtask
+    listEl.querySelectorAll('.subtask-unlink-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const subId = btn.getAttribute('data-subtask-id');
+        const target = allTasks.find(t => t.id === subId);
+        if (target) {
+          target.parentId = null;
+          window.VG.App.persistChanges('Subtask unlinked');
+          renderSubtasksTab(task);
+          window.VG.Board.renderBoard();
+        }
+      });
+    });
+  }
+
+  /** Removes a task with all its subtasks and attachments (IndexedDB and MongoDB) */
   async function deleteTask(task) {
-    await window.VG.Storage.deleteTaskAttachments(task.id);
+    const allTasks = window.VG.App.getTasks();
+    const descendantIds = getDescendantIds(task.id, allTasks);
+    const allIdsToDelete = [task.id, ...descendantIds];
+
+    for (const tid of allIdsToDelete) {
+      await window.VG.Storage.deleteTaskAttachments(tid);
+    }
     if (window.VG.MongoSync && window.VG.MongoSync.isConnected()) {
       await window.VG.MongoSync.deleteTask(task.id);
     }
 
     const tasks = window.VG.App.getTasks();
-    const idx = tasks.findIndex(t => t.id === task.id);
-    if (idx !== -1) tasks.splice(idx, 1);
+    for (const tid of allIdsToDelete) {
+      const idx = tasks.findIndex(t => t.id === tid);
+      if (idx !== -1) tasks.splice(idx, 1);
+    }
 
-    window.VG.App.persistChanges('Task deleted');
+    window.VG.App.persistChanges(descendantIds.length > 0 ? `Task and ${descendantIds.length} subtask(s) deleted` : 'Task deleted');
     window.VG.Board.renderBoard();
   }
 
   function confirmDeleteTask(task) {
-    return UI.confirm(`Delete task "${task.name}"? All its attachments will also be removed.`, {
-      title: 'Delete task',
-      okText: 'Delete',
+    const allTasks = window.VG.App.getTasks();
+    const descendantIds = getDescendantIds(task.id, allTasks);
+    const subtaskCount = descendantIds.length;
+    let message = `Delete task "${task.name}"? All its attachments will also be removed.`;
+    if (subtaskCount > 0) {
+      message = `This task contains ${subtaskCount} subtask(s). If you continue, both the parent task and all its ${subtaskCount} subtask(s) and attachments will be permanently deleted.`;
+    }
+    return UI.confirm(message, {
+      title: subtaskCount > 0 ? `Delete task and ${subtaskCount} subtask(s)` : 'Delete task',
+      okText: subtaskCount > 0 ? `Delete all (${subtaskCount + 1})` : 'Delete',
       danger: true
     });
   }

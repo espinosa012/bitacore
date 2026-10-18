@@ -3,7 +3,7 @@
  */
 (function() {
   window.VG = window.VG || {};
-  const { canonicalState, canonicalPriority } = window.VG.Constants;
+  const { canonicalState, canonicalPriority, canonicalTaskType } = window.VG.Constants;
 
   function validateTasksJson(parsed) {
     if (!parsed) {
@@ -53,6 +53,22 @@
         return {
           valid: false,
           error: `Invalid task at index ${num}: Missing or empty 'name' property. Every task must have a name.`
+        };
+      }
+
+      const rawType = item.type !== undefined ? item.type : item.tipo;
+      if (rawType !== undefined && rawType !== null && typeof rawType !== 'string') {
+        return {
+          valid: false,
+          error: `Invalid task #${num} ("${taskName}"): 'type' must be a string.`
+        };
+      }
+
+      const rawParentId = item.parentId !== undefined ? item.parentId : (item.parent_id !== undefined ? item.parent_id : item.padre);
+      if (rawParentId !== undefined && rawParentId !== null && typeof rawParentId !== 'string') {
+        return {
+          valid: false,
+          error: `Invalid task #${num} ("${taskName}"): 'parentId' must be a string or null.`
         };
       }
 
@@ -150,6 +166,11 @@
       const openspecId = typeof openspecRaw === 'string' ? openspecRaw.trim() : String(openspecRaw || '').trim();
       const priority = canonicalPriority(t.priority || t.prioridad);
       const status = canonicalState(t.status || t.estado);
+      const rawType = t.type !== undefined ? t.type : (t.tipo !== undefined ? t.tipo : 'task');
+      const type = canonicalTaskType(rawType);
+
+      const rawParentId = t.parentId !== undefined ? t.parentId : (t.parent_id !== undefined ? t.parent_id : (t.padre !== undefined ? t.padre : null));
+      const parentId = (typeof rawParentId === 'string' && rawParentId.trim().length > 0) ? rawParentId.trim() : null;
       const createdAt = t.created_at || t.creada_en || new Date().toISOString();
       const updatedAt = t.updated_at || t.actualizada_en || new Date().toISOString();
 
@@ -221,6 +242,8 @@
         name,
         description,
         'openspec-id': openspecId,
+        type,
+        parentId,
         priority,
         status,
         favorite,

@@ -88,6 +88,47 @@ function verifyPassword(password, stored) {
   }
 }
 
+const DEFAULT_TASK_TYPES = [
+  { _id: 'task', id: 'task', name: 'Task', icon: 'check square outline', color: 'blue' },
+  { _id: 'bug', id: 'bug', name: 'Bug', icon: 'bug', color: 'red' },
+  { _id: 'analysis', id: 'analysis', name: 'Analysis', icon: 'search', color: 'teal' },
+  { _id: 'feature', id: 'feature', name: 'Feature', icon: 'star', color: 'green' }
+];
+
+async function seedDefaultTaskTypes(db) {
+  try {
+    const col = db.collection('task_types');
+    for (const tt of DEFAULT_TASK_TYPES) {
+      await col.updateOne(
+        { _id: tt._id },
+        { $setOnInsert: tt },
+        { upsert: true }
+      );
+    }
+    return await col.countDocuments();
+  } catch (err) {
+    console.error('[MongoDB] Error seeding task_types:', err.message);
+    return 0;
+  }
+}
+
+async function getAllDescendantIds(db, rootTaskId) {
+  const descendantIds = [];
+  const queue = [rootTaskId];
+  while (queue.length > 0) {
+    const currentId = queue.shift();
+    const children = await db.collection('tasks').find({ parentId: currentId }, { projection: { _id: 1, id: 1 } }).toArray();
+    for (const child of children) {
+      const childId = String(child.id || child._id);
+      if (!descendantIds.includes(childId)) {
+        descendantIds.push(childId);
+        queue.push(childId);
+      }
+    }
+  }
+  return descendantIds;
+}
+
 async function connectMongo(uri) {
   if (!uri || typeof uri !== 'string') {
     throw new Error('A valid MongoDB connection URI is required');
@@ -118,10 +159,11 @@ async function connectMongo(uri) {
   mongoDb = db;
   activeUri = cleanUri;
 
+  const typeCount = await seedDefaultTaskTypes(db);
   const taskCount = await db.collection('tasks').countDocuments().catch(() => 0);
   const userCount = await db.collection('users').countDocuments().catch(() => 0);
-  console.log(`[MongoDB] Connected to database "${DB_NAME}". Total tasks: ${taskCount}, Total users: ${userCount}`);
-  return { ok: true, database: DB_NAME, taskCount, userCount };
+  console.log(`[MongoDB] Connected to database "${DB_NAME}". Total tasks: ${taskCount}, Total users: ${userCount}, Task types: ${typeCount}`);
+  return { ok: true, database: DB_NAME, taskCount, userCount, typeCount };
 }
 
 async function disconnectMongo() {
@@ -508,6 +550,28 @@ async function handleApi(req, res, pathname, cors) {
     }
   }
 
+  // 3.4 List Task Types: GET /api/task-types
+  if (pathname === '/api/task-types' && req.method === 'GET') {
+    if (!mongoDb) {
+      return sendJson(res, 403, { ok: false, error: 'Not connected to MongoDB' }, cors);
+    }
+    try {
+      const list = await mongoDb.collection('task_types')
+        .find({})
+        .sort({ name: 1 })
+        .toArray();
+      const taskTypes = list.map(t => ({
+        id: t.id || t._id,
+        name: t.name,
+        icon: t.icon,
+        color: t.color
+      }));
+      return sendJson(res, 200, { ok: true, taskTypes }, cors);
+    } catch (err) {
+      return sendJson(res, 500, { ok: false, error: err.message }, cors);
+    }
+  }
+
   // 4. Tasks endpoints: GET / PUT / POST /api/tasks
   if (pathname === '/api/tasks') {
     if (!mongoDb) {
@@ -517,7 +581,6 @@ async function handleApi(req, res, pathname, cors) {
     if (req.method === 'GET') {
       try {
         // Parse query parameters for filtering/pagination
-        const params = new URLSearchParams(pathname.includes('?') ? pathname.split('?')[1] : '');
         const urlObj = new URL(req.url, 'http://localhost');
         const queryParams = new URLSearchParams(urlObj.search);
 
@@ -527,6 +590,11 @@ async function handleApi(req, res, pathname, cors) {
         if (queryParams.get('priority')) filter.priority = queryParams.get('priority');
         if (queryParams.get('assignee')) filter.assignee = queryParams.get('assignee');
         if (queryParams.get('tag')) filter.tags = queryParams.get('tag');
+        if (queryParams.get('type')) filter.type = queryParams.get('type');
+        if (queryParams.get('parentId') !== null) {
+          const pid = queryParams.get('parentId');
+          filter.parentId = (pid === 'null' || pid === '') ? null : pid;
+        }
         if (queryParams.get('favorite') !== null) {
           const fav = queryParams.get('favorite');
           filter.favorite = fav === 'true' || fav === '1';
@@ -543,7 +611,13 @@ async function handleApi(req, res, pathname, cors) {
         const rawTasks = await query.toArray();
         const normalized = rawTasks.map(t => {
           const id = t.id || t._id;
-          const copy = { ...t, id: String(id), favorite: Boolean(t.favorite) };
+          const copy = {
+            ...t,
+            id: String(id),
+            type: t.type || 'task',
+            parentId: t.parentId || null,
+            favorite: Boolean(t.favorite)
+          };
           delete copy._id;
           return copy;
         });
@@ -558,7 +632,7 @@ async function handleApi(req, res, pathname, cors) {
         if (search) {
           const term = search.toLowerCase();
           finalTasks = normalized.filter(t => {
-            const text = [t.name, t.description, t['openspec-id'], ...(t.tags || [])]
+            const text = [t.name, t.description, t['openspec-id'], t.type, ...(t.tags || [])]
               .join(' ').toLowerCase();
             return text.includes(term) || (t.attachments || []).some(a => a.filename.toLowerCase().includes(term));
           });
@@ -588,6 +662,47 @@ async function handleApi(req, res, pathname, cors) {
         return sendJson(res, 400, { ok: false, error: 'Invalid JSON: ' + err.message }, cors);
       }
 
+      // Check if this is a single task creation via POST
+      if (req.method === 'POST' && parsed && typeof parsed === 'object' && !Array.isArray(parsed) && !Array.isArray(parsed.tasks) && (parsed.name || parsed.nombre)) {
+        try {
+          const now = new Date().toISOString();
+          const taskName = (parsed.name || parsed.nombre).trim();
+          if (!taskName) {
+            return sendJson(res, 400, { ok: false, error: 'Task name is required' }, cors);
+          }
+          const id = parsed.id || `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          const singleDoc = {
+            ...parsed,
+            _id: id,
+            id,
+            name: taskName,
+            type: parsed.type || 'task',
+            parentId: parsed.parentId || null,
+            status: parsed.status || 'planned',
+            priority: parsed.priority || 'medium',
+            favorite: Boolean(parsed.favorite),
+            created_at: parsed.created_at || now,
+            updated_at: parsed.updated_at || now,
+            history: parsed.history || [{
+              from_status: null,
+              to_status: parsed.status || 'planned',
+              timestamp: now,
+              reason: 'Initial creation via API',
+              user: req.user && req.user.username
+            }],
+            comments: parsed.comments || [],
+            attachments: parsed.attachments || []
+          };
+          delete singleDoc.nombre;
+          await mongoDb.collection('tasks').updateOne({ _id: id }, { $set: singleDoc }, { upsert: true });
+          const normalized = { ...singleDoc };
+          delete normalized._id;
+          return sendJson(res, 201, { ok: true, id, task: normalized }, cors);
+        } catch (err) {
+          return sendJson(res, 500, { ok: false, error: 'Failed to create task: ' + err.message }, cors);
+        }
+      }
+
       const tasksList = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.tasks) ? parsed.tasks : null);
       if (!tasksList) {
         return sendJson(res, 400, { ok: false, error: 'JSON payload must contain an array of tasks or { tags, tasks }' }, cors);
@@ -607,7 +722,13 @@ async function handleApi(req, res, pathname, cors) {
         if (tasksList.length > 0) {
           const ops = tasksList.map(t => {
             const id = t.id || t._id;
-            const doc = { ...t, _id: id, id };
+            const doc = {
+              ...t,
+              _id: id,
+              id,
+              type: t.type || 'task',
+              parentId: t.parentId || null
+            };
             return {
               updateOne: {
                 filter: { _id: id },
@@ -644,7 +765,13 @@ async function handleApi(req, res, pathname, cors) {
           return sendJson(res, 404, { ok: false, error: 'Task not found' }, cors);
         }
         const id = doc.id || doc._id;
-        const normalized = { ...doc, id: String(id), favorite: Boolean(doc.favorite) };
+        const normalized = {
+          ...doc,
+          id: String(id),
+          type: doc.type || 'task',
+          parentId: doc.parentId || null,
+          favorite: Boolean(doc.favorite)
+        };
         delete normalized._id;
         return sendJson(res, 200, { ok: true, task: normalized }, cors);
       } catch (err) {
@@ -654,9 +781,11 @@ async function handleApi(req, res, pathname, cors) {
 
     if (req.method === 'DELETE') {
       try {
-        await mongoDb.collection('tasks').deleteOne({ _id: taskId });
-        await mongoDb.collection('attachments').deleteMany({ taskId });
-        return sendJson(res, 200, { ok: true }, cors);
+        const descendantIds = await getAllDescendantIds(mongoDb, taskId);
+        const allIdsToDelete = [taskId, ...descendantIds];
+        await mongoDb.collection('tasks').deleteMany({ _id: { $in: allIdsToDelete } });
+        await mongoDb.collection('attachments').deleteMany({ taskId: { $in: allIdsToDelete } });
+        return sendJson(res, 200, { ok: true, deletedCount: allIdsToDelete.length, deletedIds: allIdsToDelete }, cors);
       } catch (err) {
         return sendJson(res, 500, { ok: false, error: err.message }, cors);
       }
@@ -668,11 +797,33 @@ async function handleApi(req, res, pathname, cors) {
         const task = JSON.parse(body.toString('utf8'));
         const now = new Date().toISOString();
 
+        // Hierarchy validation: self-referencing check
+        if (task.parentId && task.parentId === taskId) {
+          return sendJson(res, 400, { ok: false, error: 'A task cannot be its own subtask' }, cors);
+        }
+
         // Check if status changed to record history entry
         const existing = await mongoDb.collection('tasks').findOne({ _id: taskId });
+
+        // Hierarchy validation: cycle and sibling checks
+        if (task.parentId) {
+          const descendants = await getAllDescendantIds(mongoDb, taskId);
+          if (descendants.includes(task.parentId)) {
+            return sendJson(res, 400, { ok: false, error: 'Cannot set parentId to a descendant task (cycle detected)' }, cors);
+          }
+          if (existing && existing.parentId) {
+            const parentDoc = await mongoDb.collection('tasks').findOne({ _id: task.parentId });
+            if (parentDoc && parentDoc.parentId && parentDoc.parentId === existing.parentId) {
+              return sendJson(res, 400, { ok: false, error: 'Cannot assign a sibling task as a subtask' }, cors);
+            }
+          }
+        }
+
         if (existing) {
           task._id = taskId;
           task.id = taskId;
+          task.type = task.type || existing.type || 'task';
+          task.parentId = task.parentId !== undefined ? (task.parentId || null) : (existing.parentId || null);
           // Preserve created_at, update updated_at
           task.updated_at = now;
           if (!task.history) task.history = existing.history || [];
@@ -692,6 +843,8 @@ async function handleApi(req, res, pathname, cors) {
         } else {
           task._id = taskId;
           task.id = taskId;
+          task.type = task.type || 'task';
+          task.parentId = task.parentId || null;
           task.created_at = now;
           task.updated_at = now;
           if (!task.history) task.history = [];

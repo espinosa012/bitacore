@@ -21,6 +21,27 @@
     'low': { label: 'Low', icon: 'leaf', color: 'green' }
   };
 
+  const TASK_TYPES = {
+    'task': { id: 'task', label: 'Task', icon: 'check square outline', color: 'blue' },
+    'bug': { id: 'bug', label: 'Bug', icon: 'bug', color: 'red' },
+    'analysis': { id: 'analysis', label: 'Analysis', icon: 'search', color: 'teal' },
+    'feature': { id: 'feature', label: 'Feature', icon: 'star', color: 'green' }
+  };
+
+  const TASK_TYPE_MAPPINGS = {
+    'task': 'task',
+    'tarea': 'task',
+    'bug': 'bug',
+    'error': 'bug',
+    'defecto': 'bug',
+    'analysis': 'analysis',
+    'analisis': 'analysis',
+    'investigacion': 'analysis',
+    'feature': 'feature',
+    'funcionalidad': 'feature',
+    'mejora': 'feature'
+  };
+
   const STATE_MAPPINGS = {
     'planificada': 'planned',
     'planificadas': 'planned',
@@ -80,6 +101,114 @@
     if (!val) return 'medium';
     const s = String(val).trim().toLowerCase();
     return PRIORITY_MAPPINGS[s] || 'medium';
+  }
+
+  function canonicalTaskType(val) {
+    if (!val) return 'task';
+    const s = String(val).trim().toLowerCase();
+    return TASK_TYPE_MAPPINGS[s] || (TASK_TYPES[s] ? s : 'task');
+  }
+
+  /**
+   * Returns an array of ancestor IDs for a given task ID.
+   * Walks up the parentId chain. Detects cycles safely using a Set.
+   */
+  function getAncestorIds(taskId, tasks) {
+    const ancestors = [];
+    const visited = new Set([taskId]);
+    const taskMap = new Map((tasks || []).map(t => [t.id, t]));
+    let current = taskMap.get(taskId);
+    while (current && current.parentId) {
+      if (visited.has(current.parentId)) break;
+      ancestors.push(current.parentId);
+      visited.add(current.parentId);
+      current = taskMap.get(current.parentId);
+    }
+    return ancestors;
+  }
+
+  /**
+   * Returns an array of descendant IDs for a given task ID.
+   * Recursively finds all children, grandchildren, etc.
+   */
+  function getDescendantIds(taskId, tasks) {
+    const descendants = [];
+    const queue = [taskId];
+    const visited = new Set([taskId]);
+    const tasksList = tasks || [];
+    while (queue.length > 0) {
+      const parent = queue.shift();
+      const children = tasksList.filter(t => t.parentId === parent);
+      for (const child of children) {
+        if (!visited.has(child.id)) {
+          visited.add(child.id);
+          descendants.push(child.id);
+          queue.push(child.id);
+        }
+      }
+    }
+    return descendants;
+  }
+
+  /**
+   * Returns sibling IDs for a given task ID (tasks sharing the same non-null parentId).
+   */
+  function getSiblingIds(taskId, tasks) {
+    const task = (tasks || []).find(t => t.id === taskId);
+    if (!task || !task.parentId) return [];
+    return (tasks || [])
+      .filter(t => t.parentId === task.parentId && t.id !== taskId)
+      .map(t => t.id);
+  }
+
+  /**
+   * Checks if candidateTaskId can be added as a subtask of parentTaskId.
+   * Returns { valid: boolean, error?: string }
+   */
+  function validateSubtaskRelationship(parentTaskId, candidateTaskId, tasks) {
+    if (!parentTaskId || !candidateTaskId) {
+      return { valid: false, error: 'Both parent and subtask IDs are required.' };
+    }
+    if (parentTaskId === candidateTaskId) {
+      return { valid: false, error: 'A task cannot be its own subtask.' };
+    }
+    const taskMap = new Map((tasks || []).map(t => [t.id, t]));
+    const parent = taskMap.get(parentTaskId);
+    const candidate = taskMap.get(candidateTaskId);
+    if (!parent) return { valid: false, error: 'Parent task not found.' };
+    if (!candidate) return { valid: false, error: 'Candidate task not found.' };
+
+    // 1. Candidate cannot be a sibling of parent
+    if (parent.parentId && candidate.parentId && parent.parentId === candidate.parentId) {
+      return { valid: false, error: 'Cannot add a sibling task as a subtask.' };
+    }
+    const siblings = getSiblingIds(parentTaskId, tasks);
+    if (siblings.includes(candidateTaskId)) {
+      return { valid: false, error: 'Cannot add a sibling task as a subtask.' };
+    }
+
+    // 2. Candidate cannot be an ancestor of parent (cycle)
+    const parentAncestors = getAncestorIds(parentTaskId, tasks);
+    if (parentAncestors.includes(candidateTaskId)) {
+      return { valid: false, error: 'Cannot add an ancestor as a subtask (cycle detected).' };
+    }
+
+    // 3. Candidate cannot already be a subtask of another task
+    if (candidate.parentId && candidate.parentId !== parentTaskId) {
+      return { valid: false, error: `Task #${candidateTaskId} is already a subtask of another task. Unlink it first.` };
+    }
+
+    return { valid: true };
+  }
+
+  /**
+   * Returns a list of tasks that can be validly linked as subtasks to parentTaskId.
+   */
+  function getEligibleSubtasks(parentTaskId, tasks) {
+    return (tasks || []).filter(candidate => {
+      const res = validateSubtaskRelationship(parentTaskId, candidate.id, tasks);
+      return res.valid && candidate.parentId !== parentTaskId;
+    });
   }
 
   /** Collision-free id, safe to use as a folder name (attachments/<taskId>/) */
@@ -158,8 +287,15 @@
   window.VG.Constants = {
     STATES,
     PRIORITIES,
+    TASK_TYPES,
     canonicalState,
     canonicalPriority,
+    canonicalTaskType,
+    getAncestorIds,
+    getDescendantIds,
+    getSiblingIds,
+    validateSubtaskRelationship,
+    getEligibleSubtasks,
     generateId,
     escapeHtml,
     escapeCss,

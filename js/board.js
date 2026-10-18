@@ -3,7 +3,7 @@
  */
 (function() {
   window.VG = window.VG || {};
-  const { STATES, PRIORITIES, canonicalState, canonicalPriority, escapeHtml, escapeCss, formatRelativeTime } = window.VG.Constants;
+  const { STATES, PRIORITIES, TASK_TYPES, canonicalState, canonicalPriority, canonicalTaskType, escapeHtml, escapeCss, formatRelativeTime } = window.VG.Constants;
   const Storage = window.VG.Storage;
 
   let collapsedColumns = Storage.loadCollapsedColumns();
@@ -101,10 +101,12 @@
     const tasks = window.VG.App ? window.VG.App.getTasks() : [];
     const searchInput = document.getElementById('searchInput');
     const priorityFilter = document.getElementById('priorityFilter');
+    const typeFilterEl = document.getElementById('typeFilter');
     const taskStatsCounter = document.getElementById('taskStatsCounter');
 
     const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
     const prioFilter = priorityFilter ? priorityFilter.value : 'all';
+    const typeFilter = typeFilterEl ? typeFilterEl.value : 'all';
     const tagFilterEl = document.getElementById('tagFilter');
     const tagFilter = tagFilterEl && !tagFilterEl.disabled ? tagFilterEl.value : 'all';
     const tagFilterKey = tagFilter.toLowerCase();
@@ -191,6 +193,7 @@
         (t.reporter && t.reporter.toLowerCase().includes(query)) ||
         matchesAttachment;
 
+      const matchesType = typeFilter === 'all' || canonicalTaskType(t.type) === typeFilter;
       const matchesPriority = prioFilter === 'all' || t.priority === prioFilter;
       const matchesTag = tagFilter === 'all' || (t.tags || []).some(tag => tag.toLowerCase() === tagFilterKey);
       const matchesFavorite = !filterFavoriteOnly || Boolean(t.favorite);
@@ -213,7 +216,7 @@
         }
       }
 
-      if (matchesQuery && matchesPriority && matchesTag && matchesUser && matchesFavorite) {
+      if (matchesQuery && matchesPriority && matchesTag && matchesUser && matchesFavorite && matchesType) {
         visibleTasks.push(t);
         renderTaskCard(t, query);
         counts.shown++;
@@ -242,6 +245,7 @@
     });
 
     const activeFilterCount = (query ? 1 : 0) +
+      (typeFilter !== 'all' ? 1 : 0) +
       (prioFilter !== 'all' ? 1 : 0) +
       (tagFilter !== 'all' ? 1 : 0) +
       (userFilter !== 'all' ? 1 : 0) +
@@ -301,6 +305,15 @@
 
     const prioKey = canonicalPriority(task.priority);
     const prioMeta = PRIORITIES[prioKey] || PRIORITIES['medium'];
+    const typeKey = canonicalTaskType(task.type);
+    const typeMeta = TASK_TYPES[typeKey] || TASK_TYPES['task'];
+
+    const allTasks = window.VG.App ? window.VG.App.getTasks() : [];
+    const parentTask = task.parentId ? allTasks.find(t => t.id === task.parentId) : null;
+    const directSubtasks = allTasks.filter(t => t.parentId === task.id);
+    const totalSubtasks = directSubtasks.length;
+    const doneSubtasks = directSubtasks.filter(t => canonicalState(t.status) === 'done').length;
+
     const openSpecId = task['openspec-id'];
 
     const isSelected = selectedTaskIds.has(task.id);
@@ -326,9 +339,16 @@
           <button type="button" class="card-fav-btn${task.favorite ? ' is-active' : ''}" data-task-id="${escapeHtml(task.id)}" title="${task.favorite ? 'Remove highlight (Favorite)' : 'Highlight task (Favorite)'}" aria-label="${task.favorite ? 'Remove highlight' : 'Highlight task'}">
             <i class="${task.favorite ? 'star' : 'star outline'} icon"></i>
           </button>
+          <span class="ui mini ${typeMeta.color} label card-type-badge" title="Type: ${escapeHtml(typeMeta.label)}">
+            <i class="${typeMeta.icon} icon"></i>${escapeHtml(typeMeta.label)}
+          </span>
           <span class="ui mini ${prioMeta.color} label">
             <i class="${prioMeta.icon} icon"></i>${escapeHtml(prioMeta.label)}
           </span>
+          ${parentTask ? `
+            <span class="ui mini basic inverted blue label card-parent-badge" style="cursor: pointer;" title="Subtask of #${escapeHtml(parentTask.id.slice(-6))}: ${escapeHtml(parentTask.name)}">
+              <i class="level up alternate icon"></i>#${escapeHtml(parentTask.id.slice(-6))}
+            </span>` : ''}
           ${task.assignee ? `
             <span class="card-assignee" title="Assigned to ${escapeHtml(task.assignee)}">
               <i class="user outline icon"></i>${escapeHtml(task.assignee)}
@@ -345,6 +365,7 @@
       </div>
       <div class="extra content card-footer">
         <span class="card-meta">
+          ${totalSubtasks > 0 ? `<span class="card-subtask-progress" title="${doneSubtasks} of ${totalSubtasks} subtasks completed" style="color: ${doneSubtasks === totalSubtasks ? '#2ecc40' : '#00b5ad'}; font-weight: 500;"><i class="sitemap icon"></i>${doneSubtasks}/${totalSubtasks} subtasks</span>` : ''}
           ${attachmentsCount > 0 ? `<span title="${plural(attachmentsCount, 'attachment')}"><i class="paperclip icon"></i>${attachmentsCount}</span>` : ''}
           ${commentsCount > 0 ? `<span title="${plural(commentsCount, 'comment')}"><i class="comment outline icon"></i>${commentsCount}</span>` : ''}
           <span title="${plural(historyCount, 'transition')}"><i class="history icon"></i>${historyCount}</span>
@@ -382,10 +403,19 @@
       });
     }
 
+    // Parent badge click listener
+    const parentBadge = card.querySelector('.card-parent-badge');
+    if (parentBadge && parentTask) {
+      parentBadge.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (window.VG.Modals) window.VG.Modals.openEditModal(parentTask);
+      });
+    }
+
     // Click to edit (the corner button opens the full task page)
     card.addEventListener('click', (e) => {
       if (isDragging) return;
-      if (e.target.closest('.card-select-checkbox') || e.target.closest('.card-fav-btn')) {
+      if (e.target.closest('.card-select-checkbox') || e.target.closest('.card-fav-btn') || e.target.closest('.card-parent-badge')) {
         return;
       }
       if (e.target.closest('.card-open-page')) {
