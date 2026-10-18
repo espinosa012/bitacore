@@ -58,6 +58,7 @@
       'openspec-id': el('pageTaskOpenspecId').value,
       priority: el('pageTaskPriority').value,
       status: el('pageTaskState').value,
+      favorite: el('pageTaskFavorite') ? el('pageTaskFavorite').checked : false,
       assignee: el('pageTaskAssignee') ? el('pageTaskAssignee').value : '',
       tags: tagPicker ? tagPicker.getValue() : undefined
     };
@@ -70,6 +71,7 @@
       'openspec-id': (f['openspec-id'] || '').trim(),
       priority: canonicalPriority(f.priority),
       status: canonicalState(f.status),
+      favorite: Boolean(f.favorite),
       assignee: (f.assignee && f.assignee.trim()) || '',
       tags: (f.tags || []).map(t => t.toLowerCase()).join('\n')
     };
@@ -90,11 +92,30 @@
     el('pageRevertBtn').disabled = !dirty;
   }
 
+  function updatePageFavBtn() {
+    const isFav = el('pageTaskFavorite') ? el('pageTaskFavorite').checked : false;
+    const btn = el('pageFavBtn');
+    const label = el('pageFavBtnText');
+    if (btn) {
+      btn.classList.toggle('yellow', isFav);
+      btn.classList.toggle('active', isFav);
+      btn.setAttribute('aria-pressed', isFav ? 'true' : 'false');
+      btn.title = isFav ? 'Remove highlight (Favorite)' : 'Highlight task (Favorite)';
+      const icon = btn.querySelector('i.icon');
+      if (icon) icon.className = isFav ? 'star yellow icon' : 'star outline icon';
+    }
+    if (label) {
+      label.textContent = isFav ? 'Highlighted' : 'Highlight';
+    }
+  }
+
   function fillFields(fields) {
     el('pageTaskName').value = fields.name || '';
     el('pageTaskOpenspecId').value = fields['openspec-id'] || '';
     el('pageTaskPriority').value = canonicalPriority(fields.priority);
     el('pageTaskState').value = canonicalState(fields.status);
+    if (el('pageTaskFavorite')) el('pageTaskFavorite').checked = Boolean(fields.favorite);
+    updatePageFavBtn();
     if (el('pageTaskAssignee')) el('pageTaskAssignee').value = fields.assignee || '';
     if (el('pageTaskReporterLabel')) el('pageTaskReporterLabel').textContent = fields.reporter || '—';
     if (tagPicker) tagPicker.setValue(fields.tags || []);
@@ -516,6 +537,26 @@
       const element = el(id);
       if (element) element.addEventListener('change', updateDirtyState);
     });
+
+    const pageFavBtn = el('pageFavBtn');
+    if (pageFavBtn) {
+      pageFavBtn.addEventListener('click', () => {
+        const cb = el('pageTaskFavorite');
+        if (cb) {
+          cb.checked = !cb.checked;
+          updateDirtyState();
+          updatePageFavBtn();
+        }
+      });
+    }
+
+    const pageTaskFavorite = el('pageTaskFavorite');
+    if (pageTaskFavorite) {
+      pageTaskFavorite.addEventListener('change', () => {
+        updateDirtyState();
+        updatePageFavBtn();
+      });
+    }
 
     el('pageBackBtn').addEventListener('click', close);
     el('pageSaveBtn').addEventListener('click', save);

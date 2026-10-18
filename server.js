@@ -527,6 +527,10 @@ async function handleApi(req, res, pathname, cors) {
         if (queryParams.get('priority')) filter.priority = queryParams.get('priority');
         if (queryParams.get('assignee')) filter.assignee = queryParams.get('assignee');
         if (queryParams.get('tag')) filter.tags = queryParams.get('tag');
+        if (queryParams.get('favorite') !== null) {
+          const fav = queryParams.get('favorite');
+          filter.favorite = fav === 'true' || fav === '1';
+        }
 
         let query = mongoDb.collection('tasks').find(filter || {}).sort({});
 
@@ -539,7 +543,7 @@ async function handleApi(req, res, pathname, cors) {
         const rawTasks = await query.toArray();
         const normalized = rawTasks.map(t => {
           const id = t.id || t._id;
-          const copy = { ...t, id: String(id) };
+          const copy = { ...t, id: String(id), favorite: Boolean(t.favorite) };
           delete copy._id;
           return copy;
         });
@@ -640,7 +644,7 @@ async function handleApi(req, res, pathname, cors) {
           return sendJson(res, 404, { ok: false, error: 'Task not found' }, cors);
         }
         const id = doc.id || doc._id;
-        const normalized = { ...doc, id: String(id) };
+        const normalized = { ...doc, id: String(id), favorite: Boolean(doc.favorite) };
         delete normalized._id;
         return sendJson(res, 200, { ok: true, task: normalized }, cors);
       } catch (err) {

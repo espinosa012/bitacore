@@ -44,6 +44,10 @@ This specification defines a REST API that mirrors the capabilities of the vg-ta
 - **WHEN** user sends `GET /api/tasks` with query parameters
 - **THEN** system returns paginated list of tasks with tags and metadata
 
+#### Scenario: Filter tasks by favorite
+- **WHEN** user sends `GET /api/tasks?favorite=true`
+- **THEN** system returns only tasks that are marked as favorite
+
 #### Scenario: Get single task
 - **WHEN** user sends `GET /api/tasks/{id}` with valid task ID
 - **THEN** system returns task details

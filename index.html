@@ -7,7 +7,7 @@
 
   <link rel="stylesheet" href="vendor/fomantic-ui/semantic.min.css?v=20261017.3" />
   <link rel="stylesheet" href="vendor/easymde/easymde.min.css?v=20261017.3" />
-  <link rel="stylesheet" href="css/app.css?v=20261017.3" />
+  <link rel="stylesheet" href="css/app.css?v=20261018.1" />
   <link rel="stylesheet" href="css/markdown.css?v=20261017.3" />
 </head>
 <body>
@@ -27,7 +27,7 @@
         <div class="ui icon input search-input-container">
           <input type="text" id="searchInput" placeholder="Search tasks or files... ( / )" autocomplete="off" aria-label="Search tasks" />
           <button type="button" id="btnClearSearch" class="search-clear-btn" title="Clear search text" aria-label="Clear search text" style="display: none;">
-            <i class="close icon"></i>
+            <i class="times icon"></i>
           </button>
           <i class="search icon" id="searchIcon"></i>
         </div>
@@ -58,7 +58,7 @@
         <div class="user-criteria-wrapper">
           <button type="button" class="ui mini basic inverted button user-criteria-btn" id="btnUserCriteria" title="Filter criteria for selected user" aria-haspopup="true" aria-expanded="false">
             <i class="filter icon"></i>
-            <span id="userCriteriaBadge">Criteria (4/4)</span>
+            <span id="userCriteriaBadge"><span class="criteria-label-text">Criteria </span>(4/4)</span>
             <i class="dropdown icon"></i>
           </button>
           <div class="user-criteria-popover" id="userCriteriaPopover" style="display: none;">
@@ -92,17 +92,17 @@
       </div>
 
       <div class="item board-only">
-        <button type="button" id="btnClearFilters" class="ui small basic inverted button clear-filters-btn" title="No filters applied" disabled>
-          <i class="times circle outline icon"></i>
-          <span id="btnClearFiltersText">Clear Filters</span>
+        <button type="button" id="btnFilterFavorite" class="ui small basic inverted button filter-fav-btn" title="Filter highlighted tasks (F)" aria-pressed="false">
+          <i class="star outline icon"></i>
+          <span id="btnFilterFavoriteText">Favorites</span>
+          <span class="ui circular mini yellow label filter-fav-badge" id="favCountBadge" style="display: none; margin-left: 4px;">0</span>
         </button>
       </div>
 
       <div class="item board-only">
-        <button id="btnBulkTag" class="ui small basic inverted button" title="Bulk assign tags to tasks (T)">
-          <i class="tags icon"></i>
-          <span id="btnBulkTagText">Bulk Tag</span>
-          <span class="ui circular mini teal label" id="btnBulkTagBadge" style="display: none; margin-left: 6px;">0</span>
+        <button type="button" id="btnClearFilters" class="ui small basic inverted button clear-filters-btn" title="No filters applied" disabled>
+          <i class="times circle outline icon"></i>
+          <span id="btnClearFiltersText">Clear Filters</span>
         </button>
       </div>
 
@@ -137,13 +137,6 @@
               <i class="sign-out icon"></i> Log out
             </button>
           </div>
-        </div>
-
-        <div class="item">
-          <button id="btnNewTask" class="ui small primary labeled icon button" title="Create a new task (N)">
-            <i class="plus icon"></i>
-            New Task
-          </button>
         </div>
       </div>
     </div>
@@ -200,6 +193,10 @@
         </div>
         <div class="item">
           <span class="ui basic inverted label task-id-label" id="pageTaskIdLabel"></span>
+          <button type="button" class="ui mini basic inverted button page-fav-btn" id="pageFavBtn" title="Highlight task (Favorite)">
+            <i class="star outline icon"></i>
+            <span id="pageFavBtnText">Favorite</span>
+          </button>
           <span class="ui yellow label" id="pageDirtyBadge" hidden>
             <i class="pencil alternate icon"></i>
             Unsaved changes
@@ -291,6 +288,12 @@
                   </select>
                 </div>
                 <div class="field">
+                  <div class="ui inverted checkbox">
+                    <input type="checkbox" id="pageTaskFavorite" />
+                    <label for="pageTaskFavorite"><i class="star yellow icon"></i> Highlighted (Favorite)</label>
+                  </div>
+                </div>
+                <div class="field">
                   <label>Reporter (Creator)</label>
                   <div class="compact-reporter-chip" id="pageTaskReporterChip">
                     <i class="user outline icon"></i>
@@ -342,9 +345,13 @@
         <i class="tags icon"></i>
         Assign Tags...
       </button>
+      <button type="button" id="btnBulkBarFavorite" class="ui mini basic inverted button" title="Toggle highlight for selected tasks">
+        <i class="star icon"></i>
+        <span id="btnBulkBarFavoriteText">Highlight</span>
+      </button>
     </div>
     <button type="button" id="btnBulkBarClose" class="ui mini basic inverted icon button bulk-bar-close" title="Dismiss bar and clear selection" aria-label="Dismiss selection">
-      <i class="close icon"></i>
+      <i class="times icon"></i>
     </button>
   </div>
 
@@ -393,6 +400,13 @@
         </div>
 
         <div class="field">
+          <div class="ui inverted checkbox">
+            <input type="checkbox" id="newTaskFavorite" />
+            <label for="newTaskFavorite"><i class="star yellow icon"></i> Mark as favorite (Highlight)</label>
+          </div>
+        </div>
+
+        <div class="field">
           <label>Tags (Optional)</label>
           <div id="newTaskTags"></div>
         </div>
@@ -425,6 +439,10 @@
     <div class="header edit-modal-header">
       <span>Edit Task</span>
       <span class="ui basic inverted label task-id-label" id="editTaskIdLabel">#000000</span>
+      <button type="button" class="ui mini basic inverted button edit-fav-btn" id="btnEditToggleFav" title="Highlight task (Favorite)">
+        <i class="star outline icon"></i>
+        <span id="btnEditToggleFavText">Favorite</span>
+      </button>
       <button type="button" class="ui mini basic inverted labeled icon button" id="btnOpenTaskPage" title="Open the full task page (unsaved edits are kept)">
         <i class="external alternate icon"></i>
         Open page
@@ -544,6 +562,12 @@
               <select id="editTaskAssignee" class="ui fluid dropdown">
                 <option value="">Unassigned</option>
               </select>
+            </div>
+            <div class="field">
+              <div class="ui inverted checkbox">
+                <input type="checkbox" id="editTaskFavorite" />
+                <label for="editTaskFavorite"><i class="star yellow icon"></i> Highlighted (Favorite)</label>
+              </div>
             </div>
             <div class="field">
               <label>Reporter (Creator)</label>
@@ -805,14 +829,14 @@
   <script src="js/ui.js?v=20261017.3"></script>
   <script src="js/tags.js?v=20261017.3"></script>
   <script src="js/storage.js?v=20261017.3"></script>
-  <script src="js/validation.js?v=20261017.3"></script>
+  <script src="js/validation.js?v=20261018.1"></script>
   <script src="js/markdown.js?v=20261017.3"></script>
   <script src="js/attachments.js?v=20261017.3"></script>
   <script src="js/mongo-sync.js?v=20261017.3"></script>
   <script src="js/auth.js?v=20261017.3"></script>
-  <script src="js/board.js?v=20261017.3"></script>
-  <script src="js/modals.js?v=20261017.3"></script>
-  <script src="js/task-page.js?v=20261017.3"></script>
-  <script src="js/app.js?v=20261017.3"></script>
+  <script src="js/board.js?v=20261018.2"></script>
+  <script src="js/modals.js?v=20261018.1"></script>
+  <script src="js/task-page.js?v=20261018.1"></script>
+  <script src="js/app.js?v=20261018.2"></script>
 </body>
 </html>

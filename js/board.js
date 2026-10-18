@@ -12,6 +12,7 @@
   let selectedTaskIds = new Set();
   let visibleTasks = [];
   let bulkBarDismissed = false;
+  let filterFavoriteOnly = false;
 
   const EMPTY_COLUMN_HTML = '<div class="column-empty">No tasks</div>';
 
@@ -128,7 +129,28 @@
     const criteriaCount = (criteria.assignee ? 1 : 0) + (criteria.creator ? 1 : 0) + (criteria.commenter ? 1 : 0) + (criteria.uploader ? 1 : 0);
     const userCriteriaBadge = document.getElementById('userCriteriaBadge');
     if (userCriteriaBadge) {
-      userCriteriaBadge.textContent = `Criteria (${criteriaCount}/4)`;
+      userCriteriaBadge.innerHTML = `<span class="criteria-label-text">Criteria </span>(${criteriaCount}/4)`;
+    }
+
+    // Favorite filter and counter badge
+    const totalFavorites = tasks.filter(t => t.favorite).length;
+    const favCountBadge = document.getElementById('favCountBadge');
+    if (favCountBadge) {
+      favCountBadge.textContent = totalFavorites;
+      favCountBadge.style.display = totalFavorites > 0 ? 'inline-block' : 'none';
+    }
+
+    const btnFilterFavorite = document.getElementById('btnFilterFavorite');
+    if (btnFilterFavorite) {
+      btnFilterFavorite.classList.toggle('active', filterFavoriteOnly);
+      btnFilterFavorite.setAttribute('aria-pressed', filterFavoriteOnly ? 'true' : 'false');
+      btnFilterFavorite.title = filterFavoriteOnly
+        ? 'Showing favorite tasks (Click to show all)'
+        : (totalFavorites > 0 ? `Filter favorite tasks (${totalFavorites}) (F)` : 'Filter favorite tasks (F)');
+      const starIcon = btnFilterFavorite.querySelector('i.icon');
+      if (starIcon) {
+        starIcon.className = filterFavoriteOnly ? 'star yellow icon' : 'star outline icon';
+      }
     }
 
     // Clear card containers
@@ -171,6 +193,7 @@
 
       const matchesPriority = prioFilter === 'all' || t.priority === prioFilter;
       const matchesTag = tagFilter === 'all' || (t.tags || []).some(tag => tag.toLowerCase() === tagFilterKey);
+      const matchesFavorite = !filterFavoriteOnly || Boolean(t.favorite);
 
       // User filter evaluation against active checkboxes
       let matchesUser = true;
@@ -190,7 +213,7 @@
         }
       }
 
-      if (matchesQuery && matchesPriority && matchesTag && matchesUser) {
+      if (matchesQuery && matchesPriority && matchesTag && matchesUser && matchesFavorite) {
         visibleTasks.push(t);
         renderTaskCard(t, query);
         counts.shown++;
@@ -222,7 +245,8 @@
       (prioFilter !== 'all' ? 1 : 0) +
       (tagFilter !== 'all' ? 1 : 0) +
       (userFilter !== 'all' ? 1 : 0) +
-      (criteriaCount < 4 ? 1 : 0);
+      (criteriaCount < 4 ? 1 : 0) +
+      (filterFavoriteOnly ? 1 : 0);
     const hasActiveFilter = activeFilterCount > 0;
 
     // Update header statistics
@@ -281,11 +305,11 @@
 
     const isSelected = selectedTaskIds.has(task.id);
     const card = document.createElement('div');
-    card.className = `ui fluid inverted card task-card prio-${prioKey}${isSelected ? ' is-selected' : ''}`;
+    card.className = `ui fluid inverted card task-card prio-${prioKey}${task.favorite ? ' is-favorite' : ''}${isSelected ? ' is-selected' : ''}`;
     card.draggable = true;
     card.tabIndex = 0;
     card.setAttribute('role', 'button');
-    card.setAttribute('aria-label', `${task.name} (${prioMeta.label} priority)`);
+    card.setAttribute('aria-label', `${task.name} (${prioMeta.label} priority)${task.favorite ? ' - Favorite' : ''}`);
     card.setAttribute('data-task-id', task.id);
 
     const commentsCount = task.comments ? task.comments.length : 0;
@@ -299,6 +323,9 @@
       <div class="content">
         <div class="card-top">
           <input type="checkbox" class="card-select-checkbox" data-task-id="${escapeHtml(task.id)}" ${isSelected ? 'checked' : ''} title="Select task for bulk actions" aria-label="Select task ${escapeHtml(task.name)}" />
+          <button type="button" class="card-fav-btn${task.favorite ? ' is-active' : ''}" data-task-id="${escapeHtml(task.id)}" title="${task.favorite ? 'Remove highlight (Favorite)' : 'Highlight task (Favorite)'}" aria-label="${task.favorite ? 'Remove highlight' : 'Highlight task'}">
+            <i class="${task.favorite ? 'star' : 'star outline'} icon"></i>
+          </button>
           <span class="ui mini ${prioMeta.color} label">
             <i class="${prioMeta.icon} icon"></i>${escapeHtml(prioMeta.label)}
           </span>
@@ -346,10 +373,19 @@
       });
     }
 
+    // Favorite toggle listener
+    const favBtn = card.querySelector('.card-fav-btn');
+    if (favBtn) {
+      favBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleTaskFavorite(task.id);
+      });
+    }
+
     // Click to edit (the corner button opens the full task page)
     card.addEventListener('click', (e) => {
       if (isDragging) return;
-      if (e.target.closest('.card-select-checkbox')) {
+      if (e.target.closest('.card-select-checkbox') || e.target.closest('.card-fav-btn')) {
         return;
       }
       if (e.target.closest('.card-open-page')) {
@@ -660,10 +696,6 @@
     const userFilter = userFilterEl && !userFilterEl.disabled ? userFilterEl.value : 'all';
     const isFiltered = !!query || prioFilter !== 'all' || tagFilter !== 'all' || userFilter !== 'all' || criteriaCount < 4;
 
-    const btnBulkTag = document.getElementById('btnBulkTag');
-    const btnBulkTagText = document.getElementById('btnBulkTagText');
-    const btnBulkTagBadge = document.getElementById('btnBulkTagBadge');
-
     const bulkActionBar = document.getElementById('bulkActionBar');
     const bulkBarCount = document.getElementById('bulkBarCount');
     const bulkBarLabel = document.getElementById('bulkBarLabel');
@@ -671,29 +703,6 @@
 
     const selectedCount = selectedTaskIds.size;
     const visibleCount = visibleTasks.length;
-
-    // Header Button
-    if (btnBulkTag) {
-      if (selectedCount > 0) {
-        btnBulkTag.disabled = false;
-        btnBulkTag.className = 'ui small teal button';
-        if (btnBulkTagText) btnBulkTagText.textContent = `Tag Selected (${selectedCount})`;
-        if (btnBulkTagBadge) btnBulkTagBadge.style.display = 'none';
-        btnBulkTag.title = `Assign tags to ${selectedCount} selected tasks (T)`;
-      } else if (isFiltered) {
-        btnBulkTag.disabled = visibleCount === 0;
-        btnBulkTag.className = visibleCount > 0 ? 'ui small teal button' : 'ui small basic inverted button';
-        if (btnBulkTagText) btnBulkTagText.textContent = `Tag Filtered (${visibleCount})`;
-        if (btnBulkTagBadge) btnBulkTagBadge.style.display = 'none';
-        btnBulkTag.title = `Assign tags to all ${visibleCount} filtered tasks (T)`;
-      } else {
-        btnBulkTag.disabled = tasks.length === 0;
-        btnBulkTag.className = 'ui small basic inverted button';
-        if (btnBulkTagText) btnBulkTagText.textContent = 'Bulk Tag';
-        if (btnBulkTagBadge) btnBulkTagBadge.style.display = 'none';
-        btnBulkTag.title = 'Assign tags to tasks (T)';
-      }
-    }
 
     // Floating bar
     if (bulkActionBar) {
@@ -710,6 +719,28 @@
         if (btnBulkBarTag) btnBulkBarTag.innerHTML = `<i class="tags icon"></i> Assign Tags (${visibleCount})...`;
       } else {
         bulkActionBar.hidden = true;
+      }
+
+      const btnBulkBarFavorite = document.getElementById('btnBulkBarFavorite');
+      const btnBulkBarFavoriteText = document.getElementById('btnBulkBarFavoriteText');
+      if (btnBulkBarFavorite) {
+        let targetTasks = [];
+        if (selectedCount > 0) {
+          targetTasks = tasks.filter(t => selectedTaskIds.has(t.id));
+        } else if (visibleCount > 0) {
+          targetTasks = visibleTasks;
+        }
+        const anyNotFav = targetTasks.some(t => !t.favorite);
+        if (btnBulkBarFavoriteText) {
+          btnBulkBarFavoriteText.textContent = anyNotFav ? 'Highlight' : 'Remove Highlight';
+        }
+        const favIcon = btnBulkBarFavorite.querySelector('i.icon');
+        if (favIcon) {
+          favIcon.className = anyNotFav ? 'star icon' : 'star outline icon';
+        }
+        btnBulkBarFavorite.title = anyNotFav
+          ? `Highlight ${targetTasks.length} task${targetTasks.length === 1 ? '' : 's'}`
+          : `Remove highlight from ${targetTasks.length} task${targetTasks.length === 1 ? '' : 's'}`;
       }
     }
   }
@@ -896,6 +927,63 @@
     }
   }
 
+  function toggleTaskFavorite(taskId) {
+    const tasks = window.VG.App ? window.VG.App.getTasks() : [];
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    task.favorite = !task.favorite;
+    task.updated_at = new Date().toISOString();
+    const actionMsg = task.favorite ? `"${task.name}" marked as favorite` : `Favorite removed from "${task.name}"`;
+    window.VG.App.persistChanges(actionMsg);
+    renderBoard();
+  }
+
+  function toggleFavoriteFilter() {
+    filterFavoriteOnly = !filterFavoriteOnly;
+    renderBoard();
+    return filterFavoriteOnly;
+  }
+
+  function setFavoriteFilter(active) {
+    filterFavoriteOnly = Boolean(active);
+    renderBoard();
+  }
+
+  function isFavoriteFilterActive() {
+    return filterFavoriteOnly;
+  }
+
+  function toggleBulkSelectionFavorite() {
+    const tasks = window.VG.App ? window.VG.App.getTasks() : [];
+    if (!tasks.length) return;
+
+    let targetTasks = [];
+    if (selectedTaskIds.size > 0) {
+      targetTasks = tasks.filter(t => selectedTaskIds.has(t.id));
+    } else if (visibleTasks.length > 0) {
+      targetTasks = visibleTasks.slice();
+    } else {
+      targetTasks = tasks.slice();
+    }
+
+    if (!targetTasks.length) return;
+
+    const anyNotFavorite = targetTasks.some(t => !t.favorite);
+    const newStatus = anyNotFavorite;
+    const now = new Date().toISOString();
+
+    targetTasks.forEach(t => {
+      t.favorite = newStatus;
+      t.updated_at = now;
+    });
+
+    const actionMsg = newStatus
+      ? `Marked ${targetTasks.length} task${targetTasks.length === 1 ? '' : 's'} as favorite`
+      : `Removed favorite from ${targetTasks.length} task${targetTasks.length === 1 ? '' : 's'}`;
+    window.VG.App.persistChanges(actionMsg);
+    renderBoard();
+  }
+
   window.VG.Board = {
     setTagFilter,
     editTaskTags,
@@ -910,6 +998,11 @@
     getSelectedTaskIds,
     getVisibleTasks,
     updateBulkActionUI,
-    openBulkTagDialog
+    openBulkTagDialog,
+    toggleTaskFavorite,
+    toggleFavoriteFilter,
+    setFavoriteFilter,
+    isFavoriteFilterActive,
+    toggleBulkSelectionFavorite
   };
 })();

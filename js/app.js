@@ -140,12 +140,16 @@
         if (priorityFilter) priorityFilter.disabled = false;
         if (searchInput) searchInput.disabled = false;
         if (userFilter) userFilter.disabled = false;
+        const btnFilterFav = document.getElementById('btnFilterFavorite');
+        if (btnFilterFav) btnFilterFav.disabled = false;
       } else {
         if (authEmptyState) authEmptyState.style.display = 'block';
         if (kanbanBoard) kanbanBoard.style.display = 'none';
         if (priorityFilter) priorityFilter.disabled = true;
         if (searchInput) searchInput.disabled = true;
         if (userFilter) userFilter.disabled = true;
+        const btnFilterFav = document.getElementById('btnFilterFavorite');
+        if (btnFilterFav) btnFilterFav.disabled = true;
       }
     } else {
       btnMongoStatus.classList.remove('green');
@@ -162,6 +166,8 @@
       if (priorityFilter) priorityFilter.disabled = true;
       if (searchInput) searchInput.disabled = true;
       if (userFilter) userFilter.disabled = true;
+      const btnFilterFav = document.getElementById('btnFilterFavorite');
+      if (btnFilterFav) btnFilterFav.disabled = true;
     }
   }
 
@@ -320,6 +326,10 @@
     }
 
     if (btnClearSearch) {
+      btnClearSearch.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+      });
+
       btnClearSearch.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -346,7 +356,11 @@
 
       const userCriteriaBadge = document.getElementById('userCriteriaBadge');
       if (userCriteriaBadge) {
-        userCriteriaBadge.textContent = 'Criteria (4/4)';
+        userCriteriaBadge.innerHTML = '<span class="criteria-label-text">Criteria </span>(4/4)';
+      }
+
+      if (Board.setFavoriteFilter) {
+        Board.setFavoriteFilter(false);
       }
 
       if (Board.resetBulkBarDismissed) {
@@ -363,6 +377,16 @@
       btnClearFilters.addEventListener('click', (e) => {
         e.preventDefault();
         clearAllFilters();
+      });
+    }
+
+    const btnFilterFavorite = document.getElementById('btnFilterFavorite');
+    if (btnFilterFavorite) {
+      btnFilterFavorite.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (Board.toggleFavoriteFilter) {
+          Board.toggleFavoriteFilter();
+        }
       });
     }
 
@@ -480,15 +504,14 @@
       btnConnectEmptyState.addEventListener('click', () => Modals.openMongoModal());
     }
 
-    // Bulk Tag buttons and toolbar
-    const btnBulkTag = document.getElementById('btnBulkTag');
+    // Floating bulk actions toolbar
     const btnBulkBarTag = document.getElementById('btnBulkBarTag');
     const btnBulkBarSelectVisible = document.getElementById('btnBulkBarSelectVisible');
     const btnBulkBarClear = document.getElementById('btnBulkBarClear');
     const btnBulkBarClose = document.getElementById('btnBulkBarClose');
 
-    if (btnBulkTag) {
-      btnBulkTag.addEventListener('click', () => {
+    if (btnBulkBarTag) {
+      btnBulkBarTag.addEventListener('click', () => {
         if (!MongoSync.isConnected()) {
           Modals.openMongoModal();
           return;
@@ -500,8 +523,13 @@
         Board.openBulkTagDialog();
       });
     }
-    if (btnBulkBarTag) {
-      btnBulkBarTag.addEventListener('click', () => Board.openBulkTagDialog());
+    const btnBulkBarFavorite = document.getElementById('btnBulkBarFavorite');
+    if (btnBulkBarFavorite) {
+      btnBulkBarFavorite.addEventListener('click', () => {
+        if (Board.toggleBulkSelectionFavorite) {
+          Board.toggleBulkSelectionFavorite();
+        }
+      });
     }
     if (btnBulkBarSelectVisible) {
       btnBulkBarSelectVisible.addEventListener('click', () => Board.selectAllVisible());
@@ -544,7 +572,7 @@
       }
 
       if (e.metaKey || e.ctrlKey || e.altKey || Modals.isAnyModalOpen()) return;
-      if (window.VG.TaskPage.isOpen() && (e.key === '/' || e.key === 't' || e.key === 'T')) return;
+      if (window.VG.TaskPage.isOpen() && (e.key === '/' || e.key === 't' || e.key === 'T' || e.key === 'f' || e.key === 'F')) return;
       const target = e.target;
       const isTyping = target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
       if (isTyping) return;
@@ -570,6 +598,11 @@
           Modals.openAuthModal('login');
         } else {
           Board.openBulkTagDialog();
+        }
+      } else if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        if (Board.toggleFavoriteFilter) {
+          Board.toggleFavoriteFilter();
         }
       }
     });

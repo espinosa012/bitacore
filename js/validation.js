@@ -207,6 +207,15 @@
         };
       });
 
+      const favorite = Boolean(
+        t.favorite !== undefined ? t.favorite :
+        (t.destacada !== undefined ? t.destacada :
+        (t.destacado !== undefined ? t.destacado :
+        (t.favorita !== undefined ? t.favorita :
+        (t.favorito !== undefined ? t.favorito :
+        (t.starred !== undefined ? t.starred : false)))))
+      );
+
       return {
         id,
         name,
@@ -214,6 +223,7 @@
         'openspec-id': openspecId,
         priority,
         status,
+        favorite,
         assignee,
         reporter,
         tags,

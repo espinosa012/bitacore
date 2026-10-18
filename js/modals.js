@@ -385,6 +385,23 @@
       });
     }
 
+    const btnEditToggleFav = document.getElementById('btnEditToggleFav');
+    if (btnEditToggleFav) {
+      btnEditToggleFav.addEventListener('click', () => {
+        const cb = document.getElementById('editTaskFavorite');
+        if (cb) {
+          cb.checked = !cb.checked;
+          updateEditFavBtn(cb.checked);
+        }
+      });
+    }
+    const editTaskFavorite = document.getElementById('editTaskFavorite');
+    if (editTaskFavorite) {
+      editTaskFavorite.addEventListener('change', () => {
+        updateEditFavBtn(editTaskFavorite.checked);
+      });
+    }
+
     // Cmd/Ctrl+Enter saves the edit modal (or posts the comment being written)
     if (modalEditOverlay) {
       modalEditOverlay.addEventListener('keydown', (e) => {
@@ -428,6 +445,8 @@
 
     if (createTaskForm) createTaskForm.reset();
     if (taskStateSelect) taskStateSelect.value = defaultState;
+    const newTaskFav = document.getElementById('newTaskFavorite');
+    if (newTaskFav) newTaskFav.checked = false;
     window.VG.Markdown.setValue(createDescEditor, document.getElementById('newTaskDesc'), '');
     if (createTagPicker) createTagPicker.setValue([]);
 
@@ -569,6 +588,8 @@
     const currentUser = window.VG.Auth && window.VG.Auth.getCurrentUser();
     const reporter = (currentUser && currentUser.username) ? currentUser.username : 'User';
     const assignee = assigneeInput && assigneeInput.value ? assigneeInput.value.trim() : null;
+    const favInput = document.getElementById('newTaskFavorite');
+    const favorite = favInput ? favInput.checked : false;
 
     const newTask = {
       id,
@@ -577,6 +598,7 @@
       'openspec-id': openspecInput.value.trim(),
       priority: canonicalPriority(prioInput.value),
       status: targetState,
+      favorite,
       assignee,
       reporter,
       tags: window.VG.Tags.ensure(createTagPicker ? createTagPicker.getValue() : []),
@@ -603,6 +625,21 @@
     window.VG.Board.renderBoard();
   }
 
+  function updateEditFavBtn(isFav) {
+    const btn = document.getElementById('btnEditToggleFav');
+    const label = document.getElementById('btnEditToggleFavText');
+    if (btn) {
+      btn.classList.toggle('yellow', isFav);
+      btn.classList.toggle('active', isFav);
+      btn.title = isFav ? 'Remove highlight (Favorite)' : 'Highlight task (Favorite)';
+      const icon = btn.querySelector('i.icon');
+      if (icon) icon.className = isFav ? 'star yellow icon' : 'star outline icon';
+    }
+    if (label) {
+      label.textContent = isFav ? 'Highlighted' : 'Highlight';
+    }
+  }
+
   function openEditModal(task) {
     activeEditingTaskId = task.id;
     lastFocusedCard = document.activeElement;
@@ -617,6 +654,10 @@
     document.getElementById('editTaskPriority').value = canonicalPriority(task.priority);
     document.getElementById('editTaskState').value = canonicalState(task.status);
     if (editTagPicker) editTagPicker.setValue(task.tags || []);
+
+    const editTaskFavCb = document.getElementById('editTaskFavorite');
+    if (editTaskFavCb) editTaskFavCb.checked = Boolean(task.favorite);
+    updateEditFavBtn(Boolean(task.favorite));
 
     const editAssigneeSelect = document.getElementById('editTaskAssignee');
     if (editAssigneeSelect) editAssigneeSelect.value = task.assignee || '';
@@ -673,6 +714,7 @@
       'openspec-id': document.getElementById('editTaskOpenspecId').value,
       priority: document.getElementById('editTaskPriority').value,
       status: document.getElementById('editTaskState').value,
+      favorite: document.getElementById('editTaskFavorite') ? document.getElementById('editTaskFavorite').checked : undefined,
       assignee: editAssigneeSelect ? editAssigneeSelect.value : undefined,
       tags: editTagPicker ? editTagPicker.getValue() : undefined
     };
@@ -699,6 +741,9 @@
     task['openspec-id'] = (fields['openspec-id'] || '').trim();
     task.priority = canonicalPriority(fields.priority);
     task.status = newStatus;
+    if (fields.favorite !== undefined) {
+      task.favorite = Boolean(fields.favorite);
+    }
     if (fields.assignee !== undefined) {
       task.assignee = (fields.assignee && fields.assignee.trim()) ? fields.assignee.trim() : null;
     }
