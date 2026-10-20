@@ -43,9 +43,26 @@
     cm.focus();
   }
 
-  function buildToolbar(full) {
+  function buildToolbar(opts) {
+    const options = typeof opts === 'boolean' ? { full: opts } : (opts || {});
     const E = window.EasyMDE;
     const item = (name, action, title, icon, extra = {}) => ({ name, action, title, icon, className: `vg-md-${name}`, ...extra });
+
+    if (options.compact) {
+      return [
+        item('bold', E.toggleBold, 'Bold (Ctrl/Cmd+B)', ICONS.bold),
+        item('italic', E.toggleItalic, 'Italic (Ctrl/Cmd+I)', ICONS.italic),
+        '|',
+        item('quote', E.toggleBlockquote, 'Quote', ICONS.quote),
+        item('unordered-list', E.toggleUnorderedList, 'Bulleted list', ICONS.unorderedList),
+        '|',
+        item('code', E.toggleCodeBlock, 'Code', ICONS.code),
+        item('link', E.drawLink, 'Link (Ctrl/Cmd+K)', ICONS.link),
+        '|',
+        item('preview', E.togglePreview, 'Toggle preview (Ctrl/Cmd+P)', ICONS.preview, { noDisable: true })
+      ];
+    }
+
     const tools = [
       item('bold', E.toggleBold, 'Bold (Ctrl/Cmd+B)', ICONS.bold),
       item('italic', E.toggleItalic, 'Italic (Ctrl/Cmd+I)', ICONS.italic),
@@ -64,7 +81,7 @@
       '|',
       item('preview', E.togglePreview, 'Toggle preview (Ctrl/Cmd+P)', ICONS.preview, { noDisable: true })
     ];
-    if (full) {
+    if (options.full) {
       // Side-by-side and fullscreen use position: fixed, which breaks inside
       // transformed modals, so they are only offered on the task page.
       tools.push(
@@ -97,10 +114,53 @@
     return window.DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
   }
 
+  let rendererInstance = null;
+  function getRenderer() {
+    if (rendererInstance) return rendererInstance;
+    if (window.EasyMDE) {
+      rendererInstance = {
+        options: {
+          renderingConfig: {
+            singleLineBreaks: true,
+            codeSyntaxHighlighting: false,
+            sanitizerFunction: sanitize
+          }
+        }
+      };
+    }
+    return rendererInstance;
+  }
+
+  /**
+   * Renders a markdown string to sanitized HTML.
+   * @param {string} md
+   * @returns {string} sanitized HTML
+   */
+  function render(md) {
+    if (!md || !String(md).trim()) return '';
+    const text = String(md);
+    if (window.EasyMDE && window.EasyMDE.prototype && window.EasyMDE.prototype.markdown) {
+      try {
+        const rawHtml = window.EasyMDE.prototype.markdown.call(getRenderer(), text);
+        if (rawHtml) {
+          if (typeof DOMParser !== 'undefined') {
+            const doc = new DOMParser().parseFromString(rawHtml, 'text/html');
+            const bodyContent = doc.body ? doc.body.innerHTML : rawHtml;
+            return sanitize(bodyContent);
+          }
+          return sanitize(rawHtml);
+        }
+      } catch (err) {
+        console.warn('Error parsing markdown:', err);
+      }
+    }
+    return sanitize(`<p>${window.VG.Constants ? window.VG.Constants.escapeHtml(text) : text}</p>`);
+  }
+
   /**
    * Turns a <textarea> into a markdown editor.
    * @param {HTMLTextAreaElement} textarea
-   * @param {{ full?: boolean, minHeight?: string, placeholder?: string }} options
+   * @param {{ full?: boolean, compact?: boolean, minHeight?: string, placeholder?: string, onSubmit?: (editor: any) => void }} options
    */
   function createEditor(textarea, options = {}) {
     if (!textarea) return null;
@@ -109,16 +169,17 @@
       return null;
     }
 
-    return new window.EasyMDE({
+    const defaultMinHeight = options.compact ? '85px' : '140px';
+    const editor = new window.EasyMDE({
       element: textarea,
       autoDownloadFontAwesome: false,
       spellChecker: false,
       nativeSpellcheck: true,
       status: false,
       forceSync: true,
-      minHeight: options.minHeight || '140px',
+      minHeight: options.minHeight || defaultMinHeight,
       placeholder: options.placeholder || textarea.getAttribute('placeholder') || '',
-      toolbar: buildToolbar(!!options.full),
+      toolbar: buildToolbar(options),
       toolbarTips: true,
       sideBySideFullscreen: false,
       indentWithTabs: false,
@@ -134,6 +195,22 @@
         toggleFullScreen: options.full ? 'F11' : null
       }
     });
+
+    if (options.compact && editor.element && editor.element.nextSibling) {
+      const container = editor.element.nextSibling;
+      if (container && container.classList) {
+        container.classList.add('vg-editor-compact');
+      }
+    }
+
+    if (options.onSubmit && editor.codemirror) {
+      editor.codemirror.setOption('extraKeys', Object.assign({}, editor.codemirror.getOption('extraKeys'), {
+        'Ctrl-Enter': () => options.onSubmit(editor),
+        'Cmd-Enter': () => options.onSubmit(editor)
+      }));
+    }
+
+    return editor;
   }
 
   /** Sets an editor's (or fallback textarea's) value and re-measures it once visible */
@@ -178,6 +255,7 @@
     setValue,
     getValue,
     sanitize,
+    render,
     toPlainText
   };
 })();

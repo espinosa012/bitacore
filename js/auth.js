@@ -181,6 +181,10 @@
     return currentUser;
   }
 
+  function isAdmin() {
+    return Boolean(currentUser && currentUser.isAdmin);
+  }
+
   function setCurrentUser(user) {
     currentUser = user || null;
     try {
@@ -194,9 +198,30 @@
   }
 
   /**
-   * Register a new user in MongoDB Atlas via vg-mongo-proxy
+   * Check if bootstrap setup is needed (zero users in database)
    */
-  async function register(username, password) {
+  async function checkBootstrapNeeded() {
+    if (!window.VG.MongoSync || !window.VG.MongoSync.isConnected()) {
+      return false;
+    }
+    try {
+      const res = await window.VG.MongoSync.action('count', 'users', { filter: {} });
+      return Boolean(res && (res.count === 0 || res.total === 0));
+    } catch (err) {
+      // If count is not directly supported by proxy, try findOne
+      try {
+        const anyUser = await window.VG.MongoSync.action('findOne', 'users', { filter: {} });
+        return !anyUser || !anyUser.document;
+      } catch (e) {
+        return false;
+      }
+    }
+  }
+
+  /**
+   * Bootstrap initial administrator when no users exist
+   */
+  async function bootstrapAdmin(username, password) {
     const cleanUser = (username || '').trim();
     if (!cleanUser || cleanUser.length < 2 || cleanUser.length > 40) {
       throw new Error('Username must be between 2 and 40 characters.');
@@ -209,29 +234,23 @@
     }
 
     if (!window.VG.MongoSync || !window.VG.MongoSync.isConnected()) {
-      throw new Error('Not connected to MongoDB proxy. Please connect first.');
+      throw new Error('Not connected to MongoDB. Please connect first.');
     }
 
-    const lower = cleanUser.toLowerCase();
-
-    // Check if username already exists
-    const existing = await window.VG.MongoSync.action('findOne', 'users', {
-      filter: { usernameLower: lower }
-    });
-
-    if (existing && existing.document) {
-      throw new Error('Username is already taken. Please choose another or log in.');
+    const needed = await checkBootstrapNeeded();
+    if (!needed) {
+      throw new Error('Bootstrap setup is disabled because users already exist. Please log in.');
     }
 
     const passwordHash = await hashPassword(password);
     const createdAtIso = new Date().toISOString();
-
     const projects = ['project-ludum'];
     const userDoc = {
       username: cleanUser,
-      usernameLower: lower,
+      usernameLower: cleanUser.toLowerCase(),
       password: passwordHash,
       projects: projects,
+      isAdmin: true,
       createdAt: { '$date': createdAtIso }
     };
 
@@ -239,7 +258,7 @@
       document: userDoc
     });
 
-    const userObj = { username: cleanUser, projects, createdAt: createdAtIso };
+    const userObj = { username: cleanUser, projects, isAdmin: true, createdAt: createdAtIso };
     setCurrentUser(userObj);
     await fetchUsers().catch(() => {});
     return userObj;
@@ -254,7 +273,7 @@
     if (!password) throw new Error('Password is required.');
 
     if (!window.VG.MongoSync || !window.VG.MongoSync.isConnected()) {
-      throw new Error('Not connected to MongoDB proxy. Please connect first.');
+      throw new Error('Not connected to MongoDB. Please connect first.');
     }
 
     const lower = cleanUser.toLowerCase();
@@ -281,7 +300,12 @@
       ? userDoc.projects
       : ['project-ludum'];
 
-    const userObj = { username: userDoc.username, projects, createdAt };
+    const userObj = {
+      username: userDoc.username,
+      projects,
+      isAdmin: Boolean(userDoc.isAdmin),
+      createdAt
+    };
     setCurrentUser(userObj);
     await fetchUsers().catch(() => {});
     return userObj;
@@ -293,13 +317,117 @@
 
   function getUserProjects() {
     if (!currentUser) return [];
+    if (currentUser.isAdmin) {
+      return ['*'];
+    }
     return Array.isArray(currentUser.projects) && currentUser.projects.length > 0
       ? currentUser.projects
       : ['project-ludum'];
   }
 
   /**
-   * Fetch all registered users for task assignment dropdowns and filters
+   * Admin: Create a new user with assigned projects
+   */
+  async function adminCreateUser(username, password, projects = ['project-ludum'], makeAdmin = false) {
+    if (!isAdmin()) {
+      throw new Error('Access denied. Administrator privileges required.');
+    }
+    const cleanUser = (username || '').trim();
+    if (!cleanUser || cleanUser.length < 2 || cleanUser.length > 40) {
+      throw new Error('Username must be between 2 and 40 characters.');
+    }
+    if (!/^[\w.-]+$/.test(cleanUser)) {
+      throw new Error('Username can only contain letters, numbers, underscores, dots, and hyphens.');
+    }
+    if (!password || password.length < 3) {
+      throw new Error('Password must be at least 3 characters long.');
+    }
+
+    const lower = cleanUser.toLowerCase();
+    const existing = await window.VG.MongoSync.action('findOne', 'users', {
+      filter: { usernameLower: lower }
+    });
+    if (existing && existing.document) {
+      throw new Error(`Username "${cleanUser}" is already taken.`);
+    }
+
+    const passwordHash = await hashPassword(password);
+    const createdAtIso = new Date().toISOString();
+    const assignedProjects = Array.isArray(projects) && projects.length > 0 ? projects : ['project-ludum'];
+    const userDoc = {
+      username: cleanUser,
+      usernameLower: lower,
+      password: passwordHash,
+      projects: assignedProjects,
+      isAdmin: Boolean(makeAdmin),
+      createdAt: { '$date': createdAtIso }
+    };
+
+    await window.VG.MongoSync.action('insertOne', 'users', {
+      document: userDoc
+    });
+    await fetchUsers().catch(() => {});
+    return { username: cleanUser, projects: assignedProjects, isAdmin: Boolean(makeAdmin), createdAt: createdAtIso };
+  }
+
+  /**
+   * Admin: Update user projects, admin status, or password
+   */
+  async function adminUpdateUser(username, updateData = {}) {
+    if (!isAdmin()) {
+      throw new Error('Access denied. Administrator privileges required.');
+    }
+    const cleanUser = (username || '').trim();
+    const lower = cleanUser.toLowerCase();
+
+    const setFields = {};
+    if (Array.isArray(updateData.projects)) {
+      setFields.projects = updateData.projects;
+    }
+    if (typeof updateData.isAdmin === 'boolean') {
+      setFields.isAdmin = updateData.isAdmin;
+    }
+    if (updateData.password && updateData.password.length >= 3) {
+      setFields.password = await hashPassword(updateData.password);
+    }
+    setFields.updatedAt = { '$date': new Date().toISOString() };
+
+    await window.VG.MongoSync.action('updateOne', 'users', {
+      filter: { usernameLower: lower },
+      update: { $set: setFields }
+    });
+
+    // If updating current user's profile, update session
+    if (currentUser && currentUser.username.toLowerCase() === lower) {
+      if (setFields.projects) currentUser.projects = setFields.projects;
+      if (typeof setFields.isAdmin === 'boolean') currentUser.isAdmin = setFields.isAdmin;
+      setCurrentUser(currentUser);
+    }
+
+    await fetchUsers().catch(() => {});
+    return true;
+  }
+
+  /**
+   * Admin: Delete user account
+   */
+  async function adminDeleteUser(username) {
+    if (!isAdmin()) {
+      throw new Error('Access denied. Administrator privileges required.');
+    }
+    const cleanUser = (username || '').trim();
+    if (currentUser && currentUser.username.toLowerCase() === cleanUser.toLowerCase()) {
+      throw new Error('You cannot delete your own administrator account.');
+    }
+    await window.VG.MongoSync.action('deleteOne', 'users', {
+      filter: { usernameLower: cleanUser.toLowerCase() }
+    });
+    await fetchUsers().catch(() => {});
+    return true;
+  }
+
+  /**
+   * Fetch all registered users for task assignment dropdowns and admin panel
    */
   async function fetchUsers() {
     if (!window.VG.MongoSync || !window.VG.MongoSync.isConnected()) {
@@ -318,6 +446,7 @@
         cachedUsers = res.documents.map(u => ({
           username: u.username,
           projects: Array.isArray(u.projects) && u.projects.length > 0 ? u.projects : ['project-ludum'],
+          isAdmin: Boolean(u.isAdmin),
           createdAt: (u.createdAt && u.createdAt.$date) ? u.createdAt.$date : u.createdAt
         }));
       }
@@ -335,10 +464,15 @@
   window.VG.Auth = {
     getCurrentUser,
     setCurrentUser,
-    register,
+    isAdmin,
+    checkBootstrapNeeded,
+    bootstrapAdmin,
     login,
     logout,
     getUserProjects,
+    adminCreateUser,
+    adminUpdateUser,
+    adminDeleteUser,
     fetchUsers,
     getCachedUsers,
     onAuthChange

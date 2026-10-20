@@ -3,7 +3,7 @@
  */
 (function() {
   window.VG = window.VG || {};
-  const { STATES, PRIORITIES, TASK_TYPES, canonicalState, canonicalPriority, canonicalTaskType, escapeHtml, escapeCss, formatRelativeTime } = window.VG.Constants;
+  const { STATES, PRIORITIES, TASK_TYPES, canonicalState, canonicalPriority, canonicalTaskType, formatTaskId, escapeHtml, escapeCss, formatRelativeTime } = window.VG.Constants;
   const Storage = window.VG.Storage;
 
   let collapsedColumns = Storage.loadCollapsedColumns();
@@ -273,10 +273,15 @@
         : 'Filter tasks by type, priority, tag, or user';
     }
 
-    // Update header statistics
+    // Update board statistics
     if (taskStatsCounter) {
       const shownStr = hasActiveFilter ? ` (${counts.shown} shown)` : '';
       taskStatsCounter.textContent = `${counts.total} tasks${shownStr} · ${counts['in progress']} in progress · ${counts.blocked} blocked`;
+    }
+    const boardStatsBar = document.getElementById('boardStatsBar');
+    const kanbanBoardEl = document.getElementById('kanbanBoard');
+    if (boardStatsBar && kanbanBoardEl) {
+      boardStatsBar.style.display = kanbanBoardEl.style.display === 'none' ? 'none' : 'flex';
     }
 
     // Update Clear Filters button
@@ -348,6 +353,7 @@
     const commentsCount = task.comments ? task.comments.length : 0;
     const historyCount = task.history ? task.history.length : 0;
     const attachmentsCount = task.attachments ? task.attachments.length : 0;
+    const linkedCount = Array.isArray(task.linkedTaskIds) ? task.linkedTaskIds.length : 0;
     const lastUpdateStr = formatRelativeTime(task.updated_at || task.created_at);
     const descText = window.VG.Markdown.toPlainText(task.description);
     const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -366,8 +372,8 @@
             <i class="${prioMeta.icon} icon"></i>${escapeHtml(prioMeta.label)}
           </span>
           ${parentTask ? `
-            <span class="ui mini basic inverted blue label card-parent-badge" style="cursor: pointer;" title="Subtask of #${escapeHtml(parentTask.id.slice(-6))}: ${escapeHtml(parentTask.name)}">
-              <i class="level up alternate icon"></i>#${escapeHtml(parentTask.id.slice(-6))}
+            <span class="ui mini basic inverted blue label card-parent-badge" style="cursor: pointer;" title="Subtask of #${escapeHtml(formatTaskId(parentTask.id))}: ${escapeHtml(parentTask.name)}">
+              <i class="level up alternate icon"></i>#${escapeHtml(formatTaskId(parentTask.id))}
             </span>` : ''}
           ${task.assignee ? `
             <span class="card-assignee" title="Assigned to ${escapeHtml(task.assignee)}">
@@ -377,7 +383,7 @@
             <span class="ui mini basic inverted teal label card-openspec" title="OpenSpec: ${escapeHtml(openSpecId)}">
               <i class="file alternate outline icon"></i>${escapeHtml(openSpecId)}
             </span>` : ''}
-          <span class="card-id">#${escapeHtml(task.id.slice(-6))}</span>
+          <span class="card-id">#${escapeHtml(formatTaskId(task.id))}</span>
         </div>
         <div class="header card-title">${highlight(task.name, query)}</div>
         ${descText ? `<div class="description card-desc">${highlight(descText, query)}</div>` : ''}
@@ -386,6 +392,7 @@
       <div class="extra content card-footer">
         <span class="card-meta">
           ${totalSubtasks > 0 ? `<span class="card-subtask-progress" title="${doneSubtasks} of ${totalSubtasks} subtasks completed" style="color: ${doneSubtasks === totalSubtasks ? '#2ecc40' : '#00b5ad'}; font-weight: 500;"><i class="sitemap icon"></i>${doneSubtasks}/${totalSubtasks} subtasks</span>` : ''}
+          ${linkedCount > 0 ? `<span class="card-linked-tasks" title="${plural(linkedCount, 'linked task')}"><i class="linkify icon"></i>${linkedCount}</span>` : ''}
           ${attachmentsCount > 0 ? `<span title="${plural(attachmentsCount, 'attachment')}"><i class="paperclip icon"></i>${attachmentsCount}</span>` : ''}
           ${commentsCount > 0 ? `<span title="${plural(commentsCount, 'comment')}"><i class="comment outline icon"></i>${commentsCount}</span>` : ''}
           <span title="${plural(historyCount, 'transition')}"><i class="history icon"></i>${historyCount}</span>

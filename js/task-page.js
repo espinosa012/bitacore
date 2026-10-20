@@ -8,7 +8,7 @@
  */
 (function() {
   window.VG = window.VG || {};
-  const { STATES, PRIORITIES, TASK_TYPES, canonicalState, canonicalPriority, canonicalTaskType, escapeHtml, formatRelativeTime, formatFileSize, getFileIcon, validateSubtaskRelationship, getEligibleSubtasks } = window.VG.Constants;
+  const { STATES, PRIORITIES, TASK_TYPES, canonicalState, canonicalPriority, canonicalTaskType, escapeHtml, formatRelativeTime, formatFileSize, getFileIcon, validateSubtaskRelationship, getEligibleSubtasks, linkTasks, unlinkTasks, formatTaskId } = window.VG.Constants;
   const Storage = window.VG.Storage;
   const Attachments = window.VG.Attachments;
   const Markdown = window.VG.Markdown;
@@ -20,6 +20,7 @@
 
   let currentTaskId = null;
   let descEditor = null;
+  let commentEditor = null;
   let tagPicker = null;
   let pendingDraft = null;       // fields carried over from the edit modal
   let cameFromBoard = false;     // true when history.back() returns to the board
@@ -161,6 +162,7 @@
   }
 
   function leaveToBoard() {
+    if (Attachments && Attachments.closeImageViewer) Attachments.closeImageViewer();
     if (cameFromBoard && window.history.length > 1) {
       ignoreNextHashChange = true;
       showBoard();
@@ -222,6 +224,7 @@
     pendingDraft = null;
 
     renderParentBanner(task);
+    renderLinkedTasks(task);
     renderSubtasks(task);
     renderAttachments(task);
     renderComments(task);
@@ -232,12 +235,21 @@
     if (switching) {
       window.scrollTo(0, 0);
       setTimeout(() => descEditor && descEditor.codemirror.refresh(), 60);
+      if (commentEditor) {
+        Markdown.setValue(commentEditor, el('pageCommentText'), '');
+        if (commentEditor.isPreviewActive && commentEditor.isPreviewActive()) {
+          window.EasyMDE.togglePreview(commentEditor);
+        }
+      }
     }
   }
 
   function showBoard() {
     if (descEditor && descEditor.isFullscreenActive && descEditor.isFullscreenActive()) {
       window.EasyMDE.toggleFullScreen(descEditor);
+    }
+    if (commentEditor && commentEditor.isPreviewActive && commentEditor.isPreviewActive()) {
+      window.EasyMDE.togglePreview(commentEditor);
     }
     currentTaskId = null;
     pendingDraft = null;
@@ -279,6 +291,7 @@
     window.VG.App.persistChanges('Task updated successfully');
     document.title = `${task.name} · ${BASE_TITLE}`;
     renderParentBanner(task);
+    renderLinkedTasks(task);
     renderSubtasks(task);
     renderSidebar(task);
     updateDirtyState();
@@ -323,17 +336,21 @@
   }
 
   function postComment(e) {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     const task = getCurrentTask();
     const textInput = el('pageCommentText');
-    const text = textInput.value.trim();
+    const text = (commentEditor ? Markdown.getValue(commentEditor, textInput) : textInput.value).trim();
     if (!task || !text) return;
 
     const currentUser = window.VG.Auth && window.VG.Auth.getCurrentUser();
     const authorName = (currentUser && currentUser.username) ? currentUser.username : (el('pageCommentAuthor').value || 'User');
 
     window.VG.Modals.addComment(task, authorName, text);
-    textInput.value = '';
+    if (commentEditor) {
+      Markdown.setValue(commentEditor, textInput, '');
+    } else {
+      textInput.value = '';
+    }
     renderComments(task);
     renderSidebar(task);
     window.VG.App.persistChanges('Comment added');
@@ -375,6 +392,11 @@
       const card = document.createElement('div');
       card.className = 'card page-attachment';
       const title = att.name && att.name !== att.filename ? att.name : '';
+      const viewType = Attachments.getSafeViewType(att);
+      const isImage = viewType && viewType.startsWith('image/');
+      const openTitle = isImage ? 'Ver en grande' : 'Open in a new tab';
+      const openIcon = isImage ? 'expand' : 'external alternate';
+
       card.innerHTML = `
         <div class="image page-attachment-preview" data-preview>
           <i class="huge grey ${getFileIcon(att.filename)} icon"></i>
@@ -389,14 +411,13 @@
           · <span title="${escapeHtml(new Date(att.created_at).toLocaleString())}">${formatRelativeTime(att.created_at)}</span>
         </div>
         <div class="ui bottom attached four mini basic inverted buttons">
-          <button type="button" class="ui icon button" data-action="open" title="Open in a new tab" aria-label="Open"><i class="external alternate icon"></i></button>
+          <button type="button" class="ui icon button" data-action="open" title="${openTitle}" aria-label="${openTitle}"><i class="${openIcon} icon"></i></button>
           <button type="button" class="ui icon button" data-action="download" title="Download file" aria-label="Download"><i class="download icon"></i></button>
           <button type="button" class="ui icon button" data-action="edit" title="Edit name & description" aria-label="Edit details"><i class="pencil alternate icon"></i></button>
           <button type="button" class="ui icon button" data-action="delete" title="Delete attachment" aria-label="Delete"><i class="red trash alternate outline icon"></i></button>
         </div>
       `;
 
-      const viewType = Attachments.getSafeViewType(att);
       const openBtn = card.querySelector('[data-action="open"]');
       if (!viewType) openBtn.classList.add('disabled');
 
@@ -407,7 +428,11 @@
         const action = btn ? btn.getAttribute('data-action') : 'open';
 
         if (action === 'open') {
-          Attachments.openOrDownloadAttachment(task, att);
+          if (isImage) {
+            Attachments.showImageAttachment(task, att.id || att.filename);
+          } else {
+            Attachments.openOrDownloadAttachment(task, att);
+          }
         } else if (action === 'download') {
           Attachments.openOrDownloadAttachment(task, att, true);
         } else if (action === 'edit') {
@@ -430,12 +455,12 @@
 
   /** Fills an attachment's preview area from its stored blob */
   async function loadPreview(task, att, viewType, container, token) {
-    const blob = await Storage.getAttachmentBlob(task.id, att.filename);
+    const blob = await Attachments.getAttachmentBlob(task, att);
     if (token !== renderToken) return;
 
     if (!blob) {
       container.classList.add('is-missing');
-      container.insertAdjacentHTML('beforeend', '<span class="ui mini basic inverted label page-attachment-missing">Not available locally</span>');
+      container.insertAdjacentHTML('beforeend', '<span class="ui mini basic inverted label page-attachment-missing">Not available</span>');
       return;
     }
 
@@ -447,6 +472,7 @@
       img.src = makeObjectUrl(blob, viewType);
       container.replaceChildren(img);
       container.classList.add('is-clickable');
+      container.title = 'Clic para ver en grande';
     } else if (viewType && viewType.startsWith('text/')) {
       const text = await blob.slice(0, TEXT_PREVIEW_BYTES).text();
       if (token !== renderToken) return;
@@ -516,7 +542,7 @@
       if (parentTask) {
         banner.style.display = 'block';
         if (link) {
-          link.textContent = `#${parentTask.id.slice(-6)}: ${parentTask.name}`;
+          link.textContent = `#${formatTaskId(parentTask.id)}: ${parentTask.name}`;
           link.onclick = () => open(parentTask.id);
         }
         if (status) {
@@ -541,6 +567,93 @@
     }
   }
 
+  function renderLinkedTasks(task) {
+    const listEl = el('pageLinkedTasksList');
+    const titleEl = el('pageLinkedTasksTitle');
+    const linkSelect = el('pageLinkTaskSelect');
+    if (!listEl) return;
+
+    const allTasks = window.VG.App.getTasks();
+    const linkedIds = Array.isArray(task.linkedTaskIds) ? task.linkedTaskIds : [];
+    const linkedTasks = linkedIds.map(id => allTasks.find(t => t.id === id)).filter(Boolean);
+
+    if (titleEl) {
+      titleEl.textContent = `Tareas Enlazadas (${linkedTasks.length})`;
+    }
+
+    if (linkSelect) {
+      const eligible = allTasks.filter(t => t.id !== task.id && !linkedIds.includes(t.id));
+      linkSelect.innerHTML = '<option value="">Seleccionar tarea para enlazar...</option>' +
+        eligible.map(t => `<option value="${escapeHtml(t.id)}">#${formatTaskId(t.id)} - ${escapeHtml(t.name)} (${t.status})</option>`).join('');
+    }
+
+    if (linkedTasks.length === 0) {
+      listEl.innerHTML = '<div class="ui message empty-message" style="background: rgba(255,255,255,0.05); color: #a0aec0; padding: 8px 12px; margin: 0;">No hay tareas enlazadas. Puedes enlazar una tarea existente arriba.</div>';
+      return;
+    }
+
+    listEl.innerHTML = linkedTasks.map(linked => {
+      const typeMeta = TASK_TYPES[canonicalTaskType(linked.type)] || TASK_TYPES['task'] || Object.values(TASK_TYPES)[0] || { label: linked.type, icon: 'tasks', color: 'grey' };
+      const stId = canonicalState(linked.status);
+      const stColor = STATES.find(s => s.id === stId)?.color || 'grey';
+      const isDone = stId === 'done';
+      return `
+        <div class="item linked-task-list-item" style="padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;">
+            <span class="ui mini ${typeMeta.color} label" title="Type: ${typeMeta.label}">
+              <i class="${typeMeta.icon} icon"></i>${escapeHtml(typeMeta.label)}
+            </span>
+            <span class="ui mini ${stColor} label">${escapeHtml(linked.status)}</span>
+            <a href="javascript:void(0)" class="linked-page-link" data-linked-id="${escapeHtml(linked.id)}" style="font-weight: 500; color: #fff; text-decoration: ${isDone ? 'line-through' : 'none'}; opacity: ${isDone ? 0.7 : 1}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              #${escapeHtml(formatTaskId(linked.id))} ${escapeHtml(linked.name)}
+            </a>
+          </div>
+          <div>
+            <button type="button" class="ui mini compact basic inverted icon button linked-unlink-btn" data-linked-id="${escapeHtml(linked.id)}" title="Desenlazar tarea">
+              <i class="unlink icon"></i>
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    listEl.querySelectorAll('.linked-page-link').forEach(a => {
+      a.addEventListener('click', () => {
+        const linkedId = a.getAttribute('data-linked-id');
+        open(linkedId);
+      });
+    });
+
+    listEl.querySelectorAll('.linked-unlink-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const linkedId = btn.getAttribute('data-linked-id');
+        unlinkTasks(task.id, linkedId, allTasks);
+        window.VG.App.persistChanges('Task unlinked');
+        renderLinkedTasks(task);
+        if (window.VG.Board) window.VG.Board.renderBoard();
+      });
+    });
+  }
+
+  function handleLinkTask() {
+    const task = getCurrentTask();
+    if (!task) return;
+    const linkSelect = el('pageLinkTaskSelect');
+    const selectedId = linkSelect ? linkSelect.value : '';
+    if (!selectedId) return;
+
+    const allTasks = window.VG.App.getTasks();
+    const res = linkTasks(task.id, selectedId, allTasks);
+    if (!res.success) {
+      UI.toast(res.error || 'Failed to link task', 'error');
+      return;
+    }
+
+    window.VG.App.persistChanges('Task linked');
+    renderLinkedTasks(task);
+    if (window.VG.Board) window.VG.Board.renderBoard();
+  }
+
   function renderSubtasks(task) {
     const listEl = el('pageSubtasksList');
     const titleEl = el('pageSubtasksTitle');
@@ -556,8 +669,8 @@
 
     if (linkSelect) {
       const eligible = getEligibleSubtasks(task.id, allTasks);
-      linkSelect.innerHTML = '<option value="">Select an existing task to link...</option>' +
-        eligible.map(t => `<option value="${escapeHtml(t.id)}">#${t.id.slice(-6)} - ${escapeHtml(t.name)} (${t.status})</option>`).join('');
+      linkSelect.innerHTML = '<option value="">Seleccionar tarea para asignar como subtarea...</option>' +
+        eligible.map(t => `<option value="${escapeHtml(t.id)}">#${formatTaskId(t.id)} - ${escapeHtml(t.name)} (${t.status})</option>`).join('');
     }
 
     if (subtasks.length === 0) {
@@ -578,7 +691,7 @@
             </span>
             <span class="ui mini ${stColor} label">${escapeHtml(sub.status)}</span>
             <a href="javascript:void(0)" class="subtask-page-link" data-subtask-id="${escapeHtml(sub.id)}" style="font-weight: 500; color: #fff; text-decoration: ${isDone ? 'line-through' : 'none'}; opacity: ${isDone ? 0.7 : 1}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-              #${escapeHtml(sub.id.slice(-6))} ${escapeHtml(sub.name)}
+              #${escapeHtml(formatTaskId(sub.id))} ${escapeHtml(sub.name)}
             </a>
           </div>
           <div>
@@ -624,9 +737,12 @@
     const now = new Date().toISOString();
     const currentUser = window.VG.Auth && window.VG.Auth.getCurrentUser();
     const reporter = (currentUser && currentUser.username) ? currentUser.username : 'User';
+    const subId = (window.VG.App && window.VG.App.getNextTaskId)
+      ? window.VG.App.getNextTaskId()
+      : window.VG.Constants.generateSequentialTaskId(allTasks, 'lud-');
 
     const newSub = {
-      id: window.VG.Constants.generateId('task'),
+      id: subId,
       name: title,
       description: '',
       'openspec-id': '',
@@ -644,7 +760,7 @@
         from_status: null,
         to_status: 'planned',
         timestamp: now,
-        reason: `Subtask of #${task.id}`,
+        reason: `Subtask of #${formatTaskId(task.id)}`,
         user: (currentUser && currentUser.username) ? currentUser.username : null
       }],
       comments: [],
@@ -746,6 +862,8 @@
     }
     const btnLink = el('btnPageLinkExistingSubtask');
     if (btnLink) btnLink.addEventListener('click', handleLinkExistingSubtask);
+    const btnLinkTask = el('btnPageLinkTask');
+    if (btnLinkTask) btnLinkTask.addEventListener('click', handleLinkTask);
 
     const pageFavBtn = el('pageFavBtn');
     if (pageFavBtn) {
@@ -802,6 +920,16 @@
     // Comments
     el('pageCommentAuthor').value = window.VG.Modals.getSavedCommentAuthor() || 'OpenCode';
     el('pageCommentForm').addEventListener('submit', postComment);
+
+    commentEditor = Markdown.createEditor(el('pageCommentText'), {
+      compact: true,
+      minHeight: '85px',
+      onSubmit: () => {
+        const form = el('pageCommentForm');
+        if (form) form.requestSubmit();
+      }
+    });
+
     el('pageCommentText').addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
@@ -812,10 +940,27 @@
     // Ctrl/Cmd+S and Ctrl/Cmd+Enter save the task fields
     el('taskPage').addEventListener('keydown', (e) => {
       if (!(e.metaKey || e.ctrlKey)) return;
-      const isSave = e.key === 's' || e.key === 'S' || (e.key === 'Enter' && e.target.id !== 'pageCommentText');
+      const isCommentInput = e.target && (
+        e.target.id === 'pageCommentText' ||
+        (commentEditor && commentEditor.codemirror && commentEditor.codemirror.getWrapperElement().contains(e.target))
+      );
+      const isSave = e.key === 's' || e.key === 'S' || (e.key === 'Enter' && !isCommentInput);
       if (isSave) {
         e.preventDefault();
         save();
+      }
+    });
+
+    // Clicking rendered images in markdown comments or description opens lightbox
+    el('taskPage').addEventListener('click', (e) => {
+      const img = e.target.closest('.editor-preview img, #pageCommentsList .comment img');
+      if (!img || img.classList.contains('avatar') || img.closest('[data-preview]')) return;
+      if (Attachments && Attachments.showSingleImage) {
+        Attachments.showSingleImage({
+          src: img.src,
+          title: img.alt || 'Imagen',
+          filename: img.alt || 'image'
+        });
       }
     });
 

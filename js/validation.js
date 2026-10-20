@@ -138,6 +138,16 @@
           }
         }
       }
+
+      const rawLinked = item.linkedTaskIds !== undefined ? item.linkedTaskIds : (item.linked_tasks !== undefined ? item.linked_tasks : (item.tareas_enlazadas !== undefined ? item.tareas_enlazadas : item.enlaces));
+      if (rawLinked !== undefined && rawLinked !== null) {
+        if (!Array.isArray(rawLinked) || !rawLinked.every(id => typeof id === 'string' && id.trim().length > 0)) {
+          return {
+            valid: false,
+            error: `Invalid task #${num} ("${taskName}"): 'linkedTaskIds' must be an array of task ID strings.`
+          };
+        }
+      }
     }
 
     return { valid: true, list, tags: Array.isArray(rawTags) ? rawTags : [] };
@@ -157,7 +167,10 @@
       // Ids name the attachments/<taskId>/ folder: they must be unique and path-safe
       let id = t.id !== undefined && t.id !== null ? String(t.id).trim() : '';
       if (!isSafeId(id) || seenIds.has(id)) {
-        id = window.VG.Constants.generateId('task');
+        const format = (window.VG.App && window.VG.App.getActiveProjectTaskIdFormat && window.VG.App.getActiveProjectTaskIdFormat()) || 'lud-';
+        id = window.VG.Constants.generateSequentialTaskId
+          ? window.VG.Constants.generateSequentialTaskId(list, format)
+          : window.VG.Constants.generateId('task');
       }
       seenIds.add(id);
       const name = (t.name !== undefined ? t.name : t.nombre) || 'Untitled';
@@ -173,6 +186,13 @@
       const parentId = (typeof rawParentId === 'string' && rawParentId.trim().length > 0) ? rawParentId.trim() : null;
       const createdAt = t.created_at || t.creada_en || new Date().toISOString();
       const updatedAt = t.updated_at || t.actualizada_en || new Date().toISOString();
+
+      // Board position: saved so a reload restores the exact order left by the
+      // user, including manual drag-and-drop moves.
+      const rawBoardOrder = t.board_order !== undefined ? t.board_order
+        : (t.boardOrder !== undefined ? t.boardOrder : null);
+      const boardOrderNum = (rawBoardOrder === null || rawBoardOrder === '') ? NaN : Number(rawBoardOrder);
+      const boardOrder = Number.isFinite(boardOrderNum) ? boardOrderNum : null;
 
       // Assignee and Reporter normalization
       const rawAssignee = t.assignee !== undefined ? t.assignee : (t.asignado_a !== undefined ? t.asignado_a : (t.asignado !== undefined ? t.asignado : null));
@@ -237,6 +257,11 @@
         (t.starred !== undefined ? t.starred : false)))))
       );
 
+      const rawLinked = t.linkedTaskIds !== undefined ? t.linkedTaskIds : (t.linked_tasks !== undefined ? t.linked_tasks : (t.tareas_enlazadas !== undefined ? t.tareas_enlazadas : (t.enlaces !== undefined ? t.enlaces : [])));
+      const linkedTaskIds = Array.isArray(rawLinked)
+        ? Array.from(new Set(rawLinked.filter(id => typeof id === 'string' && id.trim().length > 0).map(id => id.trim())))
+        : [];
+
       return {
         id,
         name,
@@ -244,6 +269,7 @@
         'openspec-id': openspecId,
         type,
         parentId,
+        linkedTaskIds,
         priority,
         status,
         favorite,
@@ -252,6 +278,7 @@
         tags,
         created_at: createdAt,
         updated_at: updatedAt,
+        ...(boardOrder !== null ? { board_order: boardOrder } : {}),
         history,
         comments,
         attachments
@@ -259,8 +286,47 @@
     });
   }
 
+  /**
+   * Returns tasks in the order they should be displayed on the board.
+   *
+   * Tasks with a saved `board_order` keep the positions the user left them in
+   * (manual drag-and-drop included). Legacy tasks without it are placed first,
+   * newest edit first, using `updated_at` as a fallback. The resulting order is
+   * stamped back onto every task so the next save makes it permanent.
+   */
+  function orderTasks(raw) {
+    const list = Array.isArray(raw) ? raw.slice() : [];
+
+    const ordered = [];
+    const unordered = [];
+    list.forEach(t => {
+      if (!t) return;
+      const n = Number(t.board_order);
+      if (t.board_order !== undefined && t.board_order !== null && Number.isFinite(n)) {
+        ordered.push(t);
+      } else {
+        unordered.push(t);
+      }
+    });
+
+    ordered.sort((a, b) => Number(a.board_order) - Number(b.board_order));
+    unordered.sort((a, b) => {
+      const aTime = Date.parse(a.updated_at || a.created_at || '') || 0;
+      const bTime = Date.parse(b.updated_at || b.created_at || '') || 0;
+      if (aTime !== bTime) return bTime - aTime;
+      return String(a.id || '').localeCompare(String(b.id || ''));
+    });
+
+    const sorted = unordered.concat(ordered);
+    sorted.forEach((t, index) => {
+      t.board_order = index;
+    });
+    return sorted;
+  }
+
   window.VG.Validation = {
     validateTasksJson,
-    normalizeTasks
+    normalizeTasks,
+    orderTasks
   };
 })();

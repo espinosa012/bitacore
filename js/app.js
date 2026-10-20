@@ -19,16 +19,19 @@
   }
 
   function setTasks(newTasks) {
-    tasks = newTasks || [];
+    tasks = Validation.orderTasks(newTasks);
   }
 
   /** Replaces the whole board with its tag registry */
   function replaceBoard(newTasks, rawTags = []) {
-    tasks = newTasks || [];
+    tasks = Validation.orderTasks(newTasks);
     Tags.load(rawTags, tasks);
     refreshTagFilter();
     if (window.VG.Board && window.VG.Board.clearSelection) {
       window.VG.Board.clearSelection();
+    }
+    if (window.VG.TagExplorer && window.VG.TagExplorer.refresh) {
+      window.VG.TagExplorer.refresh();
     }
   }
 
@@ -59,7 +62,18 @@
     hasUnsavedChanges = false;
   }
 
+  /**
+   * Stamps the current visual order (the tasks array order) onto every task.
+   * Called before each save so drag-and-drop reorders survive a reload.
+   */
+  function syncBoardOrder() {
+    tasks.forEach((task, index) => {
+      task.board_order = index;
+    });
+  }
+
   function persistChanges(notifyMessage = 'Saved') {
+    syncBoardOrder();
     refreshTagFilter();
 
     if (MongoSync && MongoSync.isConnected()) {
@@ -95,6 +109,7 @@
     const projectEmptyState = document.getElementById('projectEmptyState');
     const projectSelectorContainer = document.getElementById('projectSelectorContainer');
     const kanbanBoard = document.getElementById('kanbanBoard');
+    const boardStatsBar = document.getElementById('boardStatsBar');
     const priorityFilter = document.getElementById('priorityFilter');
     const tagFilter = document.getElementById('tagFilter');
     const userFilter = document.getElementById('userFilter');
@@ -122,9 +137,33 @@
       } else {
         headerUserLabel.textContent = 'Log In';
         btnOpenAuth.classList.remove('is-authenticated');
-        btnOpenAuth.title = 'Click to log in or register';
+        btnOpenAuth.title = 'Click to log in';
         if (sessionUserName) sessionUserName.textContent = 'Guest';
       }
+    }
+
+    // Update Admin header buttons
+    const adminHeaderItem = document.getElementById('adminHeaderItem');
+    const btnSessionAdminPanel = document.getElementById('btnSessionAdminPanel');
+    const isAdmin = window.VG.Auth && window.VG.Auth.isAdmin();
+
+    if (adminHeaderItem) {
+      adminHeaderItem.style.display = (isConnected && isLoggedIn && isAdmin) ? '' : 'none';
+    }
+    if (btnSessionAdminPanel) {
+      btnSessionAdminPanel.style.display = (isConnected && isLoggedIn && isAdmin) ? 'block' : 'none';
+    }
+    if (!isAdmin && window.VG.Admin && window.VG.Admin.isAdminViewActive && window.VG.Admin.isAdminViewActive()) {
+      window.VG.Admin.showBoardView();
+    }
+
+    // Update Tag Explorer header button
+    const tagExplorerHeaderItem = document.getElementById('tagExplorerHeaderItem');
+    if (tagExplorerHeaderItem) {
+      tagExplorerHeaderItem.style.display = (isConnected && isLoggedIn && hasProjects) ? '' : 'none';
+    }
+    if ((!isConnected || !isLoggedIn || !hasProjects) && window.VG.TagExplorer && window.VG.TagExplorer.isOpen && window.VG.TagExplorer.isOpen()) {
+      window.VG.TagExplorer.showBoardView();
     }
 
     if (isConnected) {
@@ -144,6 +183,7 @@
         if (!hasProjects) {
           if (projectEmptyState) projectEmptyState.style.display = 'block';
           if (kanbanBoard) kanbanBoard.style.display = 'none';
+          if (boardStatsBar) boardStatsBar.style.display = 'none';
           if (projectSelectorContainer) projectSelectorContainer.style.display = 'none';
           if (priorityFilter) priorityFilter.disabled = true;
           const typeFilter = document.getElementById('typeFilter');
@@ -159,6 +199,7 @@
         } else {
           if (projectEmptyState) projectEmptyState.style.display = 'none';
           if (kanbanBoard) kanbanBoard.style.display = 'flex';
+          if (boardStatsBar) boardStatsBar.style.display = 'flex';
           if (projectSelectorContainer) projectSelectorContainer.style.display = '';
           if (priorityFilter) priorityFilter.disabled = false;
           const typeFilter = document.getElementById('typeFilter');
@@ -175,6 +216,7 @@
         if (projectEmptyState) projectEmptyState.style.display = 'none';
         if (authEmptyState) authEmptyState.style.display = 'block';
         if (kanbanBoard) kanbanBoard.style.display = 'none';
+        if (boardStatsBar) boardStatsBar.style.display = 'none';
         if (projectSelectorContainer) projectSelectorContainer.style.display = 'none';
         if (priorityFilter) priorityFilter.disabled = true;
         const typeFilter = document.getElementById('typeFilter');
@@ -202,6 +244,7 @@
       if (projectEmptyState) projectEmptyState.style.display = 'none';
       if (projectSelectorContainer) projectSelectorContainer.style.display = 'none';
       if (kanbanBoard) kanbanBoard.style.display = 'none';
+      if (boardStatsBar) boardStatsBar.style.display = 'none';
       if (priorityFilter) priorityFilter.disabled = true;
       const typeFilter = document.getElementById('typeFilter');
       if (typeFilter) typeFilter.disabled = true;
@@ -278,6 +321,7 @@
   }
 
   let activeProjectId = null;
+  let currentActiveProject = null;
 
   function refreshTaskTypeDropdowns() {
     const taskTypes = window.VG.Constants.TASK_TYPES;
@@ -342,6 +386,7 @@
     const projectSelectorContainer = document.getElementById('projectSelectorContainer');
     const projectEmptyState = document.getElementById('projectEmptyState');
     const kanbanBoard = document.getElementById('kanbanBoard');
+    const boardStatsBar = document.getElementById('boardStatsBar');
     const userProjects = window.VG.Auth ? window.VG.Auth.getUserProjects() : [];
     const currentUser = window.VG.Auth ? window.VG.Auth.getCurrentUser() : null;
 
@@ -355,6 +400,7 @@
       if (projectSelectorContainer) projectSelectorContainer.style.display = 'none';
       if (projectEmptyState) projectEmptyState.style.display = 'block';
       if (kanbanBoard) kanbanBoard.style.display = 'none';
+      if (boardStatsBar) boardStatsBar.style.display = 'none';
       replaceBoard([], []);
       Board.renderBoard();
       return null;
@@ -367,6 +413,7 @@
     if (!projects || projects.length === 0) {
       if (projectEmptyState) projectEmptyState.style.display = 'block';
       if (kanbanBoard) kanbanBoard.style.display = 'none';
+      if (boardStatsBar) boardStatsBar.style.display = 'none';
       replaceBoard([], []);
       Board.renderBoard();
       return null;
@@ -376,6 +423,7 @@
     const matchedProject = projects.find(p => p.id === savedProjectId);
     const activeProject = matchedProject || projects[0];
     activeProjectId = activeProject.id;
+    currentActiveProject = activeProject;
     localStorage.setItem('vg_active_project', activeProjectId);
 
     if (projectSelector) {
@@ -398,7 +446,8 @@
   async function onProjectChanged(newProjectId) {
     if (!newProjectId) return;
     const userProjects = window.VG.Auth ? window.VG.Auth.getUserProjects() : [];
-    if (!userProjects.includes(newProjectId)) {
+    const isAdmin = window.VG.Auth && window.VG.Auth.isAdmin();
+    if (!isAdmin && !userProjects.includes(newProjectId)) {
       showToast('You do not have permission to access this project', 'error');
       return;
     }
@@ -408,6 +457,7 @@
     if (!selectedProject) return;
 
     activeProjectId = selectedProject.id;
+    currentActiveProject = selectedProject;
     localStorage.setItem('vg_active_project', activeProjectId);
 
     MongoSync.setCurrentDb(selectedProject.dbName);
@@ -432,6 +482,12 @@
     }
     updateMongoBadge();
     showToast(`Welcome back, ${user.username}!`, 'success');
+
+    if (window.VG.Auth && window.VG.Auth.isAdmin() && window.VG.Admin) {
+      window.VG.Admin.showAdminView();
+    } else if (window.VG.Admin) {
+      window.VG.Admin.showBoardView();
+    }
   }
 
   async function onMongoConnected() {
@@ -444,6 +500,9 @@
       if (activeProject) {
         await loadFromMongo();
       }
+      if (window.VG.Auth && window.VG.Auth.isAdmin() && window.VG.Admin) {
+        window.VG.Admin.showAdminView();
+      }
     } else {
       updateMongoBadge();
       setTimeout(() => {
@@ -453,7 +512,12 @@
   }
 
   function logoutUser() {
+    if (window.VG.Admin && window.VG.Admin.showBoardView) {
+      window.VG.Admin.showBoardView();
+    }
     window.VG.Auth.logout();
+    activeProjectId = null;
+    currentActiveProject = null;
     replaceBoard([], []);
     const projectSelector = document.getElementById('projectSelector');
     if (projectSelector) projectSelector.innerHTML = '';
@@ -893,8 +957,10 @@
     await Storage.initDb();
     await Storage.registerTab();
 
-    // 2. Setup modals and task page
+    // 2. Setup modals, attachments viewer, and task page
     Modals.initModals();
+    if (window.VG.Attachments && window.VG.Attachments.init) window.VG.Attachments.init();
+    if (window.VG.Admin) window.VG.Admin.init();
     window.VG.TaskPage.init();
 
     // 3. Render column drop zones
@@ -925,6 +991,9 @@
         if (activeProject) {
           await loadFromMongo();
         }
+        if (window.VG.Auth.isAdmin() && window.VG.Admin) {
+          window.VG.Admin.showAdminView();
+        }
       } else {
         updateMongoBadge();
         setTimeout(() => {
@@ -937,6 +1006,22 @@
         Modals.openMongoModal();
       }, 350);
     }
+  }
+
+  function getActiveProject() {
+    return currentActiveProject;
+  }
+
+  function getActiveProjectTaskIdFormat() {
+    if (currentActiveProject) {
+      return currentActiveProject['task-id-format'] || currentActiveProject.taskIdFormat || (currentActiveProject.id === 'project-ludum' ? 'lud-' : `${currentActiveProject.id}-`);
+    }
+    return 'lud-';
+  }
+
+  function getNextTaskId() {
+    const format = getActiveProjectTaskIdFormat();
+    return window.VG.Constants.generateSequentialTaskId(tasks, format);
   }
 
   window.VG.App = {
@@ -955,7 +1040,10 @@
     logoutUser,
     populateProjectSelector,
     onProjectChanged,
-    refreshTaskTypeDropdowns
+    refreshTaskTypeDropdowns,
+    getActiveProject,
+    getActiveProjectTaskIdFormat,
+    getNextTaskId
   };
 
   document.addEventListener('DOMContentLoaded', initApp);

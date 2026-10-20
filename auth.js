@@ -18,12 +18,14 @@ const JWT_EXPIRES_IN = '24h';
  * Create a signed JWT for a user.
  * @param {string} username - The authenticated user's username.
  * @param {string[]} [projects] - Array of authorized project IDs.
+ * @param {boolean} [isAdmin=false] - Whether the user is a global administrator.
  * @returns {string} Signed JWT token string.
  */
-function createToken(username, projects = ['project-ludum']) {
+function createToken(username, projects = ['project-ludum'], isAdmin = false) {
   const payload = {
     username,
-    projects: Array.isArray(projects) ? projects : ['project-ludum']
+    projects: Array.isArray(projects) ? projects : ['project-ludum'],
+    isAdmin: Boolean(isAdmin)
   };
   return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 }
@@ -31,7 +33,7 @@ function createToken(username, projects = ['project-ludum']) {
 /**
  * Verify a JWT token.
  * @param {string} token - The token string to verify.
- * @returns {{username: string, projects?: string[]}|null} Decoded payload if valid, null otherwise.
+ * @returns {{username: string, projects?: string[], isAdmin?: boolean}|null} Decoded payload if valid, null otherwise.
  */
 function verifyToken(token) {
   if (!token) return null;
@@ -43,19 +45,35 @@ function verifyToken(token) {
 }
 
 /**
+ * Check whether a verified request belongs to an administrator.
+ * @param {http.IncomingMessage} req
+ * @returns {boolean} True if user is authenticated and has administrative role.
+ */
+function isAdminUser(req) {
+  return !!(req && req.user && req.user.isAdmin);
+}
+
+/**
  * Middleware that validates JWT token from Authorization header.
- * Exempts auth and status endpoints.
- * Sets req.user = { username, projects } on valid requests.
+ * Exempts auth bootstrap/login and status endpoints.
+ * Sets req.user = { username, projects, isAdmin } on valid requests.
  *
  * @param {http.IncomingMessage} req
  * @param {http.ServerResponse} res
  * @param {string} pathname
- * @returns {object} { valid: boolean, user?: { username: string, projects: string[] }, error?: { status: number, ok: boolean, error: string } }
+ * @returns {object} { valid: boolean, user?: { username: string, projects: string[], isAdmin: boolean }, error?: { status: number, ok: boolean, error: string } }
  */
 function verifyRequest(req, res, pathname) {
   // Public endpoints that don't require auth
-  const publicPaths = ['/api/auth/register', '/api/auth/login', '/api/status', '/api/mongo/connect', '/api/mongo/disconnect'];
-  const isPublic = publicPaths.some(p => pathname === p || (pathname.startsWith('/api/auth/') && pathname.length > 10) || (pathname.startsWith('/api/mongo/')));
+  const publicPaths = [
+    '/api/auth/login',
+    '/api/auth/bootstrap',
+    '/api/auth/bootstrap-status',
+    '/api/status',
+    '/api/mongo/connect',
+    '/api/mongo/disconnect'
+  ];
+  const isPublic = publicPaths.some(p => pathname === p || (pathname.startsWith('/api/mongo/')));
 
   if (isPublic) {
     // Set empty user object for public endpoints
@@ -78,7 +96,8 @@ function verifyRequest(req, res, pathname) {
   // Attach user info to request
   req.user = {
     username: decoded.username,
-    projects: Array.isArray(decoded.projects) ? decoded.projects : ['project-ludum']
+    projects: Array.isArray(decoded.projects) ? decoded.projects : ['project-ludum'],
+    isAdmin: Boolean(decoded.isAdmin)
   };
   return { valid: true, user: req.user };
 }
@@ -89,9 +108,11 @@ module.exports = {
   createToken,
   verifyToken,
   verifyRequest,
+  isAdminUser,
   publicPaths: [
-    '/api/auth/register',
     '/api/auth/login',
+    '/api/auth/bootstrap',
+    '/api/auth/bootstrap-status',
     '/api/status',
     '/api/mongo/connect',
     '/api/mongo/disconnect'

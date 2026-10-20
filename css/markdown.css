@@ -165,3 +165,113 @@
 .EasyMDEContainer .editor-preview-side {
   z-index: 1000;
 }
+
+/* Compact comment editor */
+.EasyMDEContainer.vg-editor-compact .CodeMirror {
+  min-height: 80px;
+}
+.EasyMDEContainer.vg-editor-compact .editor-toolbar {
+  padding: 2px 4px;
+}
+.EasyMDEContainer.vg-editor-compact .editor-toolbar button {
+  width: 26px;
+  height: 24px;
+}
+
+/* Rendered markdown comments */
+.ui.comments .comment .text.comment-text,
+.ui.comments .comment .comment-text {
+  white-space: normal;
+  font-family: Lato, 'Helvetica Neue', Arial, Helvetica, sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--app-text);
+  margin-top: 0.35em;
+}
+
+.ui.comments .comment .comment-text p {
+  margin: 0 0 0.5em;
+}
+
+.ui.comments .comment .comment-text p:last-child {
+  margin-bottom: 0;
+}
+
+.ui.comments .comment .comment-text h1,
+.ui.comments .comment .comment-text h2,
+.ui.comments .comment .comment-text h3,
+.ui.comments .comment .comment-text h4 {
+  margin: 0.5em 0 0.25em;
+  color: #fff;
+  font-size: 1.05em;
+}
+
+.ui.comments .comment .comment-text a {
+  color: #6cb6ff;
+  text-decoration: underline;
+}
+
+.ui.comments .comment .comment-text a:hover {
+  color: #8be9fd;
+}
+
+.ui.comments .comment .comment-text blockquote {
+  border-left: 3px solid var(--app-accent);
+  margin: 0.5em 0;
+  padding: 2px 10px;
+  color: var(--app-muted);
+}
+
+.ui.comments .comment .comment-text code {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+}
+
+.ui.comments .comment .comment-text pre {
+  background: #0d1014;
+  border: 1px solid var(--app-border);
+  border-radius: 4px;
+  padding: 8px 12px;
+  overflow-x: auto;
+  margin: 0.5em 0;
+}
+
+.ui.comments .comment .comment-text pre code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+}
+
+.ui.comments .comment .comment-text ul,
+.ui.comments .comment .comment-text ol {
+  margin: 0.4em 0;
+  padding-left: 1.4em;
+}
+
+.ui.comments .comment .comment-text li {
+  margin-bottom: 0.2em;
+}
+
+.ui.comments .comment .comment-text table {
+  border-collapse: collapse;
+  margin: 0.5em 0;
+  width: auto;
+}
+
+.ui.comments .comment .comment-text table td,
+.ui.comments .comment .comment-text table th {
+  border: 1px solid var(--app-border-strong);
+  padding: 4px 8px;
+}
+
+.ui.comments .comment .comment-text table th {
+  background: var(--app-surface-2);
+}
+
+.ui.comments .comment .comment-text input[type="checkbox"] {
+  margin-right: 6px;
+}
+

@@ -227,6 +227,56 @@
     });
   }
 
+  /**
+   * Links two tasks bidirectionally without hierarchy restrictions.
+   * Returns { success: boolean, error?: string }
+   */
+  function linkTasks(taskId1, taskId2, tasks) {
+    if (!taskId1 || !taskId2) {
+      return { success: false, error: 'Both task IDs are required to link tasks.' };
+    }
+    if (taskId1 === taskId2) {
+      return { success: false, error: 'A task cannot be linked to itself.' };
+    }
+    const taskMap = new Map((tasks || []).map(t => [t.id, t]));
+    const task1 = taskMap.get(taskId1);
+    const task2 = taskMap.get(taskId2);
+    if (!task1) return { success: false, error: `Task #${taskId1} not found.` };
+    if (!task2) return { success: false, error: `Task #${taskId2} not found.` };
+
+    task1.linkedTaskIds = Array.isArray(task1.linkedTaskIds) ? task1.linkedTaskIds : [];
+    task2.linkedTaskIds = Array.isArray(task2.linkedTaskIds) ? task2.linkedTaskIds : [];
+
+    if (!task1.linkedTaskIds.includes(taskId2)) {
+      task1.linkedTaskIds.push(taskId2);
+    }
+    if (!task2.linkedTaskIds.includes(taskId1)) {
+      task2.linkedTaskIds.push(taskId1);
+    }
+
+    return { success: true };
+  }
+
+  /**
+   * Unlinks two tasks bidirectionally.
+   * Returns { success: boolean }
+   */
+  function unlinkTasks(taskId1, taskId2, tasks) {
+    if (!taskId1 || !taskId2) return { success: false };
+    const taskMap = new Map((tasks || []).map(t => [t.id, t]));
+    const task1 = taskMap.get(taskId1);
+    const task2 = taskMap.get(taskId2);
+
+    if (task1 && Array.isArray(task1.linkedTaskIds)) {
+      task1.linkedTaskIds = task1.linkedTaskIds.filter(id => id !== taskId2);
+    }
+    if (task2 && Array.isArray(task2.linkedTaskIds)) {
+      task2.linkedTaskIds = task2.linkedTaskIds.filter(id => id !== taskId1);
+    }
+
+    return { success: true };
+  }
+
   /** Collision-free id, safe to use as a folder name (attachments/<taskId>/) */
   function generateId(prefix) {
     const rand = (window.crypto && crypto.randomUUID)
@@ -234,6 +284,55 @@
       : Math.random().toString(36).slice(2, 12);
     return `${prefix}-${Date.now()}-${rand}`;
   }
+
+  /**
+   * Generates a sequential task ID based on the project's format/prefix and the existing tasks list.
+   * e.g. format "lud-" with tasks [lud-1, lud-2] -> "lud-3"
+   */
+  function generateSequentialTaskId(tasksList, format = 'lud-') {
+    const list = Array.isArray(tasksList) ? tasksList : [];
+    const rawFormat = String(format || 'lud-').trim();
+    const hasPlaceholder = /\{n\}/i.test(rawFormat);
+    const prefix = hasPlaceholder ? rawFormat.replace(/\{n\}/gi, '') : rawFormat;
+    const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`^${escaped}(\\d+)$`, 'i');
+
+    let maxNum = 0;
+    for (const t of list) {
+      if (!t) continue;
+      const idStr = String(t.id || t._id || '');
+      const match = idStr.match(regex);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num;
+        }
+      }
+    }
+
+    const nextNum = maxNum + 1;
+    if (/\{n\}/.test(rawFormat)) {
+      return rawFormat.replace(/\{n\}/g, String(nextNum));
+    }
+    if (/\{N\}/.test(rawFormat)) {
+      return rawFormat.replace(/\{N\}/g, String(nextNum));
+    }
+    return `${rawFormat}${nextNum}`;
+  }
+
+  /**
+   * Formats a task ID for UI display.
+   * Preserves full ID for sequential IDs (e.g. "lud-1", "lud-1000") and only trims legacy long IDs (task-timestamp-uuid).
+   */
+  function formatTaskId(id) {
+    if (!id) return '';
+    const str = String(id);
+    if (str.startsWith('task-') && str.length > 15) {
+      return str.slice(-6);
+    }
+    return str;
+  }
+
 
   function escapeHtml(str) {
     if (str === null || str === undefined) return '';
@@ -313,7 +412,11 @@
     getSiblingIds,
     validateSubtaskRelationship,
     getEligibleSubtasks,
+    linkTasks,
+    unlinkTasks,
     generateId,
+    generateSequentialTaskId,
+    formatTaskId,
     escapeHtml,
     escapeCss,
     formatRelativeTime,

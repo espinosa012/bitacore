@@ -7,7 +7,7 @@
 
   <link rel="stylesheet" href="vendor/fomantic-ui/semantic.min.css?v=20261017.3" />
   <link rel="stylesheet" href="vendor/easymde/easymde.min.css?v=20261017.3" />
-  <link rel="stylesheet" href="css/app.css?v=20261018.2" />
+  <link rel="stylesheet" href="css/app.css?v=20261019.1" />
   <link rel="stylesheet" href="css/markdown.css?v=20261017.3" />
 </head>
 <body>
@@ -17,10 +17,7 @@
     <div class="ui inverted borderless menu app-menu">
       <div class="header item app-brand">
         <i class="large tasks icon app-brand-icon"></i>
-        <div>
-          <div class="app-brand-title">vg-task-manager</div>
-          <div class="app-brand-subtitle" id="taskStatsCounter">0 tasks · 0 in progress · 0 blocked</div>
-        </div>
+        <div class="app-brand-title">vg-task-manager</div>
       </div>
 
       <!-- Project Selector Item -->
@@ -161,6 +158,22 @@
       </div>
 
       <div class="right menu">
+        <!-- Tag Explorer Toggle Item -->
+        <div class="item tag-explorer-header-item" id="tagExplorerHeaderItem">
+          <button id="btnOpenTagExplorer" class="ui basic inverted button tag-explorer-btn" title="Explore tags and their tasks">
+            <i class="tags icon"></i>
+            <span id="btnTagExplorerText">Tag Explorer</span>
+          </button>
+        </div>
+
+        <!-- Admin Panel Toggle Item (Admin only) -->
+        <div class="item admin-header-item" id="adminHeaderItem" style="display: none;">
+          <button id="btnOpenAdminPanel" class="ui basic inverted teal button" title="Switch between Admin Panel and Kanban Board">
+            <i class="cogs icon"></i>
+            <span id="btnAdminPanelText">Admin Panel</span>
+          </button>
+        </div>
+
         <div class="item">
           <button id="btnMongoStatus" class="ui basic inverted button mongo-status-btn" title="MongoDB Atlas Connection">
             <span class="status-dot disconnected" id="mongoStatusDot"></span>
@@ -180,12 +193,15 @@
               <i class="user circle large teal icon"></i>
               <div>
                 <div class="user-info-name" id="sessionUserName">User</div>
-                <div class="user-info-status">Authenticated</div>
+                <div class="user-info-status" id="sessionUserStatus">Authenticated</div>
               </div>
             </div>
             <div class="ui divider user-popover-divider"></div>
+            <button type="button" class="ui mini teal basic inverted fluid button" id="btnSessionAdminPanel" style="display: none; margin-bottom: 6px;">
+              <i class="cogs icon"></i> Admin Panel
+            </button>
             <button type="button" class="ui mini basic inverted fluid button" id="btnSwitchUser">
-              <i class="exchange icon"></i> Switch / Register Account
+              <i class="exchange icon"></i> Switch Account
             </button>
             <button type="button" class="ui mini red basic inverted fluid button" id="btnLogoutUser" style="margin-top: 6px;">
               <i class="sign-out icon"></i> Log out
@@ -220,13 +236,13 @@
         <div class="content" style="font-size: 1.4rem; font-weight: 700; margin-top: 0.5rem;">
           User Authentication Required
           <div class="sub header" style="color: #9ab; max-width: 520px; margin: 0.75rem auto 1.5rem; line-height: 1.5;">
-            Connected to MongoDB Atlas. Please log in or register an account to access tasks, create or assign tasks, post comments, and upload files.
+            Connected to MongoDB Atlas. Please log in with your account to access tasks, create or assign tasks, post comments, and upload files.
           </div>
         </div>
       </div>
       <button class="ui primary large labeled icon button" id="btnLoginEmptyState">
         <i class="sign-in icon"></i>
-        Log In / Register
+        Log In
       </button>
     </div>
 
@@ -240,6 +256,9 @@
           </div>
         </div>
       </div>
+
+    <div class="board-stats-bar" id="boardStatsBar" style="display: none;">
+      <span class="board-stats-counter" id="taskStatsCounter">0 tasks · 0 in progress · 0 blocked</span>
     </div>
 
     <div class="board" id="kanbanBoard">
@@ -309,6 +328,23 @@
             <textarea id="pageTaskDesc" placeholder="Write the task details in Markdown..."></textarea>
           </div>
 
+          <!-- Linked Tasks Section -->
+          <h4 class="ui inverted dividing header task-page-section-head">
+            <i class="linkify icon"></i>
+            <div class="content" id="pageLinkedTasksTitle">Tareas Enlazadas (0)</div>
+          </h4>
+          <div class="ui inverted secondary segment linked-tasks-block" style="margin-bottom: 14px;">
+            <div class="ui action input fluid">
+              <select id="pageLinkTaskSelect" class="ui fluid dropdown" style="background: #1b1c1d; color: #fff;">
+                <option value="">Seleccionar tarea para enlazar...</option>
+              </select>
+              <button type="button" class="ui teal button" id="btnPageLinkTask">
+                <i class="linkify icon"></i> Enlazar
+              </button>
+            </div>
+            <div id="pageLinkedTasksList" class="ui inverted divided items" style="margin-top: 10px;"></div>
+          </div>
+
           <!-- Subtasks Section -->
           <h4 class="ui inverted dividing header task-page-section-head">
             <i class="sitemap icon"></i>
@@ -339,10 +375,10 @@
           <div class="ui inverted secondary segment subtask-link-existing" style="margin-bottom: 14px;">
             <div class="ui action input fluid">
               <select id="pageLinkExistingSubtaskSelect" class="ui fluid dropdown" style="background: #1b1c1d; color: #fff;">
-                <option value="">Select an existing task to link...</option>
+                <option value="">Seleccionar tarea para asignar como subtarea...</option>
               </select>
               <button type="button" class="ui teal button" id="btnPageLinkExistingSubtask">
-                <i class="linkify icon"></i> Link
+                <i class="sitemap icon"></i> Asignar
               </button>
             </div>
           </div>
@@ -449,6 +485,274 @@
           </div>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- Administrator Panel View -->
+  <section class="admin-view" id="adminView" hidden aria-labelledby="adminViewTitle">
+    <div class="admin-view-header">
+      <div class="admin-view-title" id="adminViewTitle">
+        <i class="cogs icon"></i>
+        <span>System Administration</span>
+      </div>
+      <div>
+        <button type="button" class="ui basic inverted teal button" id="btnAdminBackToBoard">
+          <i class="columns icon"></i>
+          Back to Kanban Board
+        </button>
+      </div>
+    </div>
+
+    <!-- Admin Navigation Tabs -->
+    <div class="ui secondary pointing inverted menu admin-tabs" id="adminTabsMenu">
+      <a class="active item" id="adminTabBtnUsers" data-admin-tab="users">
+        <i class="users icon"></i> Users
+      </a>
+      <a class="item" id="adminTabBtnProjects" data-admin-tab="projects">
+        <i class="folder icon"></i> Projects
+      </a>
+      <a class="item" id="adminTabBtnTaskTypes" data-admin-tab="taskTypes">
+        <i class="shapes icon"></i> Task Types
+      </a>
+      <a class="item" id="adminTabBtnTags" data-admin-tab="tags">
+        <i class="tags icon"></i> Tags
+      </a>
+    </div>
+
+    <!-- PANE 1: Users Management -->
+    <div class="admin-tab-pane active" id="adminPaneUsers">
+      <div class="admin-pane-actions">
+        <div>
+          <button type="button" class="ui teal button" id="btnAdminOpenCreateUser">
+            <i class="user plus icon"></i> Create New User
+          </button>
+        </div>
+        <div>
+          <button type="button" class="ui basic inverted button" id="btnAdminRefreshUsers">
+            <i class="sync icon"></i> Refresh
+          </button>
+        </div>
+      </div>
+
+      <div class="admin-table-container">
+        <table class="ui inverted selectable table admin-table" id="adminUsersTable">
+          <thead>
+            <tr>
+              <th>Username</th>
+              <th>Role</th>
+              <th>Assigned Projects</th>
+              <th>Created</th>
+              <th class="right aligned">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="adminUsersTableBody">
+            <!-- Rendered dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PANE 2: Projects Management -->
+    <div class="admin-tab-pane" id="adminPaneProjects">
+      <div class="admin-pane-actions">
+        <div>
+          <button type="button" class="ui teal button" id="btnAdminOpenCreateProject">
+            <i class="plus icon"></i> Create New Project
+          </button>
+        </div>
+        <div>
+          <button type="button" class="ui basic inverted button" id="btnAdminRefreshProjects">
+            <i class="sync icon"></i> Refresh
+          </button>
+        </div>
+      </div>
+
+      <div class="admin-table-container">
+        <table class="ui inverted selectable table admin-table" id="adminProjectsTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Project Name</th>
+              <th>Database</th>
+              <th>Task ID Prefix</th>
+              <th>Description</th>
+              <th class="right aligned">Created</th>
+            </tr>
+          </thead>
+          <tbody id="adminProjectsTableBody">
+            <!-- Rendered dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PANE 3: Task Types Management -->
+    <div class="admin-tab-pane" id="adminPaneTaskTypes">
+      <div class="admin-pane-actions">
+        <div class="admin-project-filter">
+          <label for="adminTaskTypeProjectSelect" style="color: #a0aec0; font-weight: 600;">
+            <i class="folder open outline icon"></i> Project:
+          </label>
+          <select id="adminTaskTypeProjectSelect" class="ui compact inverted dropdown selection">
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" class="ui teal button" id="btnAdminOpenCreateTaskType">
+            <i class="plus icon"></i> Add Task Type
+          </button>
+          <button type="button" class="ui basic inverted button" id="btnAdminRefreshTaskTypes">
+            <i class="sync icon"></i> Refresh
+          </button>
+        </div>
+      </div>
+
+      <div class="admin-table-container">
+        <table class="ui inverted selectable table admin-table" id="adminTaskTypesTable">
+          <thead>
+            <tr>
+              <th>Type ID</th>
+              <th>Display Name</th>
+              <th>Icon</th>
+              <th>Color</th>
+              <th class="right aligned">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="adminTaskTypesTableBody">
+            <!-- Rendered dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PANE 4: Tags Management -->
+    <div class="admin-tab-pane" id="adminPaneTags">
+      <div class="admin-pane-actions">
+        <div class="admin-project-filter">
+          <label for="adminTagProjectSelect" style="color: #a0aec0; font-weight: 600;">
+            <i class="folder open outline icon"></i> Project:
+          </label>
+          <select id="adminTagProjectSelect" class="ui compact inverted dropdown selection">
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" class="ui teal button" id="btnAdminOpenCreateTag">
+            <i class="plus icon"></i> Add Tag
+          </button>
+          <button type="button" class="ui basic inverted button" id="btnAdminRefreshTags">
+            <i class="sync icon"></i> Refresh
+          </button>
+        </div>
+      </div>
+
+      <div class="admin-table-container">
+        <table class="ui inverted selectable table admin-table" id="adminTagsTable">
+          <thead>
+            <tr>
+              <th>Tag Name</th>
+              <th>Preview Badge</th>
+              <th>Color</th>
+              <th>Tasks Using Tag</th>
+              <th class="right aligned">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="adminTagsTableBody">
+            <!-- Rendered dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tag Explorer View -->
+  <section class="tag-explorer-view" id="tagExplorerView" hidden aria-labelledby="tagExplorerTitle">
+    <div class="tag-explorer-header">
+      <div class="tag-explorer-title" id="tagExplorerTitle">
+        <i class="tags icon"></i>
+        <span>Tag Explorer</span>
+        <span class="ui circular mini teal label" id="tagExplorerTotalBadge" style="margin-left: 8px;">0</span>
+      </div>
+      <div class="tag-explorer-header-actions">
+        <button type="button" class="ui basic inverted teal button" id="btnTagExplorerBackToBoard">
+          <i class="columns icon"></i>
+          Back to Kanban Board
+        </button>
+      </div>
+    </div>
+
+    <div class="tag-explorer-container">
+      <!-- Left Pane: Tag List & Search -->
+      <aside class="tag-explorer-sidebar">
+        <div class="tag-search-box">
+          <div class="ui fluid icon input inverted">
+            <input type="text" id="tagExplorerSearchInput" placeholder="Search tags by text..." autocomplete="off" aria-label="Search tags" />
+            <i class="search icon"></i>
+          </div>
+        </div>
+        <div class="tag-list-header">
+          <span class="tag-list-count" id="tagExplorerFilterCount">Showing all tags</span>
+        </div>
+        <div class="tag-items-list" id="tagExplorerItemsList" role="listbox" aria-label="Project tags">
+          <!-- Populated dynamically -->
+        </div>
+        <div class="tag-explorer-empty-tags" id="tagExplorerNoTags" style="display: none;">
+          <i class="tags icon" style="font-size: 2rem; color: #718096; margin-bottom: 0.5rem;"></i>
+          <div>No tags found</div>
+        </div>
+      </aside>
+
+      <!-- Right Pane: Tag Tasks Detail -->
+      <main class="tag-explorer-content">
+        <!-- Default Empty State: No tag selected -->
+        <div class="tag-tasks-empty-state" id="tagExplorerNoSelectionState">
+          <div class="ui inverted placeholder segment" style="background: transparent; border: 1px dashed #4a5568; min-height: 280px; display: flex; align-items: center; justify-content: center;">
+            <div class="ui icon header" style="color: #a0aec0;">
+              <i class="hand pointer outline icon" style="font-size: 3rem; color: #4fd1c5; margin-bottom: 0.75rem;"></i>
+              <div class="content" style="font-size: 1.2rem; font-weight: 600;">
+                Select a tag to explore its tasks
+                <div class="sub header" style="color: #718096; margin-top: 0.5rem;">
+                  Click any tag on the left to see all tasks belonging to that tag.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Selected Tag Details -->
+        <div class="tag-tasks-container" id="tagExplorerSelectedContainer" style="display: none;">
+          <div class="tag-tasks-header">
+            <div class="tag-tasks-title-area">
+              <span class="ui large label tag-selected-badge" id="tagExplorerSelectedBadge">
+                <i class="tag icon"></i>
+                <span id="tagExplorerSelectedName">Tag</span>
+              </span>
+              <span class="tag-tasks-count-label" id="tagExplorerSelectedCount">0 tasks</span>
+            </div>
+            <div class="tag-tasks-actions">
+              <button type="button" class="ui teal compact button" id="btnTagExplorerViewOnBoard" title="Open Kanban board filtered by this tag">
+                <i class="columns icon"></i>
+                View on Board
+              </button>
+            </div>
+          </div>
+
+          <div class="tag-tasks-list" id="tagExplorerTasksList">
+            <!-- Rendered dynamically -->
+          </div>
+
+          <div class="tag-tasks-empty" id="tagExplorerTasksEmpty" style="display: none;">
+            <div class="ui inverted placeholder segment" style="background: transparent; border: 1px dashed #4a5568;">
+              <div class="ui icon header" style="color: #a0aec0;">
+                <i class="check circle outline icon" style="font-size: 2.5rem; color: #718096; margin-bottom: 0.5rem;"></i>
+                <div class="content">
+                  No tasks currently have this tag
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
     </div>
   </section>
 
@@ -610,6 +914,23 @@
             </div>
           </div>
 
+          <!-- Visible Linked Tasks Block -->
+          <div class="ui inverted secondary segment linked-tasks-block" style="margin-bottom: 16px; border: 1px solid rgba(255, 255, 255, 0.1);">
+            <h5 class="ui inverted header" style="margin-top: 0; margin-bottom: 10px;">
+              <i class="linkify icon"></i>
+              <span id="modalLinkedTasksTitle">Tareas Enlazadas (0)</span>
+            </h5>
+            <div class="ui action input fluid" style="margin-bottom: 8px;">
+              <select id="modalLinkTaskSelect" class="ui fluid dropdown" style="background: #1b1c1d; color: #fff;">
+                <option value="">Seleccionar tarea para enlazar...</option>
+              </select>
+              <button type="button" class="ui teal button" id="btnModalLinkTask">
+                <i class="linkify icon"></i> Enlazar
+              </button>
+            </div>
+            <div id="modalLinkedTasksList" class="ui inverted divided items" style="margin-top: 6px;"></div>
+          </div>
+
           <!-- Tabs -->
           <div class="ui top attached inverted tabular menu edit-tabs">
             <a class="item" id="tabBtnSubtasks">
@@ -660,14 +981,14 @@
 
             <div class="ui inverted secondary segment subtask-link-existing" style="margin-bottom: 14px;">
               <h5 class="ui inverted header" style="margin-top: 0; margin-bottom: 8px;">
-                <i class="linkify icon"></i> Link Existing Task as Subtask
+                <i class="sitemap icon"></i> Asignar tarea existente como subtarea
               </h5>
               <div class="ui action input fluid">
                 <select id="linkExistingSubtaskSelect" class="ui fluid dropdown" style="background: #1b1c1d; color: #fff;">
-                  <option value="">Select an existing task to link...</option>
+                  <option value="">Seleccionar tarea para asignar como subtarea...</option>
                 </select>
                 <button type="button" class="ui teal button" id="btnLinkExistingSubtask">
-                  <i class="linkify icon"></i> Link
+                  <i class="sitemap icon"></i> Asignar
                 </button>
               </div>
             </div>
@@ -918,21 +1239,13 @@
     </div>
   </div>
 
-  <!-- MODAL: User Authentication (Login & Register) -->
+  <!-- MODAL: User Authentication (Login Only) -->
   <div class="ui tiny inverted modal" id="modalAuthOverlay">
     <i class="close icon" id="closeAuthModalBtn"></i>
     <div class="header auth-modal-header">
-      <div class="ui secondary pointing inverted menu auth-tabs" id="authTabsMenu">
-        <a class="active item" id="tabBtnLogin" data-auth-tab="login">
-          <i class="sign-in icon"></i> Log In
-        </a>
-        <a class="item" id="tabBtnRegister" data-auth-tab="register">
-          <i class="user plus icon"></i> Register User
-        </a>
-      </div>
+      <i class="sign-in icon"></i> Log In
     </div>
     <div class="content auth-modal-content">
-      <!-- Login Form -->
       <form id="authLoginForm" class="ui inverted form auth-panel-form active">
         <p class="auth-helper-text">
           Enter your username and password to log in. Your actions, status changes, comments, and attachments will be recorded to your user.
@@ -965,60 +1278,346 @@
             <i class="sign-in icon"></i> Log In
           </button>
         </div>
-
-        <div class="auth-toggle-prompt">
-          Don't have an account yet? <a href="#" id="linkToRegister">Create a new user</a>
-        </div>
       </form>
+    </div>
+  </div>
 
-      <!-- Register Form -->
-      <form id="authRegisterForm" class="ui inverted form auth-panel-form" style="display: none;">
-        <p class="auth-helper-text">
-          Register a new user. Passwords are securely encrypted using PBKDF2 with Web Crypto and stored in the <code>users</code> collection.
+  <!-- MODAL: Initial Administrator Setup (Bootstrap) -->
+  <div class="ui tiny inverted modal" id="modalBootstrapOverlay">
+    <div class="header" style="background: #18202c; color: #00b5ad; border-bottom: 1px solid #2d3748;">
+      <i class="shield alternate icon"></i> Initial Administrator Setup
+    </div>
+    <div class="content" style="background: #1e2632; padding: 1.5rem;">
+      <form id="authBootstrapForm" class="ui inverted form">
+        <p style="color: #cbd5e0; line-height: 1.5; margin-bottom: 1.25rem;">
+          Welcome to <strong>vg-task-manager</strong>! No users currently exist in this database. Please create the initial <strong>Global Administrator</strong> account. Once created, public registration will be permanently closed.
         </p>
 
         <div class="required field">
-          <label for="registerUsername">Username</label>
+          <label for="bootstrapUsername">Admin Username</label>
           <div class="ui inverted fluid icon input">
-            <input type="text" id="registerUsername" placeholder="e.g. adrian" autocomplete="username" required spellcheck="false" />
-            <i class="user plus icon"></i>
+            <input type="text" id="bootstrapUsername" placeholder="e.g. admin" autocomplete="username" required spellcheck="false" />
+            <i class="user shield icon"></i>
           </div>
           <small class="auth-field-note">2 to 40 characters (letters, numbers, underscores, dots, hyphens)</small>
         </div>
 
         <div class="required field">
-          <label for="registerPassword">Password</label>
+          <label for="bootstrapPassword">Admin Password</label>
           <div class="ui inverted fluid icon input">
-            <input type="password" id="registerPassword" placeholder="••••••••" autocomplete="new-password" required />
+            <input type="password" id="bootstrapPassword" placeholder="••••••••" autocomplete="new-password" required />
             <i class="lock icon"></i>
           </div>
           <small class="auth-field-note">Minimum 3 characters (encrypted with cryptographic salt)</small>
         </div>
 
         <div class="required field">
-          <label for="registerConfirmPassword">Confirm Password</label>
+          <label for="bootstrapConfirmPassword">Confirm Admin Password</label>
           <div class="ui inverted fluid icon input">
-            <input type="password" id="registerConfirmPassword" placeholder="••••••••" autocomplete="new-password" required />
+            <input type="password" id="bootstrapConfirmPassword" placeholder="••••••••" autocomplete="new-password" required />
             <i class="check circle outline icon"></i>
           </div>
         </div>
 
-        <div class="ui negative message" id="registerError" style="display: none; margin-top: 1rem;">
-          <i class="close icon" id="closeRegisterErrorBtn"></i>
-          <div class="header">Registration Failed</div>
-          <p id="registerErrorText"></p>
+        <div class="ui negative message" id="bootstrapError" style="display: none; margin-top: 1rem;">
+          <i class="close icon" id="closeBootstrapErrorBtn"></i>
+          <div class="header">Setup Failed</div>
+          <p id="bootstrapErrorText"></p>
         </div>
 
         <div style="margin-top: 1.5rem;">
-          <button type="submit" class="ui fluid primary button" id="btnRegisterSubmit">
-            <i class="user plus icon"></i> Register & Log In
+          <button type="submit" class="ui fluid teal button" id="btnBootstrapSubmit">
+            <i class="shield alternate icon"></i> Create Administrator Account & Log In
           </button>
         </div>
+      </form>
+    </div>
+  </div>
 
-        <div class="auth-toggle-prompt">
-          Already have an account? <a href="#" id="linkToLogin">Log in here</a>
+  <!-- MODAL: Admin Create User -->
+  <div class="ui small inverted modal" id="modalAdminCreateUser">
+    <i class="close icon" id="closeAdminCreateUserBtn"></i>
+    <div class="header">
+      <i class="user plus icon"></i> Create New User
+    </div>
+    <div class="content">
+      <form id="formAdminCreateUser" class="ui inverted form">
+        <div class="two fields">
+          <div class="required field">
+            <label for="adminNewUsername">Username</label>
+            <div class="ui inverted fluid icon input">
+              <input type="text" id="adminNewUsername" placeholder="e.g. maria" required />
+              <i class="user icon"></i>
+            </div>
+          </div>
+          <div class="required field">
+            <label for="adminNewPassword">Password</label>
+            <div class="ui inverted fluid icon input">
+              <input type="password" id="adminNewPassword" placeholder="••••••••" required />
+              <i class="lock icon"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="ui checkbox inverted">
+            <input type="checkbox" id="adminNewIsAdmin" />
+            <label for="adminNewIsAdmin">Global Administrator (has full access to admin panel and all projects)</label>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Assign to Projects</label>
+          <div class="admin-project-chips-container" id="adminNewUserProjectsList">
+            <!-- Populated dynamically with checkboxes -->
+          </div>
+        </div>
+
+        <div class="ui negative message" id="adminCreateUserError" style="display: none; margin-top: 1rem;">
+          <div class="header">Error</div>
+          <p id="adminCreateUserErrorText"></p>
         </div>
       </form>
+    </div>
+    <div class="actions">
+      <button type="button" class="ui basic inverted button" id="btnCancelAdminCreateUser">Cancel</button>
+      <button type="button" class="ui teal button" id="btnSubmitAdminCreateUser">
+        <i class="user plus icon"></i> Create User
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL: Admin Edit User -->
+  <div class="ui small inverted modal" id="modalAdminEditUser">
+    <i class="close icon" id="closeAdminEditUserBtn"></i>
+    <div class="header">
+      <i class="edit icon"></i> Edit User & Project Access
+    </div>
+    <div class="content">
+      <form id="formAdminEditUser" class="ui inverted form">
+        <div class="field">
+          <label>Username</label>
+          <input type="text" id="adminEditUsername" readonly style="opacity: 0.85;" />
+        </div>
+
+        <div class="field">
+          <label for="adminEditPassword">Reset Password (leave blank to keep current)</label>
+          <input type="password" id="adminEditPassword" placeholder="New password (optional)" />
+        </div>
+
+        <div class="field">
+          <div class="ui checkbox inverted">
+            <input type="checkbox" id="adminEditIsAdmin" />
+            <label for="adminEditIsAdmin">Global Administrator (has full access to admin panel and all projects)</label>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Assign to Projects</label>
+          <div class="admin-project-chips-container" id="adminEditUserProjectsList">
+            <!-- Populated dynamically with checkboxes -->
+          </div>
+        </div>
+
+        <div class="ui negative message" id="adminEditUserError" style="display: none; margin-top: 1rem;">
+          <div class="header">Error</div>
+          <p id="adminEditUserErrorText"></p>
+        </div>
+      </form>
+    </div>
+    <div class="actions">
+      <button type="button" class="ui basic inverted button" id="btnCancelAdminEditUser">Cancel</button>
+      <button type="button" class="ui teal button" id="btnSubmitAdminEditUser">
+        <i class="save icon"></i> Save Changes
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL: Admin Create Project -->
+  <div class="ui small inverted modal" id="modalAdminCreateProject">
+    <i class="close icon" id="closeAdminCreateProjectBtn"></i>
+    <div class="header">
+      <i class="folder plus icon"></i> Create New Project
+    </div>
+    <div class="content">
+      <form id="formAdminCreateProject" class="ui inverted form">
+        <div class="two fields">
+          <div class="required field">
+            <label for="adminNewProjectId">Project ID / Slug</label>
+            <input type="text" id="adminNewProjectId" placeholder="e.g. project-web" required />
+            <small style="color: #718096;">Unique identifier (e.g. project-portal)</small>
+          </div>
+          <div class="required field">
+            <label for="adminNewProjectName">Project Display Name</label>
+            <input type="text" id="adminNewProjectName" placeholder="e.g. Web Portal" required />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="adminNewProjectDb">Database Name (optional)</label>
+          <input type="text" id="adminNewProjectDb" placeholder="e.g. vg-tasks-web (defaults to vg-tasks-[id])" />
+        </div>
+
+        <div class="field">
+          <label for="adminNewProjectDesc">Description</label>
+          <textarea id="adminNewProjectDesc" rows="2" placeholder="Brief project description..."></textarea>
+        </div>
+
+        <div class="ui negative message" id="adminCreateProjectError" style="display: none; margin-top: 1rem;">
+          <div class="header">Error</div>
+          <p id="adminCreateProjectErrorText"></p>
+        </div>
+      </form>
+    </div>
+    <div class="actions">
+      <button type="button" class="ui basic inverted button" id="btnCancelAdminCreateProject">Cancel</button>
+      <button type="button" class="ui teal button" id="btnSubmitAdminCreateProject">
+        <i class="plus icon"></i> Create Project
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL: Admin Task Type Modal -->
+  <div class="ui tiny inverted modal" id="modalAdminTaskType">
+    <i class="close icon" id="closeAdminTaskTypeBtn"></i>
+    <div class="header" id="modalAdminTaskTypeTitle">
+      <i class="shapes icon"></i> Add Task Type
+    </div>
+    <div class="content">
+      <form id="formAdminTaskType" class="ui inverted form">
+        <input type="hidden" id="adminTaskTypeIsEdit" value="0" />
+        <div class="required field">
+          <label for="adminTaskTypeId">Type ID</label>
+          <input type="text" id="adminTaskTypeId" placeholder="e.g. epic" required />
+        </div>
+        <div class="required field">
+          <label for="adminTaskTypeName">Display Name</label>
+          <input type="text" id="adminTaskTypeName" placeholder="e.g. Epic" required />
+        </div>
+        <div class="two fields">
+          <div class="field">
+            <label for="adminTaskTypeIcon">Fomantic Icon</label>
+            <input type="text" id="adminTaskTypeIcon" placeholder="e.g. star or fire" value="check square outline" />
+          </div>
+          <div class="field">
+            <label for="adminTaskTypeColor">Color</label>
+            <select id="adminTaskTypeColor" class="ui dropdown inverted selection">
+              <option value="blue">Blue</option>
+              <option value="teal">Teal</option>
+              <option value="green">Green</option>
+              <option value="red">Red</option>
+              <option value="orange">Orange</option>
+              <option value="yellow">Yellow</option>
+              <option value="purple">Purple</option>
+              <option value="violet">Violet</option>
+              <option value="pink">Pink</option>
+              <option value="grey">Grey</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="ui negative message" id="adminTaskTypeError" style="display: none;">
+          <div class="header">Error</div>
+          <p id="adminTaskTypeErrorText"></p>
+        </div>
+      </form>
+    </div>
+    <div class="actions">
+      <button type="button" class="ui basic inverted button" id="btnCancelAdminTaskType">Cancel</button>
+      <button type="button" class="ui teal button" id="btnSubmitAdminTaskType">
+        <i class="save icon"></i> Save Type
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL: Admin Tag Modal -->
+  <div class="ui tiny inverted modal" id="modalAdminTag">
+    <i class="close icon" id="closeAdminTagBtn"></i>
+    <div class="header" id="modalAdminTagTitle">
+      <i class="tags icon"></i> Add Tag
+    </div>
+    <div class="content">
+      <form id="formAdminTag" class="ui inverted form">
+        <input type="hidden" id="adminTagIsEdit" value="0" />
+        <input type="hidden" id="adminTagOldName" value="" />
+        <div class="required field">
+          <label for="adminTagName">Tag Name</label>
+          <input type="text" id="adminTagName" placeholder="e.g. backend" required />
+        </div>
+        <div class="field">
+          <label for="adminTagColor">Color</label>
+          <select id="adminTagColor" class="ui dropdown inverted selection">
+            <option value="blue">Blue</option>
+            <option value="teal">Teal</option>
+            <option value="green">Green</option>
+            <option value="red">Red</option>
+            <option value="orange">Orange</option>
+            <option value="yellow">Yellow</option>
+            <option value="purple">Purple</option>
+            <option value="violet">Violet</option>
+            <option value="pink">Pink</option>
+            <option value="grey">Grey</option>
+            <option value="olive">Olive</option>
+          </select>
+        </div>
+
+        <div class="ui info message" id="adminTagRenameNote" style="display: none;">
+          <i class="info circle icon"></i>
+          Renaming this tag will automatically update all existing tasks in this project.
+        </div>
+
+        <div class="ui negative message" id="adminTagError" style="display: none;">
+          <div class="header">Error</div>
+          <p id="adminTagErrorText"></p>
+        </div>
+      </form>
+    </div>
+    <div class="actions">
+      <button type="button" class="ui basic inverted button" id="btnCancelAdminTag">Cancel</button>
+      <button type="button" class="ui teal button" id="btnSubmitAdminTag">
+        <i class="save icon"></i> Save Tag
+      </button>
+    </div>
+  </div>
+
+  <!-- Lightbox: Image Viewer Modal -->
+  <div id="imageViewerModal" class="image-viewer-modal" hidden role="dialog" aria-modal="true" aria-label="Image viewer">
+    <div class="image-viewer-backdrop" id="imageViewerBackdrop"></div>
+    <div class="image-viewer-container">
+      <div class="image-viewer-header">
+        <div class="image-viewer-meta">
+          <i class="image outline icon" style="color: #8be9fd; font-size: 1.2rem;"></i>
+          <span class="image-viewer-title" id="imageViewerTitle"></span>
+          <span class="image-viewer-info" id="imageViewerInfo"></span>
+          <span class="image-viewer-counter" id="imageViewerCounter"></span>
+        </div>
+        <div class="image-viewer-toolbar">
+          <button type="button" class="ui mini basic inverted icon button" id="btnImageViewerZoom" title="Tamaño real 100% (Z)" aria-label="Toggle zoom">
+            <i class="search plus icon"></i>
+          </button>
+          <button type="button" class="ui mini basic inverted icon button" id="btnImageViewerDownload" title="Descargar imagen" aria-label="Download image">
+            <i class="download icon"></i>
+          </button>
+          <a class="ui mini basic inverted icon button" id="btnImageViewerNewTab" target="_blank" rel="noopener" title="Abrir en pestaña nueva" aria-label="Open in new tab">
+            <i class="external alternate icon"></i>
+          </a>
+          <button type="button" class="ui mini basic inverted icon button image-viewer-close" id="btnImageViewerClose" title="Cerrar (Esc)" aria-label="Close">
+            <i class="times icon"></i>
+          </button>
+        </div>
+      </div>
+      <div class="image-viewer-body" id="imageViewerBody">
+        <button type="button" class="image-viewer-nav prev" id="btnImageViewerPrev" title="Anterior (←)" aria-label="Previous image">
+          <i class="chevron left icon"></i>
+        </button>
+        <div class="image-viewer-stage" id="imageViewerStage">
+          <div class="image-viewer-spinner ui active inverted centered inline loader" id="imageViewerLoader" hidden></div>
+          <img id="imageViewerImg" class="image-viewer-img" alt="" />
+        </div>
+        <button type="button" class="image-viewer-nav next" id="btnImageViewerNext" title="Siguiente (→)" aria-label="Next image">
+          <i class="chevron right icon"></i>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -1031,14 +1630,16 @@
   <script src="js/ui.js?v=20261017.3"></script>
   <script src="js/tags.js?v=20261017.3"></script>
   <script src="js/storage.js?v=20261017.3"></script>
-  <script src="js/validation.js?v=20261018.1"></script>
+  <script src="js/validation.js?v=20261020.1"></script>
   <script src="js/markdown.js?v=20261017.3"></script>
-  <script src="js/attachments.js?v=20261017.3"></script>
-  <script src="js/mongo-sync.js?v=20261017.3"></script>
+  <script src="js/attachments.js?v=20261019.1"></script>
+  <script src="js/mongo-sync.js?v=20261020.1"></script>
   <script src="js/auth.js?v=20261017.3"></script>
   <script src="js/board.js?v=20261018.2"></script>
-  <script src="js/modals.js?v=20261018.1"></script>
-  <script src="js/task-page.js?v=20261018.1"></script>
-  <script src="js/app.js?v=20261018.2"></script>
+  <script src="js/modals.js?v=20261019.1"></script>
+  <script src="js/task-page.js?v=20261019.1"></script>
+  <script src="js/admin.js?v=20261018.1"></script>
+  <script src="js/tag-explorer.js?v=20261019.1"></script>
+  <script src="js/app.js?v=20261020.1"></script>
 </body>
 </html>

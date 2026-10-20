@@ -26,7 +26,7 @@ const net = require('net');
 const { exec } = require('child_process');
 const { MongoClient } = require('mongodb');
 const crypto = require('crypto');
-const { createToken, verifyToken, verifyRequest } = require('./auth');
+const { createToken, verifyToken, verifyRequest, isAdminUser } = require('./auth');
 
 const APP_DIR = __dirname;
 const INDEX_FILE = path.join(APP_DIR, 'index.html');
@@ -94,6 +94,8 @@ const DEFAULT_PROJECT = {
   name: 'Project Ludum',
   dbName: 'vg-task-manager',
   description: 'Default primary project',
+  'task-id-format': 'lud-',
+  taskIdFormat: 'lud-',
   createdAt: new Date().toISOString()
 };
 
@@ -102,7 +104,20 @@ async function seedDefaultProjects(db) {
     const col = db.collection('projects');
     await col.updateOne(
       { _id: DEFAULT_PROJECT._id },
-      { $setOnInsert: DEFAULT_PROJECT },
+      {
+        $setOnInsert: {
+          _id: DEFAULT_PROJECT._id,
+          id: DEFAULT_PROJECT.id,
+          name: DEFAULT_PROJECT.name,
+          dbName: DEFAULT_PROJECT.dbName,
+          description: DEFAULT_PROJECT.description,
+          createdAt: DEFAULT_PROJECT.createdAt
+        },
+        $set: {
+          'task-id-format': DEFAULT_PROJECT['task-id-format'],
+          taskIdFormat: DEFAULT_PROJECT.taskIdFormat
+        }
+      },
       { upsert: true }
     );
     return await col.countDocuments();
@@ -163,6 +178,40 @@ async function getAllDescendantIds(db, rootTaskId) {
     }
   }
   return descendantIds;
+}
+
+async function generateNextTaskIdForProject(projectDb, format = 'lud-') {
+  const rawFormat = String(format || 'lud-').trim();
+  const hasPlaceholder = /\{n\}/i.test(rawFormat);
+  const prefix = hasPlaceholder ? rawFormat.replace(/\{n\}/gi, '') : rawFormat;
+  const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`^${escaped}(\\d+)$`, 'i');
+
+  const tasks = await projectDb.collection('tasks').find(
+    {},
+    { projection: { id: 1, _id: 1 } }
+  ).toArray();
+
+  let maxNum = 0;
+  for (const t of tasks) {
+    const idStr = String(t.id || t._id || '');
+    const match = idStr.match(regex);
+    if (match) {
+      const num = parseInt(match[1], 10);
+      if (!isNaN(num) && num > maxNum) {
+        maxNum = num;
+      }
+    }
+  }
+
+  const nextNum = maxNum + 1;
+  if (/\{n\}/.test(rawFormat)) {
+    return rawFormat.replace(/\{n\}/g, String(nextNum));
+  }
+  if (/\{N\}/.test(rawFormat)) {
+    return rawFormat.replace(/\{N\}/g, String(nextNum));
+  }
+  return `${rawFormat}${nextNum}`;
 }
 
 async function connectMongo(uri) {
@@ -437,7 +486,8 @@ async function resolveProjectContext(req) {
     }
   }
 
-  if (userProjects.length === 0) {
+  const isAdmin = req.user && Boolean(req.user.isAdmin);
+  if (!isAdmin && userProjects.length === 0) {
     return {
       ok: false,
       status: 403,
@@ -448,7 +498,7 @@ async function resolveProjectContext(req) {
   const urlObj = new URL(req.url, 'http://localhost');
   const requestedProjectId = req.headers['x-project-id'] || urlObj.searchParams.get('projectId') || null;
 
-  if (requestedProjectId && !userProjects.includes(requestedProjectId)) {
+  if (!isAdmin && requestedProjectId && !userProjects.includes(requestedProjectId)) {
     return {
       ok: false,
       status: 403,
@@ -473,6 +523,12 @@ async function resolveProjectContext(req) {
       status: 404,
       error: `Project "${targetProjectId}" not found.`
     };
+  }
+
+  if (!projectDoc['task-id-format'] && !projectDoc.taskIdFormat) {
+    const format = targetProjectId === 'project-ludum' ? 'lud-' : `${targetProjectId}-`;
+    projectDoc['task-id-format'] = format;
+    projectDoc.taskIdFormat = format;
   }
 
   const targetDbName = projectDoc.dbName || targetProjectId;
@@ -543,10 +599,79 @@ async function handleApi(req, res, pathname, cors) {
     return sendJson(res, 200, { ok: true, connected: false }, cors);
   }
 
-  // 3. Register User: POST /api/auth/register
+  // 2.2 Bootstrap Status: GET /api/auth/bootstrap-status
+  if (pathname === '/api/auth/bootstrap-status' && req.method === 'GET') {
+    if (!mongoDb) {
+      return sendJson(res, 200, { ok: true, bootstrapNeeded: false, error: 'Not connected to MongoDB' }, cors);
+    }
+    try {
+      const userCount = await mongoDb.collection('users').countDocuments().catch(() => 0);
+      return sendJson(res, 200, { ok: true, bootstrapNeeded: userCount === 0 }, cors);
+    } catch (err) {
+      return sendJson(res, 500, { ok: false, error: err.message }, cors);
+    }
+  }
+
+  // 2.3 Bootstrap Initial Administrator: POST /api/auth/bootstrap
+  if (pathname === '/api/auth/bootstrap' && req.method === 'POST') {
+    if (!mongoDb) {
+      return sendJson(res, 403, { ok: false, error: 'Not connected to MongoDB. Please connect first.' }, cors);
+    }
+    try {
+      const usersCol = mongoDb.collection('users');
+      const userCount = await usersCol.countDocuments().catch(() => 0);
+      if (userCount > 0) {
+        return sendJson(res, 403, { ok: false, error: 'Bootstrap registration is disabled because users already exist.' }, cors);
+      }
+
+      const body = await readBody(req);
+      let parsed;
+      try {
+        parsed = JSON.parse(body.toString('utf8'));
+      } catch (err) {
+        return sendJson(res, 400, { ok: false, error: 'Invalid JSON: ' + err.message }, cors);
+      }
+      const username = (parsed && parsed.username ? String(parsed.username) : '').trim();
+      const password = parsed && parsed.password ? String(parsed.password) : '';
+
+      if (!username || username.length < 2 || username.length > 40) {
+        return sendJson(res, 400, { ok: false, error: 'Username must be between 2 and 40 characters.' }, cors);
+      }
+      if (!/^[\w.-]+$/.test(username)) {
+        return sendJson(res, 400, { ok: false, error: 'Username can only contain letters, numbers, underscores, dots, and hyphens.' }, cors);
+      }
+      if (!password || password.length < 3) {
+        return sendJson(res, 400, { ok: false, error: 'Password must be at least 3 characters long.' }, cors);
+      }
+
+      const passwordHash = hashPassword(password);
+      const userDoc = {
+        username,
+        usernameLower: username.toLowerCase(),
+        password: passwordHash,
+        projects: ['project-ludum'],
+        isAdmin: true,
+        createdAt: new Date().toISOString()
+      };
+      await usersCol.insertOne(userDoc);
+      const token = createToken(username, ['project-ludum'], true);
+      return sendJson(res, 201, {
+        ok: true,
+        token,
+        user: { username, projects: ['project-ludum'], isAdmin: true, createdAt: userDoc.createdAt }
+      }, cors);
+    } catch (err) {
+      return sendJson(res, 500, { ok: false, error: 'Failed to bootstrap administrator: ' + err.message }, cors);
+    }
+  }
+
+  // 3. Register User: POST /api/auth/register (restricted to administrator)
   if (pathname === '/api/auth/register' && req.method === 'POST') {
     if (!mongoDb) {
       return sendJson(res, 403, { ok: false, error: 'Not connected to MongoDB. Please connect first.' }, cors);
+    }
+    if (!isAdminUser(req)) {
+      return sendJson(res, 403, { ok: false, error: 'Public registration is disabled. Only administrators can create users.' }, cors);
     }
     const body = await readBody(req);
     let parsed;
@@ -573,7 +698,7 @@ async function handleApi(req, res, pathname, cors) {
       const lower = username.toLowerCase();
       const existing = await usersCol.findOne({ usernameLower: lower });
       if (existing) {
-        return sendJson(res, 409, { ok: false, error: 'Username is already taken. Please choose another or log in.' }, cors);
+        return sendJson(res, 409, { ok: false, error: 'Username is already taken. Please choose another.' }, cors);
       }
 
       const projects = Array.isArray(parsed.projects) && parsed.projects.length > 0
@@ -585,14 +710,15 @@ async function handleApi(req, res, pathname, cors) {
         usernameLower: lower,
         password: passwordHash,
         projects,
+        isAdmin: Boolean(parsed.isAdmin),
         createdAt: new Date().toISOString()
       };
       await usersCol.insertOne(userDoc);
-      const token = createToken(username, projects);
+      const token = createToken(username, projects, userDoc.isAdmin);
       return sendJson(res, 201, {
         ok: true,
         token,
-        user: { username, projects, createdAt: userDoc.createdAt }
+        user: { username, projects, isAdmin: userDoc.isAdmin, createdAt: userDoc.createdAt }
       }, cors);
     } catch (err) {
       return sendJson(res, 500, { ok: false, error: 'Failed to register user: ' + err.message }, cors);
@@ -629,11 +755,12 @@ async function handleApi(req, res, pathname, cors) {
       const userProjects = Array.isArray(userDoc.projects) && userDoc.projects.length > 0
         ? userDoc.projects
         : ['project-ludum'];
-      const token = createToken(userDoc.username, userProjects);
+      const isAdmin = Boolean(userDoc.isAdmin);
+      const token = createToken(userDoc.username, userProjects, isAdmin);
       return sendJson(res, 200, {
         ok: true,
         token,
-        user: { username: userDoc.username, projects: userProjects, createdAt: userDoc.createdAt }
+        user: { username: userDoc.username, projects: userProjects, isAdmin, createdAt: userDoc.createdAt }
       }, cors);
     } catch (err) {
       return sendJson(res, 500, { ok: false, error: 'Failed to authenticate: ' + err.message }, cors);
@@ -660,6 +787,7 @@ async function handleApi(req, res, pathname, cors) {
       const users = list.map(u => ({
         username: u.username,
         projects: Array.isArray(u.projects) && u.projects.length > 0 ? u.projects : ['project-ludum'],
+        isAdmin: Boolean(u.isAdmin),
         createdAt: u.createdAt
       }));
       return sendJson(res, 200, { ok: true, users }, cors);
@@ -668,44 +796,243 @@ async function handleApi(req, res, pathname, cors) {
     }
   }
 
-  // 3.3.1 List User Projects: GET /api/projects
+  // 3.3.1 Admin Users Management: /api/admin/users
+  if (pathname.startsWith('/api/admin/users')) {
+    if (!mongoDb) {
+      return sendJson(res, 403, { ok: false, error: 'Not connected to MongoDB' }, cors);
+    }
+    if (!isAdminUser(req)) {
+      return sendJson(res, 403, { ok: false, error: 'Access denied. Administrative role required.' }, cors);
+    }
+
+    const subpath = pathname.replace('/api/admin/users', '').replace(/^\/+/, '');
+    const usersCol = mongoDb.collection('users');
+
+    // GET /api/admin/users -> List all users
+    if (req.method === 'GET' && !subpath) {
+      try {
+        const list = await usersCol.find({}, { projection: { password: 0 } }).sort({ username: 1 }).toArray();
+        const users = list.map(u => ({
+          username: u.username,
+          projects: Array.isArray(u.projects) && u.projects.length > 0 ? u.projects : ['project-ludum'],
+          isAdmin: Boolean(u.isAdmin),
+          createdAt: u.createdAt
+        }));
+        return sendJson(res, 200, { ok: true, users }, cors);
+      } catch (err) {
+        return sendJson(res, 500, { ok: false, error: err.message }, cors);
+      }
+    }
+
+    // POST /api/admin/users -> Create user
+    if (req.method === 'POST' && !subpath) {
+      const body = await readBody(req);
+      let parsed;
+      try { parsed = JSON.parse(body.toString('utf8')); } catch (e) {
+        return sendJson(res, 400, { ok: false, error: 'Invalid JSON: ' + e.message }, cors);
+      }
+      const username = (parsed.username || '').trim();
+      const password = parsed.password || '';
+      if (!username || username.length < 2 || username.length > 40) {
+        return sendJson(res, 400, { ok: false, error: 'Username must be between 2 and 40 characters.' }, cors);
+      }
+      if (!/^[\w.-]+$/.test(username)) {
+        return sendJson(res, 400, { ok: false, error: 'Username contains invalid characters.' }, cors);
+      }
+      if (!password || password.length < 3) {
+        return sendJson(res, 400, { ok: false, error: 'Password must be at least 3 characters long.' }, cors);
+      }
+      const lower = username.toLowerCase();
+      const existing = await usersCol.findOne({ usernameLower: lower });
+      if (existing) {
+        return sendJson(res, 409, { ok: false, error: 'Username already exists.' }, cors);
+      }
+      const projects = Array.isArray(parsed.projects) && parsed.projects.length > 0 ? parsed.projects : ['project-ludum'];
+      const userDoc = {
+        username,
+        usernameLower: lower,
+        password: hashPassword(password),
+        projects,
+        isAdmin: Boolean(parsed.isAdmin),
+        createdAt: new Date().toISOString()
+      };
+      await usersCol.insertOne(userDoc);
+      return sendJson(res, 201, {
+        ok: true,
+        user: { username, projects, isAdmin: userDoc.isAdmin, createdAt: userDoc.createdAt }
+      }, cors);
+    }
+
+    // PUT /api/admin/users/:username -> Update user projects/password/isAdmin
+    if (req.method === 'PUT' && subpath) {
+      const targetUser = decodeURIComponent(subpath);
+      const body = await readBody(req);
+      let parsed;
+      try { parsed = JSON.parse(body.toString('utf8')); } catch (e) {
+        return sendJson(res, 400, { ok: false, error: 'Invalid JSON: ' + e.message }, cors);
+      }
+      const updateFields = {};
+      if (Array.isArray(parsed.projects)) {
+        updateFields.projects = parsed.projects;
+      }
+      if (typeof parsed.isAdmin === 'boolean') {
+        updateFields.isAdmin = parsed.isAdmin;
+      }
+      if (parsed.password && parsed.password.length >= 3) {
+        updateFields.password = hashPassword(parsed.password);
+      }
+      updateFields.updatedAt = new Date().toISOString();
+
+      const result = await usersCol.updateOne(
+        { usernameLower: targetUser.toLowerCase() },
+        { $set: updateFields }
+      );
+      if (result.matchedCount === 0) {
+        return sendJson(res, 404, { ok: false, error: `User "${targetUser}" not found.` }, cors);
+      }
+      return sendJson(res, 200, { ok: true, message: `User "${targetUser}" updated.` }, cors);
+    }
+
+    // DELETE /api/admin/users/:username -> Delete user
+    if (req.method === 'DELETE' && subpath) {
+      const targetUser = decodeURIComponent(subpath);
+      if (req.user && req.user.username && req.user.username.toLowerCase() === targetUser.toLowerCase()) {
+        return sendJson(res, 400, { ok: false, error: 'You cannot delete your own administrator account.' }, cors);
+      }
+      const result = await usersCol.deleteOne({ usernameLower: targetUser.toLowerCase() });
+      if (result.deletedCount === 0) {
+        return sendJson(res, 404, { ok: false, error: `User "${targetUser}" not found.` }, cors);
+      }
+      return sendJson(res, 200, { ok: true, message: `User "${targetUser}" deleted.` }, cors);
+    }
+  }
+
+  // 3.3.2 Admin Projects Management: /api/admin/projects
+  if (pathname === '/api/admin/projects') {
+    if (!mongoDb) {
+      return sendJson(res, 403, { ok: false, error: 'Not connected to MongoDB' }, cors);
+    }
+    if (!isAdminUser(req)) {
+      return sendJson(res, 403, { ok: false, error: 'Access denied. Administrative role required.' }, cors);
+    }
+
+    if (req.method === 'GET') {
+      const allProjects = await mongoDb.collection('projects').find({}).toArray();
+      const normalized = allProjects.map(p => ({
+        id: p.id || p._id,
+        name: p.name,
+        dbName: p.dbName,
+        description: p.description || '',
+        createdAt: p.createdAt || null
+      }));
+      return sendJson(res, 200, { ok: true, projects: normalized }, cors);
+    }
+
+    if (req.method === 'POST') {
+      const body = await readBody(req);
+      let parsed;
+      try { parsed = JSON.parse(body.toString('utf8')); } catch (e) {
+        return sendJson(res, 400, { ok: false, error: 'Invalid JSON: ' + e.message }, cors);
+      }
+
+      const id = (parsed.id || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+      const name = (parsed.name || '').trim();
+      const description = (parsed.description || '').trim();
+      const dbName = (parsed.dbName || `vg-tasks-${id}`).trim();
+
+      if (!id || id.length < 2) {
+        return sendJson(res, 400, { ok: false, error: 'Project ID is required (min 2 alphanumeric/hyphen characters).' }, cors);
+      }
+      if (!name) {
+        return sendJson(res, 400, { ok: false, error: 'Project display name is required.' }, cors);
+      }
+
+      const projectsCol = mongoDb.collection('projects');
+      const existing = await projectsCol.findOne({ $or: [{ _id: id }, { id: id }] });
+      if (existing) {
+        return sendJson(res, 409, { ok: false, error: `Project with ID "${id}" already exists.` }, cors);
+      }
+
+      const format = `${id}-`;
+      const newProjectDoc = {
+        _id: id,
+        id,
+        name,
+        dbName,
+        description,
+        'task-id-format': format,
+        taskIdFormat: format,
+        createdAt: new Date().toISOString()
+      };
+      await projectsCol.insertOne(newProjectDoc);
+
+      // Seed default task types & tag registry in the new project's database
+      try {
+        const newProjectDb = mongoClient.db(dbName);
+        await seedDefaultTaskTypes(newProjectDb);
+        await newProjectDb.collection('tags').updateOne(
+          { _id: 'registry' },
+          { $setOnInsert: { tags: [], updatedAt: new Date() } },
+          { upsert: true }
+        );
+      } catch (seedErr) {
+        console.warn(`[Admin] Warning initializing new project DB "${dbName}":`, seedErr.message);
+      }
+
+      return sendJson(res, 201, { ok: true, project: newProjectDoc }, cors);
+    }
+  }
+
+  // 3.3.3 List User Projects: GET /api/projects
   if (pathname === '/api/projects' && req.method === 'GET') {
     if (!mongoDb) {
       return sendJson(res, 403, { ok: false, error: 'Not connected to MongoDB' }, cors);
     }
     try {
-      let userProjects = req.user && Array.isArray(req.user.projects) ? req.user.projects : ['project-ludum'];
-      if (req.user && req.user.username) {
-        const userDoc = await mongoDb.collection('users').findOne(
-          { usernameLower: req.user.username.toLowerCase() },
-          { projection: { projects: 1 } }
-        );
-        if (userDoc) {
-          userProjects = Array.isArray(userDoc.projects) ? userDoc.projects : ['project-ludum'];
-          req.user.projects = userProjects;
+      const isAdmin = req.user && Boolean(req.user.isAdmin);
+      let projects;
+      if (isAdmin) {
+        projects = await mongoDb.collection('projects').find({}).toArray();
+      } else {
+        let userProjects = req.user && Array.isArray(req.user.projects) ? req.user.projects : ['project-ludum'];
+        if (req.user && req.user.username) {
+          const userDoc = await mongoDb.collection('users').findOne(
+            { usernameLower: req.user.username.toLowerCase() },
+            { projection: { projects: 1 } }
+          );
+          if (userDoc) {
+            userProjects = Array.isArray(userDoc.projects) ? userDoc.projects : ['project-ludum'];
+            req.user.projects = userProjects;
+          }
         }
+        if (userProjects.length === 0) {
+          return sendJson(res, 200, { ok: true, projects: [] }, cors);
+        }
+        projects = await mongoDb.collection('projects')
+          .find({ _id: { $in: userProjects } })
+          .toArray();
       }
-      if (userProjects.length === 0) {
-        return sendJson(res, 200, { ok: true, projects: [] }, cors);
-      }
 
-      const projects = await mongoDb.collection('projects')
-        .find({ _id: { $in: userProjects } })
-        .toArray();
+      const normalized = projects.map(p => {
+        const format = p['task-id-format'] || p.taskIdFormat || (p.id === 'project-ludum' || p._id === 'project-ludum' ? 'lud-' : `${p.id || p._id}-`);
+        return {
+          id: p.id || p._id,
+          name: p.name,
+          dbName: p.dbName,
+          description: p.description || '',
+          'task-id-format': format,
+          taskIdFormat: format
+        };
+      });
 
-      const normalized = projects.map(p => ({
-        id: p.id || p._id,
-        name: p.name,
-        dbName: p.dbName,
-        description: p.description || ''
-      }));
-
-      if (userProjects.includes('project-ludum') && !normalized.some(p => p.id === 'project-ludum')) {
+      if (!normalized.some(p => p.id === 'project-ludum')) {
         normalized.unshift({
           id: DEFAULT_PROJECT.id,
           name: DEFAULT_PROJECT.name,
           dbName: DEFAULT_PROJECT.dbName,
-          description: DEFAULT_PROJECT.description
+          description: DEFAULT_PROJECT.description,
+          'task-id-format': DEFAULT_PROJECT['task-id-format'],
+          taskIdFormat: DEFAULT_PROJECT.taskIdFormat
         });
       }
 
@@ -784,6 +1111,7 @@ async function handleApi(req, res, pathname, cors) {
             id: String(id),
             type: t.type || 'task',
             parentId: t.parentId || null,
+            linkedTaskIds: Array.isArray(t.linkedTaskIds) ? t.linkedTaskIds : [],
             favorite: Boolean(t.favorite)
           };
           delete copy._id;
@@ -839,7 +1167,11 @@ async function handleApi(req, res, pathname, cors) {
           if (!taskName) {
             return sendJson(res, 400, { ok: false, error: 'Task name is required' }, cors);
           }
-          const id = parsed.id || `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          let id = parsed.id;
+          if (!id) {
+            const format = projCtx.project['task-id-format'] || projCtx.project.taskIdFormat || (projCtx.project.id === 'project-ludum' ? 'lud-' : `${projCtx.project.id}-`);
+            id = await generateNextTaskIdForProject(currentProjectDb, format);
+          }
           const singleDoc = {
             ...parsed,
             _id: id,
@@ -847,6 +1179,7 @@ async function handleApi(req, res, pathname, cors) {
             name: taskName,
             type: parsed.type || 'task',
             parentId: parsed.parentId || null,
+            linkedTaskIds: Array.isArray(parsed.linkedTaskIds) ? parsed.linkedTaskIds : [],
             status: parsed.status || 'planned',
             priority: parsed.priority || 'medium',
             favorite: Boolean(parsed.favorite),
@@ -896,7 +1229,8 @@ async function handleApi(req, res, pathname, cors) {
               _id: id,
               id,
               type: t.type || 'task',
-              parentId: t.parentId || null
+              parentId: t.parentId || null,
+              linkedTaskIds: Array.isArray(t.linkedTaskIds) ? t.linkedTaskIds : []
             };
             return {
               updateOne: {
@@ -943,6 +1277,7 @@ async function handleApi(req, res, pathname, cors) {
           id: String(id),
           type: doc.type || 'task',
           parentId: doc.parentId || null,
+          linkedTaskIds: Array.isArray(doc.linkedTaskIds) ? doc.linkedTaskIds : [],
           favorite: Boolean(doc.favorite)
         };
         delete normalized._id;
@@ -958,6 +1293,10 @@ async function handleApi(req, res, pathname, cors) {
         const allIdsToDelete = [taskId, ...descendantIds];
         await currentProjectDb.collection('tasks').deleteMany({ _id: { $in: allIdsToDelete } });
         await currentProjectDb.collection('attachments').deleteMany({ taskId: { $in: allIdsToDelete } });
+        await currentProjectDb.collection('tasks').updateMany(
+          { linkedTaskIds: { $in: allIdsToDelete } },
+          { $pull: { linkedTaskIds: { $in: allIdsToDelete } } }
+        );
         return sendJson(res, 200, { ok: true, deletedCount: allIdsToDelete.length, deletedIds: allIdsToDelete, projectId: projCtx.project.id }, cors);
       } catch (err) {
         return sendJson(res, 500, { ok: false, error: err.message }, cors);
@@ -997,6 +1336,9 @@ async function handleApi(req, res, pathname, cors) {
           task.id = taskId;
           task.type = task.type || existing.type || 'task';
           task.parentId = task.parentId !== undefined ? (task.parentId || null) : (existing.parentId || null);
+          task.linkedTaskIds = task.linkedTaskIds !== undefined
+            ? (Array.isArray(task.linkedTaskIds) ? task.linkedTaskIds : [])
+            : (Array.isArray(existing.linkedTaskIds) ? existing.linkedTaskIds : []);
           // Preserve created_at, update updated_at
           task.updated_at = now;
           if (!task.history) task.history = existing.history || [];
@@ -1018,6 +1360,7 @@ async function handleApi(req, res, pathname, cors) {
           task.id = taskId;
           task.type = task.type || 'task';
           task.parentId = task.parentId || null;
+          task.linkedTaskIds = Array.isArray(task.linkedTaskIds) ? task.linkedTaskIds : [];
           task.created_at = now;
           task.updated_at = now;
           if (!task.history) task.history = [];
@@ -1335,6 +1678,232 @@ async function handleApi(req, res, pathname, cors) {
     }
   }
 
+  // 9. Project Task Types Management: /api/projects/:projectId/task-types
+  const taskTypeMatch = pathname.match(/^\/api\/projects\/([^\/]+)\/task-types(?:\/([^\/]+))?$/);
+  if (taskTypeMatch) {
+    if (!isAdminUser(req)) {
+      return sendJson(res, 403, { ok: false, error: 'Access denied. Administrative role required.' }, cors);
+    }
+    const projectId = decodeURIComponent(taskTypeMatch[1]);
+    const typeId = taskTypeMatch[2] ? decodeURIComponent(taskTypeMatch[2]) : null;
+
+    const projectsCol = mongoDb.collection('projects');
+    let projectDoc = await projectsCol.findOne({ $or: [{ _id: projectId }, { id: projectId }] });
+    if (!projectDoc && projectId === 'project-ludum') projectDoc = DEFAULT_PROJECT;
+    if (!projectDoc) {
+      return sendJson(res, 404, { ok: false, error: `Project "${projectId}" not found.` }, cors);
+    }
+    const projectDb = mongoClient.db(projectDoc.dbName || projectId);
+
+    if (req.method === 'GET' && !typeId) {
+      const list = await projectDb.collection('task_types').find({}).sort({ name: 1 }).toArray();
+      const taskTypes = list.map(t => ({
+        id: t.id || t._id,
+        name: t.name,
+        icon: t.icon,
+        color: t.color
+      }));
+      return sendJson(res, 200, { ok: true, taskTypes, projectId }, cors);
+    }
+
+    if (req.method === 'POST' && !typeId) {
+      const body = await readBody(req);
+      let parsed;
+      try { parsed = JSON.parse(body.toString('utf8')); } catch (e) {
+        return sendJson(res, 400, { ok: false, error: 'Invalid JSON: ' + e.message }, cors);
+      }
+      const id = (parsed.id || parsed.name || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+      const name = (parsed.name || id).trim();
+      const icon = (parsed.icon || 'check square outline').trim();
+      const color = (parsed.color || 'blue').trim();
+
+      if (!id || !name) {
+        return sendJson(res, 400, { ok: false, error: 'Task type ID and name are required.' }, cors);
+      }
+      const existing = await projectDb.collection('task_types').findOne({ $or: [{ _id: id }, { id }] });
+      if (existing) {
+        return sendJson(res, 409, { ok: false, error: `Task type "${id}" already exists in project.` }, cors);
+      }
+      const doc = { _id: id, id, name, icon, color };
+      await projectDb.collection('task_types').insertOne(doc);
+      return sendJson(res, 201, { ok: true, taskType: doc, projectId }, cors);
+    }
+
+    if (req.method === 'PUT' && typeId) {
+      const body = await readBody(req);
+      let parsed;
+      try { parsed = JSON.parse(body.toString('utf8')); } catch (e) {
+        return sendJson(res, 400, { ok: false, error: 'Invalid JSON: ' + e.message }, cors);
+      }
+      const updateData = {};
+      if (parsed.name) updateData.name = parsed.name.trim();
+      if (parsed.icon) updateData.icon = parsed.icon.trim();
+      if (parsed.color) updateData.color = parsed.color.trim();
+
+      const result = await projectDb.collection('task_types').updateOne(
+        { $or: [{ _id: typeId }, { id: typeId }] },
+        { $set: updateData }
+      );
+      if (result.matchedCount === 0) {
+        return sendJson(res, 404, { ok: false, error: `Task type "${typeId}" not found.` }, cors);
+      }
+      return sendJson(res, 200, { ok: true, message: `Task type "${typeId}" updated.`, projectId }, cors);
+    }
+
+    if (req.method === 'DELETE' && typeId) {
+      if (typeId === 'task') {
+        return sendJson(res, 400, { ok: false, error: 'The default "task" type cannot be deleted.' }, cors);
+      }
+      const reassignResult = await projectDb.collection('tasks').updateMany(
+        { type: typeId },
+        { $set: { type: 'task', updated_at: new Date().toISOString() } }
+      );
+      await projectDb.collection('task_types').deleteOne(
+        { $or: [{ _id: typeId }, { id: typeId }] }
+      );
+      return sendJson(res, 200, {
+        ok: true,
+        message: `Task type "${typeId}" deleted.`,
+        reassignedTasksCount: reassignResult.modifiedCount,
+        projectId
+      }, cors);
+    }
+  }
+
+  // 10. Project Tags Management: /api/projects/:projectId/tags
+  const tagMatch = pathname.match(/^\/api\/projects\/([^\/]+)\/tags(?:\/([^\/]+))?$/);
+  if (tagMatch) {
+    if (!isAdminUser(req)) {
+      return sendJson(res, 403, { ok: false, error: 'Access denied. Administrative role required.' }, cors);
+    }
+    const projectId = decodeURIComponent(tagMatch[1]);
+    const tagName = tagMatch[2] ? decodeURIComponent(tagMatch[2]) : null;
+
+    const projectsCol = mongoDb.collection('projects');
+    let projectDoc = await projectsCol.findOne({ $or: [{ _id: projectId }, { id: projectId }] });
+    if (!projectDoc && projectId === 'project-ludum') projectDoc = DEFAULT_PROJECT;
+    if (!projectDoc) {
+      return sendJson(res, 404, { ok: false, error: `Project "${projectId}" not found.` }, cors);
+    }
+    const projectDb = mongoClient.db(projectDoc.dbName || projectId);
+
+    if (req.method === 'GET' && !tagName) {
+      const tagDoc = await projectDb.collection('tags').findOne({ _id: 'registry' });
+      const rawTags = tagDoc && Array.isArray(tagDoc.tags) ? tagDoc.tags : [];
+      const allTasks = await projectDb.collection('tasks').find({}, { projection: { tags: 1 } }).toArray();
+      const countMap = {};
+      allTasks.forEach(t => {
+        (t.tags || []).forEach(name => {
+          const k = String(name).toLowerCase();
+          countMap[k] = (countMap[k] || 0) + 1;
+        });
+      });
+      const tagsWithCounts = rawTags.map(t => {
+        const name = typeof t === 'string' ? t : t.name;
+        const color = (t && typeof t === 'object' && t.color) ? t.color : 'grey';
+        return {
+          name,
+          color,
+          taskCount: countMap[String(name).toLowerCase()] || 0
+        };
+      });
+      return sendJson(res, 200, { ok: true, tags: tagsWithCounts, projectId }, cors);
+    }
+
+    if (req.method === 'POST' && !tagName) {
+      const body = await readBody(req);
+      let parsed;
+      try { parsed = JSON.parse(body.toString('utf8')); } catch (e) {
+        return sendJson(res, 400, { ok: false, error: 'Invalid JSON: ' + e.message }, cors);
+      }
+      const newTagName = (parsed.tag || parsed.name || '').trim();
+      const color = (parsed.color || 'blue').trim();
+      if (!newTagName) {
+        return sendJson(res, 400, { ok: false, error: 'Tag name is required.' }, cors);
+      }
+      const tagDoc = await projectDb.collection('tags').findOne({ _id: 'registry' });
+      const tagsList = tagDoc && Array.isArray(tagDoc.tags) ? tagDoc.tags : [];
+      const lower = newTagName.toLowerCase();
+      if (tagsList.some(t => (typeof t === 'string' ? t : t.name).toLowerCase() === lower)) {
+        return sendJson(res, 409, { ok: false, error: `Tag "${newTagName}" already exists.` }, cors);
+      }
+      tagsList.push({ name: newTagName, color });
+      await projectDb.collection('tags').updateOne(
+        { _id: 'registry' },
+        { $set: { tags: tagsList, updatedAt: new Date() } },
+        { upsert: true }
+      );
+      return sendJson(res, 201, { ok: true, tag: { name: newTagName, color }, projectId }, cors);
+    }
+
+    if (req.method === 'PUT' && tagName) {
+      const body = await readBody(req);
+      let parsed;
+      try { parsed = JSON.parse(body.toString('utf8')); } catch (e) {
+        return sendJson(res, 400, { ok: false, error: 'Invalid JSON: ' + e.message }, cors);
+      }
+      const newName = (parsed.newName || parsed.name || '').trim();
+      const color = parsed.color ? parsed.color.trim() : null;
+      if (!newName) {
+        return sendJson(res, 400, { ok: false, error: 'New tag name is required.' }, cors);
+      }
+
+      const taskUpdate = await projectDb.collection('tasks').updateMany(
+        { tags: tagName },
+        { $set: { "tags.$[elem]": newName, updated_at: new Date().toISOString() } },
+        { arrayFilters: [{ "elem": tagName }] }
+      );
+
+      const tagDoc = await projectDb.collection('tags').findOne({ _id: 'registry' });
+      let tagsList = tagDoc && Array.isArray(tagDoc.tags) ? tagDoc.tags : [];
+      tagsList = tagsList.map(t => {
+        const curName = typeof t === 'string' ? t : t.name;
+        if (curName.toLowerCase() === tagName.toLowerCase()) {
+          return { name: newName, color: color || (typeof t === 'object' && t.color ? t.color : 'blue') };
+        }
+        return typeof t === 'string' ? { name: t, color: 'grey' } : t;
+      });
+      await projectDb.collection('tags').updateOne(
+        { _id: 'registry' },
+        { $set: { tags: tagsList, updatedAt: new Date() } },
+        { upsert: true }
+      );
+
+      return sendJson(res, 200, {
+        ok: true,
+        message: `Tag "${tagName}" renamed to "${newName}".`,
+        updatedTasksCount: taskUpdate.modifiedCount,
+        projectId
+      }, cors);
+    }
+
+    if (req.method === 'DELETE' && tagName) {
+      const taskUpdate = await projectDb.collection('tasks').updateMany(
+        { tags: tagName },
+        { $pull: { tags: tagName }, $set: { updated_at: new Date().toISOString() } }
+      );
+
+      const tagDoc = await projectDb.collection('tags').findOne({ _id: 'registry' });
+      let tagsList = tagDoc && Array.isArray(tagDoc.tags) ? tagDoc.tags : [];
+      tagsList = tagsList.filter(t => {
+        const curName = typeof t === 'string' ? t : t.name;
+        return curName.toLowerCase() !== tagName.toLowerCase();
+      });
+      await projectDb.collection('tags').updateOne(
+        { _id: 'registry' },
+        { $set: { tags: tagsList, updatedAt: new Date() } },
+        { upsert: true }
+      );
+
+      return sendJson(res, 200, {
+        ok: true,
+        message: `Tag "${tagName}" deleted and removed from tasks.`,
+        affectedTasksCount: taskUpdate.modifiedCount,
+        projectId
+      }, cors);
+    }
+  }
+
   return sendJson(res, 404, { error: 'Unknown API endpoint' }, cors);
 }
 
@@ -1460,4 +2029,14 @@ async function main() {
   }
 }
 
-main();
+if (require.main === module) {
+  main();
+} else {
+  module.exports = {
+    createServer,
+    connectMongo,
+    disconnectMongo,
+    hashPassword,
+    verifyPassword
+  };
+}

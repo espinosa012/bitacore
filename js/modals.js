@@ -3,7 +3,7 @@
  */
 (function() {
   window.VG = window.VG || {};
-  const { STATES, TASK_TYPES, canonicalState, canonicalPriority, canonicalTaskType, getAncestorIds, getDescendantIds, getSiblingIds, validateSubtaskRelationship, getEligibleSubtasks, escapeHtml, formatRelativeTime, formatFileSize, getFileIcon } = window.VG.Constants;
+  const { STATES, TASK_TYPES, canonicalState, canonicalPriority, canonicalTaskType, getAncestorIds, getDescendantIds, getSiblingIds, validateSubtaskRelationship, getEligibleSubtasks, linkTasks, unlinkTasks, formatTaskId, escapeHtml, formatRelativeTime, formatFileSize, getFileIcon } = window.VG.Constants;
   const Attachments = window.VG.Attachments;
   const UI = window.VG.UI;
 
@@ -11,6 +11,7 @@
   let activeTab = 'tabAttachments';
   let createDescEditor = null;
   let editDescEditor = null;
+  let modalCommentEditor = null;
   let createTagPicker = null;
   let editTagPicker = null;
   let lastFocusedCard = null;
@@ -245,6 +246,54 @@
       });
     }
 
+    // Auth bootstrap modal elements
+    const closeBootstrapErrorBtn = document.getElementById('closeBootstrapErrorBtn');
+    if (closeBootstrapErrorBtn) {
+      closeBootstrapErrorBtn.addEventListener('click', () => {
+        const el = document.getElementById('bootstrapError');
+        if (el) el.style.display = 'none';
+      });
+    }
+
+    const authBootstrapForm = document.getElementById('authBootstrapForm');
+    if (authBootstrapForm) {
+      authBootstrapForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const uname = (document.getElementById('bootstrapUsername').value || '').trim();
+        const pwd = document.getElementById('bootstrapPassword').value;
+        const confirmPwd = document.getElementById('bootstrapConfirmPassword').value;
+        const errBox = document.getElementById('bootstrapError');
+        const errText = document.getElementById('bootstrapErrorText');
+        const submitBtn = document.getElementById('btnBootstrapSubmit');
+
+        if (errBox) errBox.style.display = 'none';
+
+        if (pwd !== confirmPwd) {
+          if (errBox && errText) {
+            errBox.style.display = 'block';
+            errText.textContent = 'Passwords do not match.';
+          }
+          return;
+        }
+
+        if (submitBtn) submitBtn.classList.add('loading');
+        try {
+          const user = await window.VG.Auth.bootstrapAdmin(uname, pwd);
+          if (submitBtn) submitBtn.classList.remove('loading');
+          closeBootstrapModal();
+          if (window.VG.App && window.VG.App.onUserLoggedIn) {
+            await window.VG.App.onUserLoggedIn(user);
+          }
+        } catch (err) {
+          if (submitBtn) submitBtn.classList.remove('loading');
+          if (errBox && errText) {
+            errBox.style.display = 'block';
+            errText.textContent = err.message || 'Setup failed';
+          }
+        }
+      });
+    }
+
     if (authRegisterForm) {
       authRegisterForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -296,6 +345,17 @@
         onVisible: () => {
           const loginInput = document.getElementById('loginUsername');
           if (loginInput) loginInput.focus();
+        }
+      });
+    }
+
+    const modalBootstrapOverlay = document.getElementById('modalBootstrapOverlay');
+    if (modalBootstrapOverlay) {
+      UI.initModal(modalBootstrapOverlay, {
+        closable: false,
+        onVisible: () => {
+          const uInput = document.getElementById('bootstrapUsername');
+          if (uInput) uInput.focus();
         }
       });
     }
@@ -364,10 +424,17 @@
     // Attachment upload handlers in Edit Modal
     setupAttachmentUploadHandlers();
 
-    // Markdown editors for the description fields
+    // Markdown editors for description and comment fields
     const Markdown = window.VG.Markdown;
     createDescEditor = Markdown.createEditor(document.getElementById('newTaskDesc'), { minHeight: '110px' });
     editDescEditor = Markdown.createEditor(document.getElementById('editTaskDesc'), { minHeight: '130px' });
+    modalCommentEditor = Markdown.createEditor(document.getElementById('newCommentText'), {
+      compact: true,
+      minHeight: '85px',
+      onSubmit: () => {
+        if (addCommentForm) addCommentForm.requestSubmit();
+      }
+    });
 
     // Tag pickers (suggestions while typing, new tags created on save)
     createTagPicker = window.VG.Tags.createPicker(document.getElementById('newTaskTags'));
@@ -407,7 +474,11 @@
       modalEditOverlay.addEventListener('keydown', (e) => {
         if (e.key !== 'Enter' || !(e.metaKey || e.ctrlKey)) return;
         e.preventDefault();
-        if (e.target && e.target.id === 'newCommentText') {
+        const isCommentTarget = e.target && (
+          e.target.id === 'newCommentText' ||
+          (modalCommentEditor && modalCommentEditor.codemirror && modalCommentEditor.codemirror.getWrapperElement().contains(e.target))
+        );
+        if (isCommentTarget) {
           addCommentForm.requestSubmit();
         } else {
           handleSaveTaskDetails();
@@ -446,9 +517,12 @@
       const now = new Date().toISOString();
       const currentUser = window.VG.Auth && window.VG.Auth.getCurrentUser();
       const reporter = (currentUser && currentUser.username) ? currentUser.username : 'User';
+      const subId = (window.VG.App && window.VG.App.getNextTaskId)
+        ? window.VG.App.getNextTaskId()
+        : window.VG.Constants.generateSequentialTaskId(allTasks, 'lud-');
 
       const newSub = {
-        id: window.VG.Constants.generateId('task'),
+        id: subId,
         name: title,
         description: '',
         'openspec-id': '',
@@ -466,7 +540,7 @@
           from_status: null,
           to_status: 'planned',
           timestamp: now,
-          reason: `Subtask of #${activeEditingTaskId}`,
+          reason: `Subtask of #${formatTaskId(activeEditingTaskId)}`,
           user: (currentUser && currentUser.username) ? currentUser.username : null
         }],
         comments: [],
@@ -511,6 +585,29 @@
         childTask.parentId = parentTask.id;
         window.VG.App.persistChanges('Subtask linked');
         renderSubtasksTab(parentTask);
+        window.VG.Board.renderBoard();
+      });
+    }
+
+    const btnModalLinkTask = document.getElementById('btnModalLinkTask');
+    if (btnModalLinkTask) {
+      btnModalLinkTask.addEventListener('click', () => {
+        if (!activeEditingTaskId) return;
+        const linkSelect = document.getElementById('modalLinkTaskSelect');
+        const selectedId = linkSelect ? linkSelect.value : '';
+        if (!selectedId) return;
+        const allTasks = window.VG.App.getTasks();
+        const currentTask = allTasks.find(t => t.id === activeEditingTaskId);
+        if (!currentTask) return;
+
+        const res = linkTasks(currentTask.id, selectedId, allTasks);
+        if (!res.success) {
+          UI.toast(res.error || 'Failed to link task', 'error');
+          return;
+        }
+
+        window.VG.App.persistChanges('Task linked');
+        renderLinkedTasksBlock(currentTask);
         window.VG.Board.renderBoard();
       });
     }
@@ -584,7 +681,37 @@
     if (modal && UI.isModalVisible(modal)) UI.hideModal(modal);
   }
 
-  function openAuthModal(defaultTab = 'login') {
+  function openBootstrapModal() {
+    const modal = document.getElementById('modalBootstrapOverlay');
+    if (!modal) return;
+    const err = document.getElementById('bootstrapError');
+    if (err) err.style.display = 'none';
+    const uInput = document.getElementById('bootstrapUsername');
+    if (uInput) uInput.value = '';
+    const pInput = document.getElementById('bootstrapPassword');
+    if (pInput) pInput.value = '';
+    const cpInput = document.getElementById('bootstrapConfirmPassword');
+    if (cpInput) cpInput.value = '';
+    UI.showModal(modal);
+  }
+
+  function closeBootstrapModal() {
+    const modal = document.getElementById('modalBootstrapOverlay');
+    if (modal && UI.isModalVisible(modal)) UI.hideModal(modal);
+  }
+
+  async function openAuthModal(defaultTab = 'login') {
+    if (window.VG.Auth && window.VG.Auth.checkBootstrapNeeded) {
+      try {
+        const needsBootstrap = await window.VG.Auth.checkBootstrapNeeded();
+        if (needsBootstrap) {
+          openBootstrapModal();
+          return;
+        }
+      } catch (e) {
+        console.warn('[Modals] Bootstrap check warning:', e.message);
+      }
+    }
     const modal = document.getElementById('modalAuthOverlay');
     if (!modal) return;
     switchAuthTab(defaultTab);
@@ -675,7 +802,9 @@
     const name = nameInput.value.trim();
     if (!name) return;
 
-    const id = window.VG.Constants.generateId('task');
+    const id = (window.VG.App && window.VG.App.getNextTaskId)
+      ? window.VG.App.getNextTaskId()
+      : window.VG.Constants.generateSequentialTaskId(window.VG.App.getTasks(), 'lud-');
     const now = new Date().toISOString();
     const targetState = canonicalState(stateInput.value);
     const type = canonicalTaskType(typeInput ? typeInput.value : 'task');
@@ -776,7 +905,7 @@
       if (parentTask) {
         if (parentBanner) parentBanner.style.display = 'block';
         if (parentLink) {
-          parentLink.textContent = `#${parentTask.id.slice(-6)}: ${parentTask.name}`;
+          parentLink.textContent = `#${formatTaskId(parentTask.id)}: ${parentTask.name}`;
           parentLink.onclick = () => {
             openEditModal(parentTask);
           };
@@ -802,6 +931,7 @@
       parentBanner.style.display = 'none';
     }
 
+    renderLinkedTasksBlock(task);
     renderSubtasksTab(task);
     renderAttachmentsTab(task);
     renderCommentsTab(task);
@@ -812,6 +942,10 @@
     if (fileInput) fileInput.value = '';
     resetFileInputLabel();
 
+    if (modalCommentEditor) {
+      window.VG.Markdown.setValue(modalCommentEditor, document.getElementById('newCommentText'), '');
+    }
+
     switchTab('tabAttachments');
     UI.showModal(modalEditOverlay);
   }
@@ -819,6 +953,9 @@
   function closeEditModal({ restoreFocus = true } = {}) {
     const modalEditOverlay = document.getElementById('modalEditOverlay');
     activeEditingTaskId = null;
+    if (modalCommentEditor && modalCommentEditor.isPreviewActive && modalCommentEditor.isPreviewActive()) {
+      window.EasyMDE.togglePreview(modalCommentEditor);
+    }
     if (!modalEditOverlay || !UI.isModalVisible(modalEditOverlay)) return;
     restoreFocusOnHide = restoreFocus;
     UI.hideModal(modalEditOverlay);
@@ -846,6 +983,10 @@
     if (tabAttachments) tabAttachments.classList.toggle('active', tabId === 'tabAttachments');
     if (tabComments) tabComments.classList.toggle('active', tabId === 'tabComments');
     if (tabHistory) tabHistory.classList.toggle('active', tabId === 'tabHistory');
+
+    if (tabId === 'tabComments' && modalCommentEditor) {
+      setTimeout(() => modalCommentEditor.codemirror.refresh(), 50);
+    }
   }
 
   /** Current (possibly unsaved) values of the edit modal's task fields */
@@ -938,6 +1079,82 @@
   }
 
   /* -------------------------------------------------------------
+  /* -------------------------------------------------------------
+   * LINKED TASKS RENDERING & HANDLING
+   * ------------------------------------------------------------- */
+
+  function renderLinkedTasksBlock(task) {
+    const listEl = document.getElementById('modalLinkedTasksList');
+    const titleEl = document.getElementById('modalLinkedTasksTitle');
+    const linkSelect = document.getElementById('modalLinkTaskSelect');
+    if (!listEl) return;
+
+    const allTasks = window.VG.App.getTasks();
+    const linkedIds = Array.isArray(task.linkedTaskIds) ? task.linkedTaskIds : [];
+    const linkedTasks = linkedIds.map(id => allTasks.find(t => t.id === id)).filter(Boolean);
+
+    if (titleEl) {
+      titleEl.textContent = `Tareas Enlazadas (${linkedTasks.length})`;
+    }
+
+    if (linkSelect) {
+      const eligible = allTasks.filter(t => t.id !== task.id && !linkedIds.includes(t.id));
+      linkSelect.innerHTML = '<option value="">Seleccionar tarea para enlazar...</option>' +
+        eligible.map(t => `<option value="${escapeHtml(t.id)}">#${formatTaskId(t.id)} - ${escapeHtml(t.name)} (${t.status})</option>`).join('');
+    }
+
+    if (linkedTasks.length === 0) {
+      listEl.innerHTML = '<div class="ui message empty-message" style="background: rgba(255,255,255,0.05); color: #a0aec0; padding: 8px 12px; margin: 0;">No hay tareas enlazadas. Puedes enlazar una tarea existente arriba.</div>';
+      return;
+    }
+
+    listEl.innerHTML = linkedTasks.map(linked => {
+      const typeMeta = TASK_TYPES[canonicalTaskType(linked.type)] || TASK_TYPES['task'] || Object.values(TASK_TYPES)[0] || { label: linked.type, icon: 'tasks', color: 'grey' };
+      const stId = canonicalState(linked.status);
+      const stColor = STATES.find(s => s.id === stId)?.color || 'grey';
+      const isDone = stId === 'done';
+      return `
+        <div class="item linked-task-list-item" style="padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;">
+            <span class="ui mini ${typeMeta.color} label" title="Type: ${typeMeta.label}">
+              <i class="${typeMeta.icon} icon"></i>${escapeHtml(typeMeta.label)}
+            </span>
+            <span class="ui mini ${stColor} label">${escapeHtml(linked.status)}</span>
+            <a href="javascript:void(0)" class="linked-task-open-link" data-linked-id="${escapeHtml(linked.id)}" style="font-weight: 500; color: #fff; text-decoration: ${isDone ? 'line-through' : 'none'}; opacity: ${isDone ? 0.7 : 1}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              #${escapeHtml(formatTaskId(linked.id))} ${escapeHtml(linked.name)}
+            </a>
+          </div>
+          <div>
+            <button type="button" class="ui mini compact basic inverted icon button linked-task-unlink-btn" data-linked-id="${escapeHtml(linked.id)}" title="Desenlazar tarea">
+              <i class="unlink icon"></i>
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Wire clicks to open linked task
+    listEl.querySelectorAll('.linked-task-open-link').forEach(a => {
+      a.addEventListener('click', () => {
+        const linkedId = a.getAttribute('data-linked-id');
+        const target = allTasks.find(t => t.id === linkedId);
+        if (target) openEditModal(target);
+      });
+    });
+
+    // Wire clicks to unlink task
+    listEl.querySelectorAll('.linked-task-unlink-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const linkedId = btn.getAttribute('data-linked-id');
+        unlinkTasks(task.id, linkedId, allTasks);
+        window.VG.App.persistChanges('Task unlinked');
+        renderLinkedTasksBlock(task);
+        window.VG.Board.renderBoard();
+      });
+    });
+  }
+
+  /* -------------------------------------------------------------
    * SUBTASKS TAB RENDERING & HANDLING
    * ------------------------------------------------------------- */
 
@@ -958,8 +1175,8 @@
     // Populate link existing dropdown
     if (linkSelect) {
       const eligible = getEligibleSubtasks(task.id, allTasks);
-      linkSelect.innerHTML = '<option value="">Select an existing task to link...</option>' +
-        eligible.map(t => `<option value="${escapeHtml(t.id)}">#${t.id.slice(-6)} - ${escapeHtml(t.name)} (${t.status})</option>`).join('');
+      linkSelect.innerHTML = '<option value="">Seleccionar tarea para asignar como subtarea...</option>' +
+        eligible.map(t => `<option value="${escapeHtml(t.id)}">#${formatTaskId(t.id)} - ${escapeHtml(t.name)} (${t.status})</option>`).join('');
     }
 
     if (subtasks.length === 0) {
@@ -980,7 +1197,7 @@
             </span>
             <span class="ui mini ${stColor} label">${escapeHtml(sub.status)}</span>
             <a href="javascript:void(0)" class="subtask-open-link" data-subtask-id="${escapeHtml(sub.id)}" style="font-weight: 500; color: #fff; text-decoration: ${isDone ? 'line-through' : 'none'}; opacity: ${isDone ? 0.7 : 1}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-              #${escapeHtml(sub.id.slice(-6))} ${escapeHtml(sub.name)}
+              #${escapeHtml(formatTaskId(sub.id))} ${escapeHtml(sub.name)}
             </a>
           </div>
           <div>
@@ -1033,6 +1250,12 @@
     for (const tid of allIdsToDelete) {
       const idx = tasks.findIndex(t => t.id === tid);
       if (idx !== -1) tasks.splice(idx, 1);
+    }
+
+    for (const t of tasks) {
+      if (Array.isArray(t.linkedTaskIds) && t.linkedTaskIds.some(id => allIdsToDelete.includes(id))) {
+        t.linkedTaskIds = t.linkedTaskIds.filter(id => !allIdsToDelete.includes(id));
+      }
     }
 
     window.VG.App.persistChanges(descendantIds.length > 0 ? `Task and ${descendantIds.length} subtask(s) deleted` : 'Task deleted');
@@ -1102,6 +1325,10 @@
     task.attachments.forEach(att => {
       const item = document.createElement('div');
       item.className = 'item attachment-item';
+      const viewType = Attachments.getSafeViewType(att);
+      const isImage = viewType && viewType.startsWith('image/');
+      const openTitle = isImage ? 'Ver en grande' : 'Open or download file';
+      const openIcon = isImage ? 'expand' : 'external alternate';
       item.innerHTML = `
         <div class="attachment-item-icon"><i class="big grey ${getFileIcon(att.filename)} icon" title="${escapeHtml(att.type || 'file')}"></i></div>
         <div class="middle aligned content">
@@ -1111,7 +1338,7 @@
           <div class="extra">
             ${att.uploader ? `<span style="color:#8be9fd; margin-right:4px;"><i class="user outline icon"></i>${escapeHtml(att.uploader)}</span> · ` : ''}${formatFileSize(att.size)} · ${formatRelativeTime(att.created_at)}
             <div class="ui right floated mini basic inverted icon buttons">
-              <button type="button" class="ui button" data-action="open" title="Open or download file" aria-label="Open file"><i class="external alternate icon"></i></button>
+              <button type="button" class="ui button" data-action="open" title="${openTitle}" aria-label="${openTitle}"><i class="${openIcon} icon"></i></button>
               <button type="button" class="ui button" data-action="edit" title="Edit name & description" aria-label="Edit details"><i class="pencil alternate icon"></i></button>
               <button type="button" class="ui button" data-action="delete" title="Delete attachment" aria-label="Delete attachment"><i class="red trash alternate outline icon"></i></button>
             </div>
@@ -1254,7 +1481,7 @@
           <div class="metadata">
             <span class="date" title="${escapeHtml(new Date(c.timestamp).toLocaleString())}">${formatRelativeTime(c.timestamp)}</span>
           </div>
-          <div class="text">${escapeHtml(c.text)}</div>
+          <div class="text comment-text">${window.VG.Markdown ? window.VG.Markdown.render(c.text) : escapeHtml(c.text)}</div>
         </div>
       </div>
     `).join('');
@@ -1295,11 +1522,15 @@
     const authorInput = document.getElementById('newCommentAuthor');
     const textInput = document.getElementById('newCommentText');
 
-    const text = textInput.value.trim();
+    const text = (window.VG.Markdown ? window.VG.Markdown.getValue(modalCommentEditor, textInput) : textInput.value).trim();
     if (!text) return;
 
     addComment(task, authorInput.value, text);
-    textInput.value = '';
+    if (window.VG.Markdown) {
+      window.VG.Markdown.setValue(modalCommentEditor, textInput, '');
+    } else {
+      textInput.value = '';
+    }
     renderCommentsTab(task);
     window.VG.Board.renderBoard();
     window.VG.App.persistChanges('Comment added');
@@ -1353,6 +1584,8 @@
     closeMongoModal,
     openAuthModal,
     closeAuthModal,
+    openBootstrapModal,
+    closeBootstrapModal,
     switchAuthTab,
     populateUserDropdowns,
     isAnyModalOpen,

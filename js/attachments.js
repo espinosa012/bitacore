@@ -120,11 +120,12 @@
     return null;
   }
 
-  async function openOrDownloadAttachment(task, attachment, forceDownload = false) {
+  async function getAttachmentBlob(task, attachment) {
+    if (!task || !attachment) return null;
     let blob = await Storage.getAttachmentBlob(task.id, attachment.filename);
 
     // If not in local IndexedDB cache, fetch from MongoDB GridFS via MongoSync
-    if (!blob && window.VG.MongoSync && window.VG.MongoSync.isConnected()) {
+    if (!blob && window.VG.MongoSync && window.VG.MongoSync.isConnected() && attachment.fileId) {
       try {
         blob = await window.VG.MongoSync.downloadAttachment(attachment.fileId, attachment.filename);
         if (blob) {
@@ -134,17 +135,351 @@
         console.warn('Could not fetch attachment from MongoDB GridFS:', err);
       }
     }
+    return blob;
+  }
+
+  /* -------------------------------------------------------------
+   * IMAGE VIEWER / LIGHTBOX
+   * ------------------------------------------------------------- */
+
+  let viewerInitialized = false;
+  let currentTask = null;
+  let currentImageList = [];
+  let currentImageIndex = -1;
+  let activeViewerBlobUrl = null;
+  let isZoomed = false;
+  let isSingleMode = false;
+  let singleImageData = null;
+
+  let modalEl, backdropEl, titleEl, infoEl, counterEl;
+  let zoomBtn, downloadBtn, newTabBtn, closeBtn, prevBtn, nextBtn;
+  let stageEl, imgEl, loaderEl;
+
+  function initImageViewer() {
+    if (viewerInitialized) return;
+    modalEl = document.getElementById('imageViewerModal');
+    if (!modalEl) return;
+
+    backdropEl = document.getElementById('imageViewerBackdrop');
+    titleEl = document.getElementById('imageViewerTitle');
+    infoEl = document.getElementById('imageViewerInfo');
+    counterEl = document.getElementById('imageViewerCounter');
+    zoomBtn = document.getElementById('btnImageViewerZoom');
+    downloadBtn = document.getElementById('btnImageViewerDownload');
+    newTabBtn = document.getElementById('btnImageViewerNewTab');
+    closeBtn = document.getElementById('btnImageViewerClose');
+    prevBtn = document.getElementById('btnImageViewerPrev');
+    nextBtn = document.getElementById('btnImageViewerNext');
+    stageEl = document.getElementById('imageViewerStage');
+    imgEl = document.getElementById('imageViewerImg');
+    loaderEl = document.getElementById('imageViewerLoader');
+
+    if (closeBtn) closeBtn.addEventListener('click', closeImageViewer);
+    if (backdropEl) backdropEl.addEventListener('click', closeImageViewer);
+
+    if (prevBtn) prevBtn.addEventListener('click', () => navigateImage(-1));
+    if (nextBtn) nextBtn.addEventListener('click', () => navigateImage(1));
+    if (zoomBtn) zoomBtn.addEventListener('click', toggleZoom);
+
+    if (imgEl) {
+      imgEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleZoom();
+      });
+    }
+
+    if (stageEl) {
+      stageEl.addEventListener('click', (e) => {
+        if (e.target === stageEl && !isZoomed) {
+          closeImageViewer();
+        }
+      });
+
+      // Drag-to-pan in stage when zoomed
+      let isPanning = false;
+      let startX = 0, startY = 0;
+      let scrollLeft = 0, scrollTop = 0;
+
+      stageEl.addEventListener('mousedown', (e) => {
+        if (!isZoomed || e.button !== 0) return;
+        if (e.target.closest('button, a')) return;
+        isPanning = true;
+        stageEl.classList.add('is-panning');
+        startX = e.pageX - stageEl.offsetLeft;
+        startY = e.pageY - stageEl.offsetTop;
+        scrollLeft = stageEl.scrollLeft;
+        scrollTop = stageEl.scrollTop;
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isPanning) return;
+        e.preventDefault();
+        const x = e.pageX - stageEl.offsetLeft;
+        const y = e.pageY - stageEl.offsetTop;
+        stageEl.scrollLeft = scrollLeft - (x - startX);
+        stageEl.scrollTop = scrollTop - (y - startY);
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (isPanning) {
+          isPanning = false;
+          stageEl.classList.remove('is-panning');
+        }
+      });
+    }
+
+    viewerInitialized = true;
+  }
+
+  function toggleZoom() {
+    isZoomed = !isZoomed;
+    updateZoomUI();
+  }
+
+  function updateZoomUI() {
+    if (!stageEl || !imgEl || !zoomBtn) return;
+    if (isZoomed) {
+      stageEl.classList.add('is-zoomed');
+      imgEl.classList.add('is-zoomed');
+      zoomBtn.innerHTML = '<i class="search minus icon"></i>';
+      zoomBtn.setAttribute('title', 'Ajustar a pantalla (Z)');
+      requestAnimationFrame(() => {
+        stageEl.scrollLeft = Math.max(0, (stageEl.scrollWidth - stageEl.clientWidth) / 2);
+        stageEl.scrollTop = Math.max(0, (stageEl.scrollHeight - stageEl.clientHeight) / 2);
+      });
+    } else {
+      stageEl.classList.remove('is-zoomed');
+      imgEl.classList.remove('is-zoomed');
+      zoomBtn.innerHTML = '<i class="search plus icon"></i>';
+      zoomBtn.setAttribute('title', 'Tamaño real 100% (Z)');
+      stageEl.scrollLeft = 0;
+      stageEl.scrollTop = 0;
+    }
+  }
+
+  function onViewerKeyDown(e) {
+    if (!modalEl || modalEl.hidden) return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeImageViewer();
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      navigateImage(1);
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      navigateImage(-1);
+    } else if (e.key === 'z' || e.key === 'Z') {
+      e.preventDefault();
+      toggleZoom();
+    }
+  }
+
+  function navigateImage(delta) {
+    if (isSingleMode || currentImageList.length <= 1) return;
+    const nextIndex = (currentImageIndex + delta + currentImageList.length) % currentImageList.length;
+    renderViewerImage(nextIndex);
+  }
+
+  async function renderViewerImage(index) {
+    initImageViewer();
+    if (!modalEl) return;
+
+    currentImageIndex = index;
+    const att = currentImageList[index];
+    if (!att) return;
+
+    isZoomed = false;
+    updateZoomUI();
+
+    titleEl.textContent = att.name || att.filename;
+    titleEl.title = att.filename;
+    infoEl.textContent = `${window.VG.Constants.formatFileSize(att.size)}${att.uploader ? ' · ' + att.uploader : ''}`;
+    counterEl.textContent = currentImageList.length > 1 ? `${index + 1} / ${currentImageList.length}` : '';
+
+    if (prevBtn) prevBtn.style.display = currentImageList.length > 1 ? 'flex' : 'none';
+    if (nextBtn) nextBtn.style.display = currentImageList.length > 1 ? 'flex' : 'none';
+
+    loaderEl.hidden = false;
+    imgEl.style.opacity = '0';
+
+    downloadBtn.onclick = () => {
+      openOrDownloadAttachment(currentTask, att, true);
+    };
+
+    const targetIndex = index;
+    const blob = await getAttachmentBlob(currentTask, att);
+    if (currentImageIndex !== targetIndex) return;
 
     if (!blob) {
-      window.VG.UI.toast(`File "${attachment.filename}" is not available in MongoDB.`, 'warning');
+      loaderEl.hidden = true;
+      if (window.VG.UI && window.VG.UI.toast) {
+        window.VG.UI.toast(`No se pudo cargar la imagen "${att.filename}".`, 'warning');
+      }
       return;
     }
 
+    if (activeViewerBlobUrl) {
+      URL.revokeObjectURL(activeViewerBlobUrl);
+    }
+    const viewType = getSafeViewType(att) || 'image/png';
+    activeViewerBlobUrl = URL.createObjectURL(new Blob([blob], { type: viewType }));
+
+    if (newTabBtn) newTabBtn.href = activeViewerBlobUrl;
+
+    imgEl.onload = () => {
+      if (currentImageIndex !== targetIndex) return;
+      loaderEl.hidden = true;
+      imgEl.style.opacity = '1';
+      infoEl.textContent = `${window.VG.Constants.formatFileSize(att.size)} · ${imgEl.naturalWidth} × ${imgEl.naturalHeight}px${att.uploader ? ' · ' + att.uploader : ''}`;
+    };
+
+    imgEl.onerror = () => {
+      if (currentImageIndex !== targetIndex) return;
+      loaderEl.hidden = true;
+      if (window.VG.UI && window.VG.UI.toast) {
+        window.VG.UI.toast(`Error al mostrar la imagen "${att.filename}".`, 'error');
+      }
+    };
+
+    imgEl.src = activeViewerBlobUrl;
+    imgEl.alt = att.name || att.filename;
+  }
+
+  function showImageAttachment(task, identifier) {
+    initImageViewer();
+    if (!modalEl) return;
+
+    currentTask = task;
+    isSingleMode = false;
+    singleImageData = null;
+
+    currentImageList = (task && Array.isArray(task.attachments))
+      ? task.attachments.filter(a => {
+          const vt = getSafeViewType(a);
+          return vt && vt.startsWith('image/');
+        })
+      : [];
+
+    if (currentImageList.length === 0) {
+      if (identifier) {
+        const anyAtt = (task && task.attachments) ? task.attachments.find(a => a.id === identifier || a.filename === identifier) : null;
+        if (anyAtt) {
+          openOrDownloadAttachment(task, anyAtt, false);
+          return;
+        }
+      }
+      return;
+    }
+
+    currentImageIndex = currentImageList.findIndex(a => a.id === identifier || a.filename === identifier);
+    if (currentImageIndex === -1) currentImageIndex = 0;
+
+    modalEl.hidden = false;
+    document.body.classList.add('image-viewer-open');
+    window.addEventListener('keydown', onViewerKeyDown);
+
+    renderViewerImage(currentImageIndex);
+  }
+
+  function showSingleImage(options = {}) {
+    initImageViewer();
+    if (!modalEl || !options.src) return;
+
+    isSingleMode = true;
+    singleImageData = options;
+    currentImageList = [];
+    currentImageIndex = -1;
+
+    isZoomed = false;
+    updateZoomUI();
+
+    titleEl.textContent = options.title || options.filename || 'Imagen';
+    titleEl.title = options.filename || options.title || '';
+    infoEl.textContent = options.info || '';
+    counterEl.textContent = '';
+
+    if (prevBtn) prevBtn.style.display = 'none';
+    if (nextBtn) nextBtn.style.display = 'none';
+
+    if (newTabBtn) newTabBtn.href = options.src;
+    downloadBtn.onclick = () => {
+      const a = document.createElement('a');
+      a.href = options.src;
+      a.download = options.filename || 'image';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    };
+
+    loaderEl.hidden = false;
+    imgEl.style.opacity = '0';
+
+    imgEl.onload = () => {
+      loaderEl.hidden = true;
+      imgEl.style.opacity = '1';
+      infoEl.textContent = `${imgEl.naturalWidth} × ${imgEl.naturalHeight}px`;
+    };
+
+    imgEl.onerror = () => {
+      loaderEl.hidden = true;
+      if (window.VG.UI && window.VG.UI.toast) {
+        window.VG.UI.toast('Error al visualizar la imagen.', 'error');
+      }
+    };
+
+    imgEl.src = options.src;
+    imgEl.alt = options.title || '';
+
+    modalEl.hidden = false;
+    document.body.classList.add('image-viewer-open');
+    window.addEventListener('keydown', onViewerKeyDown);
+  }
+
+  function closeImageViewer() {
+    if (!modalEl || modalEl.hidden) return;
+    modalEl.hidden = true;
+    document.body.classList.remove('image-viewer-open');
+    window.removeEventListener('keydown', onViewerKeyDown);
+
+    if (activeViewerBlobUrl) {
+      URL.revokeObjectURL(activeViewerBlobUrl);
+      activeViewerBlobUrl = null;
+    }
+    if (imgEl) imgEl.src = '';
+    isZoomed = false;
+    updateZoomUI();
+  }
+
+  async function openOrDownloadAttachment(task, attachment, forceDownload = false) {
     const viewType = forceDownload ? null : getSafeViewType(attachment);
+
+    // Image attachments open in the lightbox viewer unless forced to download
+    if (viewType && viewType.startsWith('image/')) {
+      showImageAttachment(task, attachment.id || attachment.filename);
+      return;
+    }
+
+    let blob = await getAttachmentBlob(task, attachment);
+
+    if (!blob) {
+      if (window.VG.UI && window.VG.UI.toast) {
+        window.VG.UI.toast(`File "${attachment.filename}" is not available in MongoDB.`, 'warning');
+      }
+      return;
+    }
 
     if (viewType) {
       const url = URL.createObjectURL(new Blob([blob], { type: viewType }));
-      window.open(url, '_blank', 'noopener');
+      const win = window.open(url, '_blank', 'noopener');
+      if (!win || win.closed || typeof win.closed === 'undefined') {
+        const a = document.createElement('a');
+        a.href = url;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
       setTimeout(() => URL.revokeObjectURL(url), 60000);
     } else {
       const url = URL.createObjectURL(new Blob([blob], { type: 'application/octet-stream' }));
@@ -162,10 +497,15 @@
   }
 
   window.VG.Attachments = {
+    init: initImageViewer,
     addAttachmentToTask,
     deleteAttachmentFromTask,
     updateAttachmentDetails,
     openOrDownloadAttachment,
+    getAttachmentBlob,
+    showImageAttachment,
+    showSingleImage,
+    closeImageViewer,
     getSafeViewType,
     sanitizeFilename
   };
