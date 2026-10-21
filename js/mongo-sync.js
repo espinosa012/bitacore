@@ -16,11 +16,21 @@
   const DEFAULT_API_KEY = '';
   const DEFAULT_DB = 'vg-task-manager';
   const DEFAULT_URI = '';
+  const DEFAULT_PROJECT_ID = 'project-ludum';
+  const DEFAULT_TASK_TYPES = [
+    { id: 'task', name: 'Task', icon: 'check square outline', color: 'blue' },
+    { id: 'bug', name: 'Bug', icon: 'bug', color: 'red' },
+    { id: 'analysis', name: 'Analysis', icon: 'search', color: 'teal' },
+    { id: 'feature', name: 'Feature', icon: 'star', color: 'green' }
+  ];
 
   let isConnected = false;
   let proxyUrl = '';
   let apiKey = '';
   let currentDb = DEFAULT_DB;
+  // All projects share one database; every task carries a `project` field
+  let currentProject = null;
+  let migrationPromise = null;
   let mongoUri = '';
   let taskCount = 0;
   const connectionListeners = [];
@@ -97,11 +107,28 @@
     }
   }
 
+  /** Id of the per-project tag registry document in the shared `tags` collection */
+  function tagRegistryId(projectId) {
+    return `registry:${projectId}`;
+  }
+
+  /** Id of a per-project task type document in the shared `task_types` collection */
+  function taskTypeDocId(projectId, typeId) {
+    return `${projectId}:${typeId}`;
+  }
+
+  function requireProject(projectId) {
+    const pid = projectId || currentProject;
+    if (!pid) throw new Error('No active project selected.');
+    return pid;
+  }
+
   function notifyChange() {
     const state = {
       isConnected,
       proxyUrl,
       currentDb,
+      currentProject,
       taskCount,
       maskedApiKey: apiKey ? `${apiKey.slice(0, 3)}••••${apiKey.slice(-3)}` : ''
     };
@@ -274,6 +301,7 @@
       taskCount = typeof countRes.count === 'number' ? countRes.count : 0;
 
       isConnected = true;
+      migrationPromise = null;
       setStoredConfig({
         proxyUrl,
         apiKey,
@@ -306,6 +334,8 @@
   async function disconnect() {
     isConnected = false;
     taskCount = 0;
+    currentProject = null;
+    migrationPromise = null;
     setStoredConfig(null);
     notifyChange();
     return { ok: true };
@@ -319,9 +349,11 @@
       throw new Error('Not connected to MongoDB proxy. Please connect first.');
     }
 
-    // 1. Find all tasks
+    const projectId = requireProject();
+
+    // 1. Find all tasks of the active project
     const tasksRes = await action('find', 'tasks', {
-      filter: {},
+      filter: { project: projectId },
       sort: { board_order: 1, updated_at: -1 },
       limit: 5000
     });
@@ -334,11 +366,11 @@
     });
     taskCount = normalized.length;
 
-    // 2. Find tag registry
+    // 2. Find the project's tag registry
     let tags = [];
     try {
       const tagDocRes = await action('findOne', 'tags', {
-        filter: { _id: 'registry' }
+        filter: { _id: tagRegistryId(projectId) }
       });
       if (tagDocRes && tagDocRes.document && Array.isArray(tagDocRes.document.tags)) {
         tags = tagDocRes.document.tags;
@@ -355,20 +387,24 @@
    */
   async function saveTasks(doc) {
     if (!isConnected) return false;
+    // Captured now so a project switch while the write is queued cannot
+    // save this board into the newly selected project
+    const projectId = currentProject;
+    if (!projectId) return false;
+    const payload = doc || window.VG.App.buildDocument();
+    const tasksList = payload && Array.isArray(payload.tasks) ? payload.tasks.slice() : (Array.isArray(payload) ? payload.slice() : []);
+    const tagsList = payload && Array.isArray(payload.tags) ? payload.tags.slice() : [];
 
     return enqueueWrite(async () => {
       try {
-        const payload = doc || window.VG.App.buildDocument();
-        const tasksList = payload && Array.isArray(payload.tasks) ? payload.tasks : (Array.isArray(payload) ? payload : []);
-        const tagsList = payload && Array.isArray(payload.tags) ? payload.tags : [];
 
-        // 1. Save tags registry
+        // 1. Save the project's tags registry
         if (tagsList.length > 0 || (payload && payload.tags)) {
           await action('updateOne', 'tags', {
-            filter: { _id: 'registry' },
+            filter: { _id: tagRegistryId(projectId) },
             update: {
               $set: {
-                _id: 'registry',
+                project: projectId,
                 tags: tagsList,
                 updatedAt: { '$date': new Date().toISOString() }
               }
@@ -377,26 +413,27 @@
           });
         }
 
-        // 2. Upsert tasks in batches
+        // 2. Upsert tasks in batches. Filtering by project means a task id
+        // owned by another project fails instead of being overwritten.
         const BATCH_SIZE = 8;
         for (let i = 0; i < tasksList.length; i += BATCH_SIZE) {
           const chunk = tasksList.slice(i, i + BATCH_SIZE);
           await Promise.all(chunk.map(t => {
             const id = t.id || t._id;
-            const docToSave = { ...t, _id: id, id };
+            const docToSave = { ...t, _id: id, id, project: projectId };
             return action('updateOne', 'tasks', {
-              filter: { _id: id },
+              filter: { _id: id, project: projectId },
               update: { $set: docToSave },
               upsert: true
             });
           }));
         }
 
-        // 3. Remove deleted tasks from collection
+        // 3. Remove this project's deleted tasks from collection
         const currentIds = tasksList.map(t => t.id || t._id);
         if (currentIds.length > 0) {
           await action('deleteMany', 'tasks', {
-            filter: { _id: { $nin: currentIds } }
+            filter: { project: projectId, _id: { $nin: currentIds } }
           });
         }
 
@@ -414,11 +451,12 @@
    * Delete single task from MongoDB Atlas
    */
   async function deleteTask(taskId) {
-    if (!isConnected) return false;
+    if (!isConnected || !currentProject) return false;
+    const projectId = currentProject;
     return enqueueWrite(async () => {
       try {
         await action('deleteOne', 'tasks', {
-          filter: { _id: taskId }
+          filter: { _id: taskId, project: projectId }
         });
         taskCount = Math.max(0, taskCount - 1);
         notifyChange();
@@ -472,10 +510,11 @@
   /**
    * Find a file's GridFS fileId by filename in fs.files (fallback for legacy files)
    */
-  async function findFileByFilename(filename) {
+  async function findFileByFilename(filename, database) {
     try {
       const res = await action('findOne', 'fs.files', {
-        filter: { filename: filename }
+        filter: { filename: filename },
+        ...(database ? { database } : {})
       });
       return res && res.document ? res.document : null;
     } catch (e) {
@@ -486,12 +525,14 @@
   /**
    * Build direct URL for downloading or viewing a GridFS file
    */
-  function getFileUrl(fileId, download = false) {
+  function getFileUrl(fileId, download = false, database = null) {
     if (!proxyUrl || !fileId) return '';
     const params = new URLSearchParams();
     if (apiKey) params.set('key', apiKey);
     if (download) params.set('download', 'true');
-    if (currentDb) params.set('database', currentDb);
+    // `database` is only set on files uploaded before projects shared one database
+    const targetDb = database || currentDb;
+    if (targetDb) params.set('database', targetDb);
     const qs = params.toString() ? `?${params.toString()}` : '';
     return `${proxyUrl}/files/${encodeURIComponent(fileId)}${qs}`;
   }
@@ -499,14 +540,14 @@
   /**
    * Download attachment binary from GridFS
    */
-  async function downloadAttachment(fileId, filename) {
+  async function downloadAttachment(fileId, filename, database = null) {
     if (!isConnected || !proxyUrl) {
       throw new Error('Not connected to MongoDB proxy');
     }
 
     let targetFileId = fileId;
     if (!targetFileId && filename) {
-      const doc = await findFileByFilename(filename);
+      const doc = await findFileByFilename(filename, database);
       if (doc && (doc._id || doc.fileId)) {
         targetFileId = doc._id || doc.fileId;
       }
@@ -516,7 +557,7 @@
       throw new Error(`File ID not found for "${filename}"`);
     }
 
-    const downloadUrl = getFileUrl(targetFileId, false);
+    const downloadUrl = getFileUrl(targetFileId, false, database);
     const res = await fetch(downloadUrl, {
       headers: getHeaders(false)
     });
@@ -531,14 +572,14 @@
   /**
    * Delete an attachment file from MongoDB GridFS
    */
-  async function deleteAttachment(taskId, filename, fileId) {
+  async function deleteAttachment(taskId, filename, fileId, database = null) {
     if (!isConnected || !proxyUrl) return false;
 
     return enqueueWrite(async () => {
       try {
         let targetFileId = fileId;
         if (!targetFileId && filename) {
-          const doc = await findFileByFilename(filename);
+          const doc = await findFileByFilename(filename, database);
           if (doc && (doc._id || doc.fileId)) {
             targetFileId = doc._id || doc.fileId;
           }
@@ -546,7 +587,8 @@
 
         if (targetFileId) {
           const params = new URLSearchParams();
-          if (currentDb) params.set('database', currentDb);
+          const targetDb = database || currentDb;
+          if (targetDb) params.set('database', targetDb);
           const qs = params.toString() ? `?${params.toString()}` : '';
           const url = `${proxyUrl}/files/${encodeURIComponent(targetFileId)}${qs}`;
 
@@ -579,10 +621,133 @@
     return false;
   }
 
-  function setCurrentDb(dbName) {
-    if (!dbName) return;
-    currentDb = String(dbName).trim();
+  function setCurrentProject(projectId) {
+    currentProject = projectId ? String(projectId).trim() : null;
     notifyChange();
+  }
+
+  function normalizeProject(p) {
+    const id = p.id || p._id;
+    const format = p['task-id-format'] || p.taskIdFormat || (id === DEFAULT_PROJECT_ID ? 'lud-' : `${id}-`);
+    return {
+      id,
+      name: p.name || id,
+      description: p.description || '',
+      'task-id-format': format,
+      taskIdFormat: format,
+      createdAt: p.createdAt || null
+    };
+  }
+
+  const DEFAULT_PROJECT_DOC = {
+    id: DEFAULT_PROJECT_ID,
+    name: 'Project Ludum',
+    description: 'Default primary project',
+    'task-id-format': 'lud-',
+    taskIdFormat: 'lud-'
+  };
+
+  /**
+   * One-off migration from the previous layout (one database per project,
+   * unscoped task types and tag registry) to a single shared database where
+   * every document carries a `project` field. Safe to run repeatedly.
+   */
+  async function migrateToSharedDb() {
+    // 1. Tasks created before projects existed belong to the default project
+    await action('updateMany', 'tasks', {
+      filter: { project: { $exists: false } },
+      update: { $set: { project: DEFAULT_PROJECT_ID } }
+    });
+
+    // 2. Legacy unscoped tag registry -> default project's registry
+    const legacyTags = await action('findOne', 'tags', { filter: { _id: 'registry' } });
+    if (legacyTags && legacyTags.document) {
+      await action('updateOne', 'tags', {
+        filter: { _id: tagRegistryId(DEFAULT_PROJECT_ID) },
+        update: {
+          $setOnInsert: {
+            project: DEFAULT_PROJECT_ID,
+            tags: Array.isArray(legacyTags.document.tags) ? legacyTags.document.tags : []
+          }
+        },
+        upsert: true
+      });
+      await action('deleteOne', 'tags', { filter: { _id: 'registry' } });
+    }
+
+    // 3. Legacy unscoped task types -> default project's task types
+    const legacyTypes = await action('find', 'task_types', { filter: { project: { $exists: false } } });
+    const legacyTypeDocs = (legacyTypes && Array.isArray(legacyTypes.documents)) ? legacyTypes.documents : [];
+    for (const t of legacyTypeDocs) {
+      await upsertTaskTypeDoc(DEFAULT_PROJECT_ID, t, '$setOnInsert');
+    }
+    if (legacyTypeDocs.length > 0) {
+      await action('deleteMany', 'task_types', { filter: { project: { $exists: false } } });
+    }
+
+    // 4. Copy data out of the old per-project databases
+    const projRes = await action('find', 'projects', { filter: { dbName: { $exists: true } } });
+    const projDocs = (projRes && Array.isArray(projRes.documents)) ? projRes.documents : [];
+    for (const p of projDocs) {
+      const pid = p.id || p._id;
+      const oldDb = String(p.dbName || '').trim();
+      if (oldDb && oldDb !== currentDb) {
+        await copyProjectDatabase(pid, oldDb);
+      }
+      await action('updateOne', 'projects', {
+        filter: { _id: p._id },
+        update: {
+          $set: { migratedFromDb: oldDb || null },
+          $unset: { dbName: '' }
+        }
+      });
+    }
+  }
+
+  async function copyProjectDatabase(projectId, oldDb) {
+    const tasksRes = await action('find', 'tasks', { filter: {}, limit: 5000, database: oldDb });
+    const oldTasks = (tasksRes && Array.isArray(tasksRes.documents)) ? tasksRes.documents : [];
+    for (const t of oldTasks) {
+      const id = String(t.id || t._id);
+      // Attachments stay in the old database's GridFS; remember where to find them
+      const attachments = Array.isArray(t.attachments)
+        ? t.attachments.map(a => (a && !a.database ? { ...a, database: oldDb } : a))
+        : [];
+      try {
+        await action('updateOne', 'tasks', {
+          filter: { _id: id, project: projectId },
+          update: { $set: { ...t, _id: id, id, project: projectId, attachments } },
+          upsert: true
+        });
+      } catch (err) {
+        console.warn(`[MongoSync] Could not migrate task ${id} from "${oldDb}":`, err.message);
+      }
+    }
+
+    const typesRes = await action('find', 'task_types', { filter: {}, database: oldDb });
+    const oldTypes = (typesRes && Array.isArray(typesRes.documents)) ? typesRes.documents : [];
+    for (const t of oldTypes) {
+      await upsertTaskTypeDoc(projectId, t, '$setOnInsert');
+    }
+
+    const tagsRes = await action('findOne', 'tags', { filter: { _id: 'registry' }, database: oldDb });
+    if (tagsRes && tagsRes.document && Array.isArray(tagsRes.document.tags)) {
+      await action('updateOne', 'tags', {
+        filter: { _id: tagRegistryId(projectId) },
+        update: { $setOnInsert: { project: projectId, tags: tagsRes.document.tags } },
+        upsert: true
+      });
+    }
+  }
+
+  function ensureMigrated() {
+    if (!migrationPromise) {
+      migrationPromise = migrateToSharedDb().catch(err => {
+        console.warn('[MongoSync] Shared database migration failed:', err.message);
+        migrationPromise = null;
+      });
+    }
+    return migrationPromise;
   }
 
   async function fetchProjects(projectIds) {
@@ -590,56 +755,28 @@
     if (Array.isArray(projectIds) && projectIds.length === 0) {
       return [];
     }
+    await ensureMigrated();
+    const isAll = !projectIds || (Array.isArray(projectIds) && projectIds.includes('*'));
+    const wantsDefault = isAll || projectIds.includes(DEFAULT_PROJECT_ID);
     try {
-      const isAll = !projectIds || (Array.isArray(projectIds) && projectIds.includes('*'));
-      const filter = (isAll || !Array.isArray(projectIds))
-        ? {}
-        : { _id: { $in: projectIds } };
-      const res = await action('find', 'projects', { filter, database: DEFAULT_DB });
+      const filter = isAll ? {} : { _id: { $in: projectIds } };
+      const res = await action('find', 'projects', { filter });
       const docs = (res && Array.isArray(res.documents)) ? res.documents : [];
-      const list = docs.map(p => {
-        const format = p['task-id-format'] || p.taskIdFormat || (p.id === 'project-ludum' || p._id === 'project-ludum' ? 'lud-' : `${p.id || p._id}-`);
-        return {
-          id: p.id || p._id,
-          name: p.name || p.id || p._id,
-          dbName: p.dbName || p.id || p._id,
-          description: p.description || '',
-          'task-id-format': format,
-          taskIdFormat: format
-        };
-      });
-      if ((isAll || !projectIds || projectIds.includes('project-ludum')) && !list.some(p => p.id === 'project-ludum')) {
-        list.unshift({
-          id: 'project-ludum',
-          name: 'Project Ludum',
-          dbName: 'vg-task-manager',
-          description: 'Default primary project',
-          'task-id-format': 'lud-',
-          taskIdFormat: 'lud-'
-        });
+      const list = docs.map(normalizeProject);
+      if (wantsDefault && !list.some(p => p.id === DEFAULT_PROJECT_ID)) {
+        list.unshift({ ...DEFAULT_PROJECT_DOC });
       }
       return list;
     } catch (err) {
       console.warn('[MongoSync] Error fetching projects:', err.message);
-      if (Array.isArray(projectIds) && !projectIds.includes('project-ludum') && !projectIds.includes('*')) {
-        return [];
-      }
-      return [{
-        id: 'project-ludum',
-        name: 'Project Ludum',
-        dbName: 'vg-task-manager',
-        description: 'Default primary project',
-        'task-id-format': 'lud-',
-        taskIdFormat: 'lud-'
-      }];
+      return wantsDefault ? [{ ...DEFAULT_PROJECT_DOC }] : [];
     }
   }
 
-  async function createProject({ id, name, dbName, description }) {
+  async function createProject({ id, name, description }) {
     if (!isConnected) throw new Error('Not connected to MongoDB');
     const cleanId = (id || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-');
     const cleanName = (name || cleanId).trim();
-    const cleanDb = (dbName || `vg-tasks-${cleanId}`).trim();
     const cleanDesc = (description || '').trim();
 
     if (!cleanId || cleanId.length < 2) {
@@ -650,8 +787,7 @@
     }
 
     const existing = await action('findOne', 'projects', {
-      filter: { $or: [{ _id: cleanId }, { id: cleanId }] },
-      database: DEFAULT_DB
+      filter: { $or: [{ _id: cleanId }, { id: cleanId }] }
     });
     if (existing && existing.document) {
       throw new Error(`Project "${cleanId}" already exists.`);
@@ -662,59 +798,64 @@
       _id: cleanId,
       id: cleanId,
       name: cleanName,
-      dbName: cleanDb,
       description: cleanDesc,
       'task-id-format': format,
       taskIdFormat: format,
       createdAt: { '$date': new Date().toISOString() }
     };
-    await action('insertOne', 'projects', {
-      document: doc,
-      database: DEFAULT_DB
-    });
+    await action('insertOne', 'projects', { document: doc });
 
     try {
-      const defaultTypes = [
-        { _id: 'task', id: 'task', name: 'Task', icon: 'check square outline', color: 'blue' },
-        { _id: 'bug', id: 'bug', name: 'Bug', icon: 'bug', color: 'red' },
-        { _id: 'analysis', id: 'analysis', name: 'Analysis', icon: 'search', color: 'teal' },
-        { _id: 'feature', id: 'feature', name: 'Feature', icon: 'star', color: 'green' }
-      ];
-      for (const t of defaultTypes) {
-        await action('updateOne', 'task_types', {
-          filter: { _id: t._id },
-          update: { $setOnInsert: t },
-          upsert: true,
-          database: cleanDb
-        });
-      }
-      await action('updateOne', 'tags', {
-        filter: { _id: 'registry' },
-        update: { $setOnInsert: { tags: [] } },
-        upsert: true,
-        database: cleanDb
-      });
+      await seedProjectDefaults(cleanId);
     } catch (e) {
-      console.warn('[MongoSync] Note on seeding project db:', e.message);
+      console.warn('[MongoSync] Note on seeding project defaults:', e.message);
     }
     return doc;
   }
 
-  async function fetchProjectTags(targetDb = currentDb) {
+  async function seedProjectDefaults(projectId) {
+    for (const t of DEFAULT_TASK_TYPES) {
+      await upsertTaskTypeDoc(projectId, t, '$setOnInsert');
+    }
+    await action('updateOne', 'tags', {
+      filter: { _id: tagRegistryId(projectId) },
+      update: { $setOnInsert: { project: projectId, tags: [] } },
+      upsert: true
+    });
+  }
+
+  async function upsertTaskTypeDoc(projectId, t, operator = '$set') {
+    const typeId = String(t.id || t._id).replace(/^.*:/, '');
+    const doc = {
+      id: typeId,
+      project: projectId,
+      name: t.name || t.label || typeId,
+      label: t.name || t.label || typeId,
+      icon: t.icon || 'check square outline',
+      color: t.color || 'blue'
+    };
+    await action('updateOne', 'task_types', {
+      filter: { _id: taskTypeDocId(projectId, typeId) },
+      update: { [operator]: doc },
+      upsert: true
+    });
+    return doc;
+  }
+
+  async function fetchProjectTags(projectId = currentProject) {
     if (!isConnected) return [];
     try {
+      const pid = requireProject(projectId);
       const tagRes = await action('findOne', 'tags', {
-        filter: { _id: 'registry' },
-        database: targetDb
+        filter: { _id: tagRegistryId(pid) }
       });
       const tagDoc = tagRes ? tagRes.document : null;
       const rawTags = (tagDoc && Array.isArray(tagDoc.tags)) ? tagDoc.tags : [];
 
       const tasksRes = await action('find', 'tasks', {
-        filter: {},
+        filter: { project: pid },
         projection: { tags: 1 },
-        limit: 1000,
-        database: targetDb
+        limit: 5000
       });
       const tasksDocs = (tasksRes && Array.isArray(tasksRes.documents)) ? tasksRes.documents : [];
       const countMap = {};
@@ -740,50 +881,52 @@
     }
   }
 
-  async function addProjectTag(targetDb = currentDb, name, color = 'blue') {
-    if (!isConnected) throw new Error('Not connected');
-    const tagName = (name || '').trim();
-    if (!tagName) throw new Error('Tag name is required.');
+  async function readTagRegistry(pid) {
     const tagRes = await action('findOne', 'tags', {
-      filter: { _id: 'registry' },
-      database: targetDb
+      filter: { _id: tagRegistryId(pid) }
     });
     const tagDoc = tagRes ? tagRes.document : null;
-    const rawTags = (tagDoc && Array.isArray(tagDoc.tags)) ? tagDoc.tags : [];
+    return (tagDoc && Array.isArray(tagDoc.tags)) ? tagDoc.tags : [];
+  }
+
+  async function writeTagRegistry(pid, tags) {
+    await action('updateOne', 'tags', {
+      filter: { _id: tagRegistryId(pid) },
+      update: { $set: { project: pid, tags } },
+      upsert: true
+    });
+  }
+
+  async function addProjectTag(projectId = currentProject, name, color = 'blue') {
+    if (!isConnected) throw new Error('Not connected');
+    const pid = requireProject(projectId);
+    const tagName = (name || '').trim();
+    if (!tagName) throw new Error('Tag name is required.');
+    const rawTags = await readTagRegistry(pid);
     if (rawTags.some(t => (typeof t === 'string' ? t : t.name).toLowerCase() === tagName.toLowerCase())) {
       throw new Error(`Tag "${tagName}" already exists.`);
     }
     rawTags.push({ name: tagName, color: color || 'blue' });
-    await action('updateOne', 'tags', {
-      filter: { _id: 'registry' },
-      update: { $set: { tags: rawTags } },
-      upsert: true,
-      database: targetDb
-    });
+    await writeTagRegistry(pid, rawTags);
     return { name: tagName, color };
   }
 
-  async function updateProjectTag(targetDb = currentDb, oldName, newName, color) {
+  async function updateProjectTag(projectId = currentProject, oldName, newName, color) {
     if (!isConnected) throw new Error('Not connected');
+    const pid = requireProject(projectId);
     const cleanOld = (oldName || '').trim();
     const cleanNew = (newName || '').trim();
     if (!cleanOld || !cleanNew) throw new Error('Old and new tag names are required.');
 
-    // 1. Cascade update tasks
+    // 1. Cascade update the project's tasks
     await action('updateMany', 'tasks', {
-      filter: { tags: cleanOld },
+      filter: { project: pid, tags: cleanOld },
       update: { $set: { "tags.$[elem]": cleanNew } },
-      arrayFilters: [{ "elem": cleanOld }],
-      database: targetDb
+      arrayFilters: [{ "elem": cleanOld }]
     });
 
     // 2. Update registry
-    const tagRes = await action('findOne', 'tags', {
-      filter: { _id: 'registry' },
-      database: targetDb
-    });
-    const tagDoc = tagRes ? tagRes.document : null;
-    let rawTags = (tagDoc && Array.isArray(tagDoc.tags)) ? tagDoc.tags : [];
+    let rawTags = await readTagRegistry(pid);
     rawTags = rawTags.map(t => {
       const curName = typeof t === 'string' ? t : t.name;
       if (curName.toLowerCase() === cleanOld.toLowerCase()) {
@@ -791,118 +934,88 @@
       }
       return typeof t === 'string' ? { name: t, color: 'grey' } : t;
     });
-    await action('updateOne', 'tags', {
-      filter: { _id: 'registry' },
-      update: { $set: { tags: rawTags } },
-      upsert: true,
-      database: targetDb
-    });
+    await writeTagRegistry(pid, rawTags);
     return true;
   }
 
-  async function deleteProjectTag(targetDb = currentDb, tagName) {
+  async function deleteProjectTag(projectId = currentProject, tagName) {
     if (!isConnected) throw new Error('Not connected');
+    const pid = requireProject(projectId);
     const cleanName = (tagName || '').trim();
     if (!cleanName) throw new Error('Tag name is required.');
 
-    // 1. Cascade pull from tasks
+    // 1. Cascade pull from the project's tasks
     await action('updateMany', 'tasks', {
-      filter: { tags: cleanName },
-      update: { $pull: { tags: cleanName } },
-      database: targetDb
+      filter: { project: pid, tags: cleanName },
+      update: { $pull: { tags: cleanName } }
     });
 
     // 2. Remove from registry
-    const tagRes = await action('findOne', 'tags', {
-      filter: { _id: 'registry' },
-      database: targetDb
-    });
-    const tagDoc = tagRes ? tagRes.document : null;
-    let rawTags = (tagDoc && Array.isArray(tagDoc.tags)) ? tagDoc.tags : [];
+    let rawTags = await readTagRegistry(pid);
     rawTags = rawTags.filter(t => {
       const curName = typeof t === 'string' ? t : t.name;
       return curName.toLowerCase() !== cleanName.toLowerCase();
     });
-    await action('updateOne', 'tags', {
-      filter: { _id: 'registry' },
-      update: { $set: { tags: rawTags } },
-      upsert: true,
-      database: targetDb
-    });
+    await writeTagRegistry(pid, rawTags);
     return true;
   }
 
-  async function saveProjectTaskType(targetDb = currentDb, { id, name, icon, color }) {
+  async function saveProjectTaskType(projectId = currentProject, { id, name, icon, color }) {
     if (!isConnected) throw new Error('Not connected');
+    const pid = requireProject(projectId);
     const cleanId = (id || name || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-');
     const cleanName = (name || cleanId).trim();
     if (!cleanId || !cleanName) throw new Error('Task type ID and name are required.');
 
-    const doc = {
-      _id: cleanId,
+    return upsertTaskTypeDoc(pid, {
       id: cleanId,
       name: cleanName,
-      label: cleanName,
       icon: (icon || 'check square outline').trim(),
       color: (color || 'blue').trim()
-    };
-    await action('updateOne', 'task_types', {
-      filter: { _id: cleanId },
-      update: { $set: doc },
-      upsert: true,
-      database: targetDb
     });
-    return doc;
   }
 
-  async function deleteProjectTaskType(targetDb = currentDb, typeId) {
+  async function deleteProjectTaskType(projectId = currentProject, typeId) {
     if (!isConnected) throw new Error('Not connected');
+    const pid = requireProject(projectId);
     if (typeId === 'task') throw new Error('The default "task" type cannot be deleted.');
 
-    // Reassign all tasks with this type to 'task'
+    // Reassign the project's tasks with this type to 'task'
     await action('updateMany', 'tasks', {
-      filter: { type: typeId },
-      update: { $set: { type: 'task' } },
-      database: targetDb
+      filter: { project: pid, type: typeId },
+      update: { $set: { type: 'task' } }
     });
     await action('deleteOne', 'task_types', {
-      filter: { _id: typeId },
-      database: targetDb
+      filter: { _id: taskTypeDocId(pid, typeId) }
     });
     return true;
   }
 
-  async function fetchProjectTaskTypes(targetDb = currentDb) {
+  function defaultTaskTypeList() {
+    return DEFAULT_TASK_TYPES.map(t => ({ id: t.id, label: t.name, icon: t.icon, color: t.color }));
+  }
+
+  async function fetchProjectTaskTypes(projectId = currentProject) {
     if (!isConnected) return [];
     try {
+      const pid = requireProject(projectId);
       const res = await action('find', 'task_types', {
-        filter: {},
-        sort: { name: 1 },
-        database: targetDb || currentDb
+        filter: { project: pid },
+        sort: { name: 1 }
       });
       const docs = (res && Array.isArray(res.documents)) ? res.documents : [];
       if (docs.length === 0) {
-        return [
-          { id: 'task', label: 'Task', icon: 'check square outline', color: 'blue' },
-          { id: 'bug', label: 'Bug', icon: 'bug', color: 'red' },
-          { id: 'analysis', label: 'Analysis', icon: 'search', color: 'teal' },
-          { id: 'feature', label: 'Feature', icon: 'star', color: 'green' }
-        ];
+        return defaultTaskTypeList();
       }
       return docs.map(t => ({
-        id: t.id || t._id,
+        id: t.id || String(t._id).replace(/^.*:/, ''),
         label: t.name || t.label || t.id,
         icon: t.icon || 'check square outline',
         color: t.color || 'blue'
       }));
     } catch (err) {
       console.warn('[MongoSync] Error fetching task types:', err.message);
-      return [
-        { id: 'task', label: 'Task', icon: 'check square outline', color: 'blue' },
-        { id: 'bug', label: 'Bug', icon: 'bug', color: 'red' },
-        { id: 'analysis', label: 'Analysis', icon: 'search', color: 'teal' },
-        { id: 'feature', label: 'Feature', icon: 'star', color: 'green' }
-      ];
+      return defaultTaskTypeList();
     }
   }
 
@@ -914,8 +1027,10 @@
     getApiBaseUrl,
     isServedByBackend,
     isConnected: () => isConnected,
+    DEFAULT_PROJECT_ID,
     getCurrentDb: () => currentDb,
-    setCurrentDb,
+    getCurrentProject: () => currentProject,
+    setCurrentProject,
     fetchProjects,
     createProject,
     fetchProjectTaskTypes,

@@ -523,6 +523,7 @@
 
       const newSub = {
         id: subId,
+        project: window.VG.App.getActiveProjectId(),
         name: title,
         description: '',
         'openspec-id': '',
@@ -817,6 +818,7 @@
 
     const newTask = {
       id,
+      project: window.VG.App.getActiveProjectId(),
       name,
       description: window.VG.Markdown.getValue(createDescEditor, descInput).trim(),
       'openspec-id': openspecInput.value.trim(),

@@ -244,7 +244,10 @@
           size: typeof a.size === 'number' ? a.size : 0,
           type: a.type || 'application/octet-stream',
           created_at: a.created_at || a.creado_en || new Date().toISOString(),
-          uploader
+          uploader,
+          ...(a.fileId ? { fileId: a.fileId } : {}),
+          // Set on files still stored in a pre-shared-database project database
+          ...(a.database ? { database: a.database } : {})
         };
       });
 
@@ -264,6 +267,7 @@
 
       return {
         id,
+        ...(t.project ? { project: String(t.project) } : {}),
         name,
         description,
         'openspec-id': openspecId,

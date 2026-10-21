@@ -743,6 +743,7 @@
 
     const newSub = {
       id: subId,
+      project: window.VG.App.getActiveProjectId(),
       name: title,
       description: '',
       'openspec-id': '',

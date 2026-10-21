@@ -92,7 +92,6 @@ const DEFAULT_PROJECT = {
   _id: 'project-ludum',
   id: 'project-ludum',
   name: 'Project Ludum',
-  dbName: 'vg-task-manager',
   description: 'Default primary project',
   'task-id-format': 'lud-',
   taskIdFormat: 'lud-',
@@ -109,7 +108,6 @@ async function seedDefaultProjects(db) {
           _id: DEFAULT_PROJECT._id,
           id: DEFAULT_PROJECT.id,
           name: DEFAULT_PROJECT.name,
-          dbName: DEFAULT_PROJECT.dbName,
           description: DEFAULT_PROJECT.description,
           createdAt: DEFAULT_PROJECT.createdAt
         },
@@ -128,47 +126,163 @@ async function seedDefaultProjects(db) {
 }
 
 const DEFAULT_TASK_TYPES = [
-  { _id: 'task', id: 'task', name: 'Task', icon: 'check square outline', color: 'blue' },
-  { _id: 'bug', id: 'bug', name: 'Bug', icon: 'bug', color: 'red' },
-  { _id: 'analysis', id: 'analysis', name: 'Analysis', icon: 'search', color: 'teal' },
-  { _id: 'feature', id: 'feature', name: 'Feature', icon: 'star', color: 'green' }
+  { id: 'task', name: 'Task', icon: 'check square outline', color: 'blue' },
+  { id: 'bug', name: 'Bug', icon: 'bug', color: 'red' },
+  { id: 'analysis', name: 'Analysis', icon: 'search', color: 'teal' },
+  { id: 'feature', name: 'Feature', icon: 'star', color: 'green' }
 ];
 
-async function seedDefaultTaskTypes(db) {
+// All projects share one database. Tasks carry a `project` field; task types
+// and tag registries are stored per project under project-prefixed ids.
+function tagRegistryId(projectId) {
+  return `registry:${projectId}`;
+}
+
+function taskTypeDocId(projectId, typeId) {
+  return `${projectId}:${typeId}`;
+}
+
+function taskTypeDoc(projectId, t) {
+  const typeId = String(t.id || t._id).replace(/^.*:/, '');
+  return {
+    _id: taskTypeDocId(projectId, typeId),
+    id: typeId,
+    project: projectId,
+    name: t.name || t.label || typeId,
+    icon: t.icon || 'check square outline',
+    color: t.color || 'blue'
+  };
+}
+
+function normalizeTaskType(t) {
+  return {
+    id: t.id || String(t._id).replace(/^.*:/, ''),
+    name: t.name,
+    icon: t.icon,
+    color: t.color
+  };
+}
+
+async function seedProjectDefaults(db, projectId) {
+  for (const tt of DEFAULT_TASK_TYPES) {
+    const doc = taskTypeDoc(projectId, tt);
+    await db.collection('task_types').updateOne({ _id: doc._id }, { $setOnInsert: doc }, { upsert: true });
+  }
+  await db.collection('tags').updateOne(
+    { _id: tagRegistryId(projectId) },
+    { $setOnInsert: { project: projectId, tags: [], updatedAt: new Date() } },
+    { upsert: true }
+  );
+}
+
+async function ensureProjectTaskTypes(db, projectId) {
   try {
-    const col = db.collection('task_types');
-    for (const tt of DEFAULT_TASK_TYPES) {
-      await col.updateOne(
-        { _id: tt._id },
-        { $setOnInsert: tt },
+    const count = await db.collection('task_types').countDocuments({ project: projectId }).catch(() => 0);
+    if (count === 0) {
+      await seedProjectDefaults(db, projectId);
+    }
+  } catch (err) {
+    console.error(`[MongoDB] Error ensuring task_types for project "${projectId}":`, err.message);
+  }
+}
+
+async function copyProjectDatabase(db, projectId, oldDb) {
+  const tasks = await oldDb.collection('tasks').find({}).toArray();
+  for (const t of tasks) {
+    const id = String(t.id || t._id);
+    // Legacy attachment binaries stay in the old database; remember where
+    const attachments = Array.isArray(t.attachments)
+      ? t.attachments.map(a => (a && !a.database ? { ...a, database: oldDb.databaseName } : a))
+      : [];
+    try {
+      await db.collection('tasks').updateOne(
+        { _id: id, project: projectId },
+        { $set: { ...t, _id: id, id, project: projectId, attachments } },
         { upsert: true }
       );
+    } catch (err) {
+      console.warn(`[MongoDB] Could not migrate task ${id} from "${oldDb.databaseName}":`, err.message);
     }
-    return await col.countDocuments();
-  } catch (err) {
-    console.error('[MongoDB] Error seeding task_types:', err.message);
-    return 0;
+  }
+
+  const types = await oldDb.collection('task_types').find({}).toArray();
+  for (const t of types) {
+    const doc = taskTypeDoc(projectId, t);
+    await db.collection('task_types').updateOne({ _id: doc._id }, { $setOnInsert: doc }, { upsert: true });
+  }
+
+  const tagDoc = await oldDb.collection('tags').findOne({ _id: 'registry' });
+  if (tagDoc && Array.isArray(tagDoc.tags)) {
+    await db.collection('tags').updateOne(
+      { _id: tagRegistryId(projectId) },
+      { $setOnInsert: { project: projectId, tags: tagDoc.tags, updatedAt: new Date() } },
+      { upsert: true }
+    );
+  }
+
+  const legacyAttachments = await oldDb.collection('attachments').find({}).toArray();
+  for (const att of legacyAttachments) {
+    const { _id, ...rest } = att;
+    await db.collection('attachments').updateOne(
+      { taskId: att.taskId, filename: att.filename, project: projectId },
+      { $setOnInsert: { ...rest, project: projectId } },
+      { upsert: true }
+    );
   }
 }
 
-async function ensureProjectTaskTypes(projectDb) {
-  try {
-    const col = projectDb.collection('task_types');
-    const count = await col.countDocuments().catch(() => 0);
-    if (count === 0) {
-      await seedDefaultTaskTypes(projectDb);
-    }
-  } catch (err) {
-    console.error('[MongoDB] Error ensuring task_types for project database:', err.message);
+/**
+ * One-off migration from one database per project (and unscoped task types
+ * and tag registry) to the shared database layout. Safe to run repeatedly.
+ */
+async function migrateToSharedDb(db) {
+  const defaultId = DEFAULT_PROJECT.id;
+  await db.collection('tasks').updateMany({ project: { $exists: false } }, { $set: { project: defaultId } });
+  await db.collection('attachments').updateMany({ project: { $exists: false } }, { $set: { project: defaultId } });
+
+  const legacyTags = await db.collection('tags').findOne({ _id: 'registry' });
+  if (legacyTags) {
+    await db.collection('tags').updateOne(
+      { _id: tagRegistryId(defaultId) },
+      { $setOnInsert: { project: defaultId, tags: Array.isArray(legacyTags.tags) ? legacyTags.tags : [], updatedAt: new Date() } },
+      { upsert: true }
+    );
+    await db.collection('tags').deleteOne({ _id: 'registry' });
   }
+
+  const legacyTypes = await db.collection('task_types').find({ project: { $exists: false } }).toArray();
+  for (const t of legacyTypes) {
+    const doc = taskTypeDoc(defaultId, t);
+    await db.collection('task_types').updateOne({ _id: doc._id }, { $setOnInsert: doc }, { upsert: true });
+  }
+  if (legacyTypes.length > 0) {
+    await db.collection('task_types').deleteMany({ project: { $exists: false } });
+  }
+
+  const projects = await db.collection('projects').find({ dbName: { $exists: true } }).toArray();
+  for (const p of projects) {
+    const projectId = p.id || p._id;
+    const oldDbName = String(p.dbName || '').trim();
+    if (oldDbName && oldDbName !== DB_NAME) {
+      await copyProjectDatabase(db, projectId, mongoClient.db(oldDbName));
+    }
+    await db.collection('projects').updateOne(
+      { _id: p._id },
+      { $set: { migratedFromDb: oldDbName || null }, $unset: { dbName: '' } }
+    );
+  }
+
+  await db.collection('tasks').createIndex({ project: 1 });
+  await db.collection('task_types').createIndex({ project: 1 });
+  await db.collection('attachments').createIndex({ project: 1, taskId: 1, filename: 1 });
 }
 
-async function getAllDescendantIds(db, rootTaskId) {
+async function getAllDescendantIds(db, projectId, rootTaskId) {
   const descendantIds = [];
   const queue = [rootTaskId];
   while (queue.length > 0) {
     const currentId = queue.shift();
-    const children = await db.collection('tasks').find({ parentId: currentId }, { projection: { _id: 1, id: 1 } }).toArray();
+    const children = await db.collection('tasks').find({ project: projectId, parentId: currentId }, { projection: { _id: 1, id: 1 } }).toArray();
     for (const child of children) {
       const childId = String(child.id || child._id);
       if (!descendantIds.includes(childId)) {
@@ -180,14 +294,16 @@ async function getAllDescendantIds(db, rootTaskId) {
   return descendantIds;
 }
 
-async function generateNextTaskIdForProject(projectDb, format = 'lud-') {
+// Scans every project's tasks: ids are collection-wide `_id`s, so they must
+// stay unique even if two projects share a prefix
+async function generateNextTaskId(db, format = 'lud-') {
   const rawFormat = String(format || 'lud-').trim();
   const hasPlaceholder = /\{n\}/i.test(rawFormat);
   const prefix = hasPlaceholder ? rawFormat.replace(/\{n\}/gi, '') : rawFormat;
   const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const regex = new RegExp(`^${escaped}(\\d+)$`, 'i');
 
-  const tasks = await projectDb.collection('tasks').find(
+  const tasks = await db.collection('tasks').find(
     {},
     { projection: { id: 1, _id: 1 } }
   ).toArray();
@@ -245,7 +361,13 @@ async function connectMongo(uri) {
   activeUri = cleanUri;
 
   const projectCount = await seedDefaultProjects(db);
-  const typeCount = await seedDefaultTaskTypes(db);
+  try {
+    await migrateToSharedDb(db);
+  } catch (err) {
+    console.error('[MongoDB] Shared database migration failed:', err.message);
+  }
+  await ensureProjectTaskTypes(db, DEFAULT_PROJECT.id);
+  const typeCount = await db.collection('task_types').countDocuments().catch(() => 0);
   const taskCount = await db.collection('tasks').countDocuments().catch(() => 0);
   const userCount = await db.collection('users').countDocuments().catch(() => 0);
   console.log(`[MongoDB] Connected to database "${DB_NAME}". Total tasks: ${taskCount}, Total users: ${userCount}, Task types: ${typeCount}, Total projects: ${projectCount}`);
@@ -531,14 +653,13 @@ async function resolveProjectContext(req) {
     projectDoc.taskIdFormat = format;
   }
 
-  const targetDbName = projectDoc.dbName || targetProjectId;
-  const projectDb = mongoClient.db(targetDbName);
-  await ensureProjectTaskTypes(projectDb);
+  const projectId = projectDoc.id || projectDoc._id;
+  await ensureProjectTaskTypes(mongoDb, projectId);
 
   return {
     ok: true,
     project: projectDoc,
-    projectDb
+    projectId
   };
 }
 
@@ -921,8 +1042,8 @@ async function handleApi(req, res, pathname, cors) {
       const normalized = allProjects.map(p => ({
         id: p.id || p._id,
         name: p.name,
-        dbName: p.dbName,
         description: p.description || '',
+        'task-id-format': p['task-id-format'] || p.taskIdFormat || `${p.id || p._id}-`,
         createdAt: p.createdAt || null
       }));
       return sendJson(res, 200, { ok: true, projects: normalized }, cors);
@@ -938,7 +1059,6 @@ async function handleApi(req, res, pathname, cors) {
       const id = (parsed.id || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-');
       const name = (parsed.name || '').trim();
       const description = (parsed.description || '').trim();
-      const dbName = (parsed.dbName || `vg-tasks-${id}`).trim();
 
       if (!id || id.length < 2) {
         return sendJson(res, 400, { ok: false, error: 'Project ID is required (min 2 alphanumeric/hyphen characters).' }, cors);
@@ -958,7 +1078,6 @@ async function handleApi(req, res, pathname, cors) {
         _id: id,
         id,
         name,
-        dbName,
         description,
         'task-id-format': format,
         taskIdFormat: format,
@@ -966,17 +1085,11 @@ async function handleApi(req, res, pathname, cors) {
       };
       await projectsCol.insertOne(newProjectDoc);
 
-      // Seed default task types & tag registry in the new project's database
+      // Seed the new project's default task types & tag registry
       try {
-        const newProjectDb = mongoClient.db(dbName);
-        await seedDefaultTaskTypes(newProjectDb);
-        await newProjectDb.collection('tags').updateOne(
-          { _id: 'registry' },
-          { $setOnInsert: { tags: [], updatedAt: new Date() } },
-          { upsert: true }
-        );
+        await seedProjectDefaults(mongoDb, id);
       } catch (seedErr) {
-        console.warn(`[Admin] Warning initializing new project DB "${dbName}":`, seedErr.message);
+        console.warn(`[Admin] Warning initializing new project "${id}":`, seedErr.message);
       }
 
       return sendJson(res, 201, { ok: true, project: newProjectDoc }, cors);
@@ -1018,7 +1131,6 @@ async function handleApi(req, res, pathname, cors) {
         return {
           id: p.id || p._id,
           name: p.name,
-          dbName: p.dbName,
           description: p.description || '',
           'task-id-format': format,
           taskIdFormat: format
@@ -1029,7 +1141,6 @@ async function handleApi(req, res, pathname, cors) {
         normalized.unshift({
           id: DEFAULT_PROJECT.id,
           name: DEFAULT_PROJECT.name,
-          dbName: DEFAULT_PROJECT.dbName,
           description: DEFAULT_PROJECT.description,
           'task-id-format': DEFAULT_PROJECT['task-id-format'],
           taskIdFormat: DEFAULT_PROJECT.taskIdFormat
@@ -1049,17 +1160,12 @@ async function handleApi(req, res, pathname, cors) {
       return sendJson(res, projCtx.status, { ok: false, error: projCtx.error }, cors);
     }
     try {
-      const list = await projCtx.projectDb.collection('task_types')
-        .find({})
+      const list = await mongoDb.collection('task_types')
+        .find({ project: projCtx.projectId })
         .sort({ name: 1 })
         .toArray();
-      const taskTypes = list.map(t => ({
-        id: t.id || t._id,
-        name: t.name,
-        icon: t.icon,
-        color: t.color
-      }));
-      return sendJson(res, 200, { ok: true, taskTypes, projectId: projCtx.project.id }, cors);
+      const taskTypes = list.map(normalizeTaskType);
+      return sendJson(res, 200, { ok: true, taskTypes, projectId: projCtx.projectId }, cors);
     } catch (err) {
       return sendJson(res, 500, { ok: false, error: err.message }, cors);
     }
@@ -1071,7 +1177,7 @@ async function handleApi(req, res, pathname, cors) {
     if (!projCtx.ok) {
       return sendJson(res, projCtx.status, { ok: false, error: projCtx.error }, cors);
     }
-    const currentProjectDb = projCtx.projectDb;
+    const projectId = projCtx.projectId;
 
     if (req.method === 'GET') {
       try {
@@ -1079,7 +1185,7 @@ async function handleApi(req, res, pathname, cors) {
         const urlObj = new URL(req.url, 'http://localhost');
         const queryParams = new URLSearchParams(urlObj.search);
 
-        const filter = {};
+        const filter = { project: projectId };
         // Build MongoDB filter from query params
         if (queryParams.get('status')) filter.status = { $in: [queryParams.get('status')] };
         if (queryParams.get('priority')) filter.priority = queryParams.get('priority');
@@ -1095,7 +1201,7 @@ async function handleApi(req, res, pathname, cors) {
           filter.favorite = fav === 'true' || fav === '1';
         }
 
-        let query = currentProjectDb.collection('tasks').find(filter || {}).sort({});
+        let query = mongoDb.collection('tasks').find(filter || {}).sort({});
 
         // Pagination
         const limit = parseInt(queryParams.get('limit') || '1000', 10);
@@ -1119,7 +1225,7 @@ async function handleApi(req, res, pathname, cors) {
         });
 
         // Load tag registry
-        const tagDoc = await currentProjectDb.collection('tags').findOne({ _id: 'registry' }).catch(() => null);
+        const tagDoc = await mongoDb.collection('tags').findOne({ _id: tagRegistryId(projectId) }).catch(() => null);
         const tags = tagDoc && Array.isArray(tagDoc.tags) ? tagDoc.tags : [];
 
         // Optional search via query param (client-side filtering still possible)
@@ -1135,7 +1241,7 @@ async function handleApi(req, res, pathname, cors) {
         }
 
         return sendJson(res, 200, {
-          projectId: projCtx.project.id,
+          projectId,
           tags,
           tasks: finalTasks,
           pagination: {
@@ -1170,12 +1276,13 @@ async function handleApi(req, res, pathname, cors) {
           let id = parsed.id;
           if (!id) {
             const format = projCtx.project['task-id-format'] || projCtx.project.taskIdFormat || (projCtx.project.id === 'project-ludum' ? 'lud-' : `${projCtx.project.id}-`);
-            id = await generateNextTaskIdForProject(currentProjectDb, format);
+            id = await generateNextTaskId(mongoDb, format);
           }
           const singleDoc = {
             ...parsed,
             _id: id,
             id,
+            project: projectId,
             name: taskName,
             type: parsed.type || 'task',
             parentId: parsed.parentId || null,
@@ -1196,10 +1303,14 @@ async function handleApi(req, res, pathname, cors) {
             attachments: parsed.attachments || []
           };
           delete singleDoc.nombre;
-          await currentProjectDb.collection('tasks').updateOne({ _id: id }, { $set: singleDoc }, { upsert: true });
+          const clash = await mongoDb.collection('tasks').findOne({ _id: id, project: { $ne: projectId } }, { projection: { _id: 1 } });
+          if (clash) {
+            return sendJson(res, 409, { ok: false, error: `Task id "${id}" is already used by another project.` }, cors);
+          }
+          await mongoDb.collection('tasks').updateOne({ _id: id, project: projectId }, { $set: singleDoc }, { upsert: true });
           const normalized = { ...singleDoc };
           delete normalized._id;
-          return sendJson(res, 201, { ok: true, id, task: normalized, projectId: projCtx.project.id }, cors);
+          return sendJson(res, 201, { ok: true, id, task: normalized, projectId }, cors);
         } catch (err) {
           return sendJson(res, 500, { ok: false, error: 'Failed to create task: ' + err.message }, cors);
         }
@@ -1213,14 +1324,14 @@ async function handleApi(req, res, pathname, cors) {
       try {
         // Save tags registry
         if (parsed && Array.isArray(parsed.tags)) {
-          await currentProjectDb.collection('tags').updateOne(
-            { _id: 'registry' },
-            { $set: { tags: parsed.tags, updatedAt: new Date() } },
+          await mongoDb.collection('tags').updateOne(
+            { _id: tagRegistryId(projectId) },
+            { $set: { project: projectId, tags: parsed.tags, updatedAt: new Date() } },
             { upsert: true }
           );
         }
 
-        const taskCol = currentProjectDb.collection('tasks');
+        const taskCol = mongoDb.collection('tasks');
         if (tasksList.length > 0) {
           const ops = tasksList.map(t => {
             const id = t.id || t._id;
@@ -1228,13 +1339,15 @@ async function handleApi(req, res, pathname, cors) {
               ...t,
               _id: id,
               id,
+              project: projectId,
               type: t.type || 'task',
               parentId: t.parentId || null,
               linkedTaskIds: Array.isArray(t.linkedTaskIds) ? t.linkedTaskIds : []
             };
             return {
               updateOne: {
-                filter: { _id: id },
+                // A task id owned by another project fails instead of being overwritten
+                filter: { _id: id, project: projectId },
                 update: { $set: doc },
                 upsert: true
               }
@@ -1245,9 +1358,9 @@ async function handleApi(req, res, pathname, cors) {
 
         // Remove deleted tasks from collection
         const currentIds = tasksList.map(t => t.id || t._id);
-        await taskCol.deleteMany({ _id: { $nin: currentIds } });
+        await taskCol.deleteMany({ project: projectId, _id: { $nin: currentIds } });
 
-        return sendJson(res, 200, { ok: true, count: tasksList.length, projectId: projCtx.project.id }, cors);
+        return sendJson(res, 200, { ok: true, count: tasksList.length, projectId }, cors);
       } catch (err) {
         return sendJson(res, 500, { ok: false, error: 'Failed to save tasks to MongoDB: ' + err.message }, cors);
       }
@@ -1261,13 +1374,13 @@ async function handleApi(req, res, pathname, cors) {
     if (!projCtx.ok) {
       return sendJson(res, projCtx.status, { ok: false, error: projCtx.error }, cors);
     }
-    const currentProjectDb = projCtx.projectDb;
+    const projectId = projCtx.projectId;
     const taskId = decodeURIComponent(taskMatch[1]);
 
     // GET method for single task
     if (req.method === 'GET') {
       try {
-        const doc = await currentProjectDb.collection('tasks').findOne({ _id: taskId });
+        const doc = await mongoDb.collection('tasks').findOne({ _id: taskId, project: projectId });
         if (!doc) {
           return sendJson(res, 404, { ok: false, error: 'Task not found' }, cors);
         }
@@ -1281,7 +1394,7 @@ async function handleApi(req, res, pathname, cors) {
           favorite: Boolean(doc.favorite)
         };
         delete normalized._id;
-        return sendJson(res, 200, { ok: true, task: normalized, projectId: projCtx.project.id }, cors);
+        return sendJson(res, 200, { ok: true, task: normalized, projectId }, cors);
       } catch (err) {
         return sendJson(res, 500, { ok: false, error: err.message }, cors);
       }
@@ -1289,15 +1402,15 @@ async function handleApi(req, res, pathname, cors) {
 
     if (req.method === 'DELETE') {
       try {
-        const descendantIds = await getAllDescendantIds(currentProjectDb, taskId);
+        const descendantIds = await getAllDescendantIds(mongoDb, projectId, taskId);
         const allIdsToDelete = [taskId, ...descendantIds];
-        await currentProjectDb.collection('tasks').deleteMany({ _id: { $in: allIdsToDelete } });
-        await currentProjectDb.collection('attachments').deleteMany({ taskId: { $in: allIdsToDelete } });
-        await currentProjectDb.collection('tasks').updateMany(
-          { linkedTaskIds: { $in: allIdsToDelete } },
+        await mongoDb.collection('tasks').deleteMany({ project: projectId, _id: { $in: allIdsToDelete } });
+        await mongoDb.collection('attachments').deleteMany({ project: projectId, taskId: { $in: allIdsToDelete } });
+        await mongoDb.collection('tasks').updateMany(
+          { project: projectId, linkedTaskIds: { $in: allIdsToDelete } },
           { $pull: { linkedTaskIds: { $in: allIdsToDelete } } }
         );
-        return sendJson(res, 200, { ok: true, deletedCount: allIdsToDelete.length, deletedIds: allIdsToDelete, projectId: projCtx.project.id }, cors);
+        return sendJson(res, 200, { ok: true, deletedCount: allIdsToDelete.length, deletedIds: allIdsToDelete, projectId }, cors);
       } catch (err) {
         return sendJson(res, 500, { ok: false, error: err.message }, cors);
       }
@@ -1315,16 +1428,16 @@ async function handleApi(req, res, pathname, cors) {
         }
 
         // Check if status changed to record history entry
-        const existing = await currentProjectDb.collection('tasks').findOne({ _id: taskId });
+        const existing = await mongoDb.collection('tasks').findOne({ _id: taskId, project: projectId });
 
         // Hierarchy validation: cycle and sibling checks
         if (task.parentId) {
-          const descendants = await getAllDescendantIds(currentProjectDb, taskId);
+          const descendants = await getAllDescendantIds(mongoDb, projectId, taskId);
           if (descendants.includes(task.parentId)) {
             return sendJson(res, 400, { ok: false, error: 'Cannot set parentId to a descendant task (cycle detected)' }, cors);
           }
           if (existing && existing.parentId) {
-            const parentDoc = await currentProjectDb.collection('tasks').findOne({ _id: task.parentId });
+            const parentDoc = await mongoDb.collection('tasks').findOne({ _id: task.parentId, project: projectId });
             if (parentDoc && parentDoc.parentId && parentDoc.parentId === existing.parentId) {
               return sendJson(res, 400, { ok: false, error: 'Cannot assign a sibling task as a subtask' }, cors);
             }
@@ -1366,8 +1479,9 @@ async function handleApi(req, res, pathname, cors) {
           if (!task.history) task.history = [];
         }
 
-        await currentProjectDb.collection('tasks').updateOne({ _id: taskId }, { $set: task }, { upsert: true });
-        return sendJson(res, 200, { ok: true, projectId: projCtx.project.id }, cors);
+        task.project = projectId;
+        await mongoDb.collection('tasks').updateOne({ _id: taskId, project: projectId }, { $set: task }, { upsert: true });
+        return sendJson(res, 200, { ok: true, projectId }, cors);
       } catch (err) {
         return sendJson(res, 500, { ok: false, error: err.message }, cors);
       }
@@ -1381,13 +1495,13 @@ async function handleApi(req, res, pathname, cors) {
     if (!projCtx.ok) {
       return sendJson(res, projCtx.status, { ok: false, error: projCtx.error }, cors);
     }
-    const currentProjectDb = projCtx.projectDb;
+    const projectId = projCtx.projectId;
     const taskId = encodeURIComponent(taskAttachmentsMatch[1]);
 
     if (req.method === 'GET') {
       // List attachments
       try {
-        const task = await currentProjectDb.collection('tasks').findOne({ _id: taskId });
+        const task = await mongoDb.collection('tasks').findOne({ _id: taskId, project: projectId });
         if (!task) return sendJson(res, 404, { ok: false, error: 'Task not found' }, cors);
         return sendJson(res, 200, { ok: true, attachments: task.attachments || [] }, cors);
       } catch (err) {
@@ -1412,8 +1526,8 @@ async function handleApi(req, res, pathname, cors) {
           uploadedAt: new Date().toISOString(),
           userId: req.user?.username || null
         };
-        const result = await currentProjectDb.collection('tasks').updateOne(
-          { _id: taskId },
+        const result = await mongoDb.collection('tasks').updateOne(
+          { _id: taskId, project: projectId },
           { $push: { attachments: attachment }, $set: { updated_at: new Date().toISOString() } }
         );
         if (result.matchedCount === 0) return sendJson(res, 404, { ok: false, error: 'Task not found' }, cors);
@@ -1426,8 +1540,8 @@ async function handleApi(req, res, pathname, cors) {
     if (req.method === 'DELETE') {
       // Delete all attachments for a task
       try {
-        await currentProjectDb.collection('tasks').updateOne(
-          { _id: taskId },
+        await mongoDb.collection('tasks').updateOne(
+          { _id: taskId, project: projectId },
           { $set: { 'attachments': [], 'updated_at': new Date().toISOString() } }
         );
         return sendJson(res, 200, { ok: true, message: 'All attachments deleted' }, cors);
@@ -1444,7 +1558,7 @@ async function handleApi(req, res, pathname, cors) {
     if (!projCtx.ok) {
       return sendJson(res, projCtx.status, { ok: false, error: projCtx.error }, cors);
     }
-    const currentProjectDb = projCtx.projectDb;
+    const projectId = projCtx.projectId;
     const taskId = decodeURIComponent(singleAttachmentMatch[1]);
     const filename = decodeURIComponent(singleAttachmentMatch[2]);
 
@@ -1454,7 +1568,7 @@ async function handleApi(req, res, pathname, cors) {
 
     if (req.method === 'GET') {
       try {
-        const task = await currentProjectDb.collection('tasks').findOne({ _id: taskId });
+        const task = await mongoDb.collection('tasks').findOne({ _id: taskId, project: projectId });
         if (!task || !task.attachments) return sendJson(res, 404, { ok: false, error: 'Attachment not found' }, cors);
         const att = task.attachments.find(a => a.filename === filename);
         if (!att) return sendJson(res, 404, { ok: false, error: 'Attachment not found' }, cors);
@@ -1503,8 +1617,8 @@ async function handleApi(req, res, pathname, cors) {
         }
         
         // First remove any existing attachment with same filename, then add new one
-        await currentProjectDb.collection('tasks').updateOne(
-          { _id: taskId },
+        await mongoDb.collection('tasks').updateOne(
+          { _id: taskId, project: projectId },
           { 
             $pull: { attachments: { filename: file.filename } },
             $set: { updated_at: new Date().toISOString() }
@@ -1512,8 +1626,8 @@ async function handleApi(req, res, pathname, cors) {
         );
         
         // Then add the new attachment
-        const result = await currentProjectDb.collection('tasks').updateOne(
-          { _id: taskId },
+        const result = await mongoDb.collection('tasks').updateOne(
+          { _id: taskId, project: projectId },
           { 
             $push: { attachments: attachment },
             $set: { updated_at: new Date().toISOString() }
@@ -1536,8 +1650,8 @@ async function handleApi(req, res, pathname, cors) {
 
     if (req.method === 'DELETE') {
       try {
-        const result = await currentProjectDb.collection('tasks').updateOne(
-          { _id: taskId },
+        const result = await mongoDb.collection('tasks').updateOne(
+          { _id: taskId, project: projectId },
           { $pull: { attachments: { filename: filename } }, $set: { updated_at: new Date().toISOString() } }
         );
         if (result.matchedCount === 0) {
@@ -1559,10 +1673,10 @@ async function handleApi(req, res, pathname, cors) {
     if (!projCtx.ok) {
       return sendJson(res, 200, [], cors);
     }
-    const currentProjectDb = projCtx.projectDb;
+    const projectId = projCtx.projectId;
     try {
-      const list = await currentProjectDb.collection('attachments')
-        .find({}, { projection: { data: 0 } })
+      const list = await mongoDb.collection('attachments')
+        .find({ project: projectId }, { projection: { data: 0 } })
         .toArray();
       return sendJson(res, 200, list, cors);
     } catch (err) {
@@ -1577,7 +1691,7 @@ async function handleApi(req, res, pathname, cors) {
     if (!projCtx.ok) {
       return sendJson(res, projCtx.status, { ok: false, error: projCtx.error }, cors);
     }
-    const currentProjectDb = projCtx.projectDb;
+    const projectId = projCtx.projectId;
     const taskId = decodeURIComponent(attMatch[1]);
     const filename = decodeURIComponent(attMatch[2]);
     if (!isSafeSegment(taskId) || !isSafeSegment(filename)) {
@@ -1586,7 +1700,7 @@ async function handleApi(req, res, pathname, cors) {
 
     if (req.method === 'GET') {
       try {
-        const doc = await currentProjectDb.collection('attachments').findOne({ taskId, filename });
+        const doc = await mongoDb.collection('attachments').findOne({ taskId, filename, project: projectId });
         if (!doc || !doc.data) {
           return sendJson(res, 404, { ok: false, error: 'Attachment not found in MongoDB' }, cors);
         }
@@ -1610,12 +1724,13 @@ async function handleApi(req, res, pathname, cors) {
         const body = await readBody(req);
         const ext = path.extname(filename).toLowerCase();
         const contentType = req.headers['content-type'] || MIME_TYPES[ext] || 'application/octet-stream';
-        await currentProjectDb.collection('attachments').updateOne(
-          { taskId, filename },
+        await mongoDb.collection('attachments').updateOne(
+          { taskId, filename, project: projectId },
           {
             $set: {
               taskId,
               filename,
+              project: projectId,
               data: body,
               size: body.length,
               contentType,
@@ -1632,7 +1747,7 @@ async function handleApi(req, res, pathname, cors) {
 
     if (req.method === 'DELETE') {
       try {
-        await currentProjectDb.collection('attachments').deleteOne({ taskId, filename });
+        await mongoDb.collection('attachments').deleteOne({ taskId, filename, project: projectId });
         return sendJson(res, 200, { ok: true }, cors);
       } catch (err) {
         return sendJson(res, 500, { ok: false, error: err.message }, cors);
@@ -1646,13 +1761,13 @@ async function handleApi(req, res, pathname, cors) {
     if (!projCtx.ok) {
       return sendJson(res, projCtx.status, { ok: false, error: projCtx.error }, cors);
     }
-    const currentProjectDb = projCtx.projectDb;
+    const projectId = projCtx.projectId;
 
     if (req.method === 'GET') {
       try {
-        const tagDoc = await currentProjectDb.collection('tags').findOne({ _id: 'registry' });
+        const tagDoc = await mongoDb.collection('tags').findOne({ _id: tagRegistryId(projectId) });
         const tags = tagDoc && Array.isArray(tagDoc.tags) ? tagDoc.tags : [];
-        return sendJson(res, 200, { ok: true, tags, projectId: projCtx.project.id }, cors);
+        return sendJson(res, 200, { ok: true, tags, projectId }, cors);
       } catch (err) {
         return sendJson(res, 500, { ok: false, error: err.message }, cors);
       }
@@ -1666,12 +1781,12 @@ async function handleApi(req, res, pathname, cors) {
         if (!tagName) {
           return sendJson(res, 400, { ok: false, error: 'Tag name is required' }, cors);
         }
-        await currentProjectDb.collection('tags').updateOne(
-          { _id: 'registry' },
-          { $addToSet: { tags: tagName }, $set: { updatedAt: new Date() } },
+        await mongoDb.collection('tags').updateOne(
+          { _id: tagRegistryId(projectId) },
+          { $addToSet: { tags: tagName }, $set: { project: projectId, updatedAt: new Date() } },
           { upsert: true }
         );
-        return sendJson(res, 201, { ok: true, tag: tagName, projectId: projCtx.project.id }, cors);
+        return sendJson(res, 201, { ok: true, tag: tagName, projectId }, cors);
       } catch (err) {
         return sendJson(res, 500, { ok: false, error: err.message }, cors);
       }
@@ -1693,16 +1808,10 @@ async function handleApi(req, res, pathname, cors) {
     if (!projectDoc) {
       return sendJson(res, 404, { ok: false, error: `Project "${projectId}" not found.` }, cors);
     }
-    const projectDb = mongoClient.db(projectDoc.dbName || projectId);
 
     if (req.method === 'GET' && !typeId) {
-      const list = await projectDb.collection('task_types').find({}).sort({ name: 1 }).toArray();
-      const taskTypes = list.map(t => ({
-        id: t.id || t._id,
-        name: t.name,
-        icon: t.icon,
-        color: t.color
-      }));
+      const list = await mongoDb.collection('task_types').find({ project: projectId }).sort({ name: 1 }).toArray();
+      const taskTypes = list.map(normalizeTaskType);
       return sendJson(res, 200, { ok: true, taskTypes, projectId }, cors);
     }
 
@@ -1720,12 +1829,12 @@ async function handleApi(req, res, pathname, cors) {
       if (!id || !name) {
         return sendJson(res, 400, { ok: false, error: 'Task type ID and name are required.' }, cors);
       }
-      const existing = await projectDb.collection('task_types').findOne({ $or: [{ _id: id }, { id }] });
+      const existing = await mongoDb.collection('task_types').findOne({ _id: taskTypeDocId(projectId, id) });
       if (existing) {
         return sendJson(res, 409, { ok: false, error: `Task type "${id}" already exists in project.` }, cors);
       }
-      const doc = { _id: id, id, name, icon, color };
-      await projectDb.collection('task_types').insertOne(doc);
+      const doc = taskTypeDoc(projectId, { id, name, icon, color });
+      await mongoDb.collection('task_types').insertOne(doc);
       return sendJson(res, 201, { ok: true, taskType: doc, projectId }, cors);
     }
 
@@ -1740,8 +1849,8 @@ async function handleApi(req, res, pathname, cors) {
       if (parsed.icon) updateData.icon = parsed.icon.trim();
       if (parsed.color) updateData.color = parsed.color.trim();
 
-      const result = await projectDb.collection('task_types').updateOne(
-        { $or: [{ _id: typeId }, { id: typeId }] },
+      const result = await mongoDb.collection('task_types').updateOne(
+        { _id: taskTypeDocId(projectId, typeId) },
         { $set: updateData }
       );
       if (result.matchedCount === 0) {
@@ -1754,12 +1863,12 @@ async function handleApi(req, res, pathname, cors) {
       if (typeId === 'task') {
         return sendJson(res, 400, { ok: false, error: 'The default "task" type cannot be deleted.' }, cors);
       }
-      const reassignResult = await projectDb.collection('tasks').updateMany(
-        { type: typeId },
+      const reassignResult = await mongoDb.collection('tasks').updateMany(
+        { project: projectId, type: typeId },
         { $set: { type: 'task', updated_at: new Date().toISOString() } }
       );
-      await projectDb.collection('task_types').deleteOne(
-        { $or: [{ _id: typeId }, { id: typeId }] }
+      await mongoDb.collection('task_types').deleteOne(
+        { _id: taskTypeDocId(projectId, typeId) }
       );
       return sendJson(res, 200, {
         ok: true,
@@ -1785,12 +1894,11 @@ async function handleApi(req, res, pathname, cors) {
     if (!projectDoc) {
       return sendJson(res, 404, { ok: false, error: `Project "${projectId}" not found.` }, cors);
     }
-    const projectDb = mongoClient.db(projectDoc.dbName || projectId);
 
     if (req.method === 'GET' && !tagName) {
-      const tagDoc = await projectDb.collection('tags').findOne({ _id: 'registry' });
+      const tagDoc = await mongoDb.collection('tags').findOne({ _id: tagRegistryId(projectId) });
       const rawTags = tagDoc && Array.isArray(tagDoc.tags) ? tagDoc.tags : [];
-      const allTasks = await projectDb.collection('tasks').find({}, { projection: { tags: 1 } }).toArray();
+      const allTasks = await mongoDb.collection('tasks').find({ project: projectId }, { projection: { tags: 1 } }).toArray();
       const countMap = {};
       allTasks.forEach(t => {
         (t.tags || []).forEach(name => {
@@ -1821,16 +1929,16 @@ async function handleApi(req, res, pathname, cors) {
       if (!newTagName) {
         return sendJson(res, 400, { ok: false, error: 'Tag name is required.' }, cors);
       }
-      const tagDoc = await projectDb.collection('tags').findOne({ _id: 'registry' });
+      const tagDoc = await mongoDb.collection('tags').findOne({ _id: tagRegistryId(projectId) });
       const tagsList = tagDoc && Array.isArray(tagDoc.tags) ? tagDoc.tags : [];
       const lower = newTagName.toLowerCase();
       if (tagsList.some(t => (typeof t === 'string' ? t : t.name).toLowerCase() === lower)) {
         return sendJson(res, 409, { ok: false, error: `Tag "${newTagName}" already exists.` }, cors);
       }
       tagsList.push({ name: newTagName, color });
-      await projectDb.collection('tags').updateOne(
-        { _id: 'registry' },
-        { $set: { tags: tagsList, updatedAt: new Date() } },
+      await mongoDb.collection('tags').updateOne(
+        { _id: tagRegistryId(projectId) },
+        { $set: { project: projectId, tags: tagsList, updatedAt: new Date() } },
         { upsert: true }
       );
       return sendJson(res, 201, { ok: true, tag: { name: newTagName, color }, projectId }, cors);
@@ -1848,13 +1956,13 @@ async function handleApi(req, res, pathname, cors) {
         return sendJson(res, 400, { ok: false, error: 'New tag name is required.' }, cors);
       }
 
-      const taskUpdate = await projectDb.collection('tasks').updateMany(
-        { tags: tagName },
+      const taskUpdate = await mongoDb.collection('tasks').updateMany(
+        { project: projectId, tags: tagName },
         { $set: { "tags.$[elem]": newName, updated_at: new Date().toISOString() } },
         { arrayFilters: [{ "elem": tagName }] }
       );
 
-      const tagDoc = await projectDb.collection('tags').findOne({ _id: 'registry' });
+      const tagDoc = await mongoDb.collection('tags').findOne({ _id: tagRegistryId(projectId) });
       let tagsList = tagDoc && Array.isArray(tagDoc.tags) ? tagDoc.tags : [];
       tagsList = tagsList.map(t => {
         const curName = typeof t === 'string' ? t : t.name;
@@ -1863,9 +1971,9 @@ async function handleApi(req, res, pathname, cors) {
         }
         return typeof t === 'string' ? { name: t, color: 'grey' } : t;
       });
-      await projectDb.collection('tags').updateOne(
-        { _id: 'registry' },
-        { $set: { tags: tagsList, updatedAt: new Date() } },
+      await mongoDb.collection('tags').updateOne(
+        { _id: tagRegistryId(projectId) },
+        { $set: { project: projectId, tags: tagsList, updatedAt: new Date() } },
         { upsert: true }
       );
 
@@ -1878,20 +1986,20 @@ async function handleApi(req, res, pathname, cors) {
     }
 
     if (req.method === 'DELETE' && tagName) {
-      const taskUpdate = await projectDb.collection('tasks').updateMany(
-        { tags: tagName },
+      const taskUpdate = await mongoDb.collection('tasks').updateMany(
+        { project: projectId, tags: tagName },
         { $pull: { tags: tagName }, $set: { updated_at: new Date().toISOString() } }
       );
 
-      const tagDoc = await projectDb.collection('tags').findOne({ _id: 'registry' });
+      const tagDoc = await mongoDb.collection('tags').findOne({ _id: tagRegistryId(projectId) });
       let tagsList = tagDoc && Array.isArray(tagDoc.tags) ? tagDoc.tags : [];
       tagsList = tagsList.filter(t => {
         const curName = typeof t === 'string' ? t : t.name;
         return curName.toLowerCase() !== tagName.toLowerCase();
       });
-      await projectDb.collection('tags').updateOne(
-        { _id: 'registry' },
-        { $set: { tags: tagsList, updatedAt: new Date() } },
+      await mongoDb.collection('tags').updateOne(
+        { _id: tagRegistryId(projectId) },
+        { $set: { project: projectId, tags: tagsList, updatedAt: new Date() } },
         { upsert: true }
       );
 

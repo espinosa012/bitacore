@@ -433,10 +433,10 @@
       projectSelector.value = activeProjectId;
     }
 
-    MongoSync.setCurrentDb(activeProject.dbName);
+    MongoSync.setCurrentProject(activeProject.id);
 
     // Fetch and update task types for this active project
-    const types = await MongoSync.fetchProjectTaskTypes(activeProject.dbName);
+    const types = await MongoSync.fetchProjectTaskTypes(activeProject.id);
     window.VG.Constants.updateTaskTypes(types);
     refreshTaskTypeDropdowns();
 
@@ -460,15 +460,15 @@
     currentActiveProject = selectedProject;
     localStorage.setItem('vg_active_project', activeProjectId);
 
-    MongoSync.setCurrentDb(selectedProject.dbName);
+    MongoSync.setCurrentProject(selectedProject.id);
     updateMongoBadge();
 
     // Fetch and update task types for new project
-    const types = await MongoSync.fetchProjectTaskTypes(selectedProject.dbName);
+    const types = await MongoSync.fetchProjectTaskTypes(selectedProject.id);
     window.VG.Constants.updateTaskTypes(types);
     refreshTaskTypeDropdowns();
 
-    // Reload tasks from MongoDB for new project database
+    // Reload the new project's tasks from MongoDB
     await loadFromMongo();
   }
 
@@ -518,6 +518,7 @@
     window.VG.Auth.logout();
     activeProjectId = null;
     currentActiveProject = null;
+    MongoSync.setCurrentProject(null);
     replaceBoard([], []);
     const projectSelector = document.getElementById('projectSelector');
     if (projectSelector) projectSelector.innerHTML = '';
@@ -1012,6 +1013,10 @@
     return currentActiveProject;
   }
 
+  function getActiveProjectId() {
+    return activeProjectId;
+  }
+
   function getActiveProjectTaskIdFormat() {
     if (currentActiveProject) {
       return currentActiveProject['task-id-format'] || currentActiveProject.taskIdFormat || (currentActiveProject.id === 'project-ludum' ? 'lud-' : `${currentActiveProject.id}-`);
@@ -1042,6 +1047,7 @@
     onProjectChanged,
     refreshTaskTypeDropdowns,
     getActiveProject,
+    getActiveProjectId,
     getActiveProjectTaskIdFormat,
     getNextTaskId
   };

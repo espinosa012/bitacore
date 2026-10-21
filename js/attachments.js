@@ -88,7 +88,7 @@
 
     // Delete from MongoDB GridFS
     if (window.VG.MongoSync && window.VG.MongoSync.isConnected()) {
-      await window.VG.MongoSync.deleteAttachment(task.id, att.filename, att.fileId);
+      await window.VG.MongoSync.deleteAttachment(task.id, att.filename, att.fileId, att.database);
     }
 
     return true;
@@ -127,7 +127,7 @@
     // If not in local IndexedDB cache, fetch from MongoDB GridFS via MongoSync
     if (!blob && window.VG.MongoSync && window.VG.MongoSync.isConnected() && attachment.fileId) {
       try {
-        blob = await window.VG.MongoSync.downloadAttachment(attachment.fileId, attachment.filename);
+        blob = await window.VG.MongoSync.downloadAttachment(attachment.fileId, attachment.filename, attachment.database);
         if (blob) {
           await Storage.saveAttachmentBlob(task.id, attachment.filename, blob);
         }

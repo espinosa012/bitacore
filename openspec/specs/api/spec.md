@@ -84,7 +84,7 @@ The system SHALL manage tasks with type classification, hierarchy support, and n
 
 ### Requirement: Task Type Management
 
-The system SHALL provide access to registered task types configured in the active project database (`task`, `bug`, `analysis`, `feature`).
+The system SHALL provide access to the task types registered for the active project (`task`, `bug`, `analysis`, `feature` by default).
 
 #### Scenario: List available task types
 - **WHEN** user sends `GET /api/task-types` with valid authorization

@@ -438,12 +438,12 @@
     const tbody = document.getElementById('adminProjectsTableBody');
     if (!tbody) return;
 
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #a0aec0;"><i class="spinner loading icon"></i> Loading projects...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #a0aec0;"><i class="spinner loading icon"></i> Loading projects...</td></tr>';
 
     try {
       const projects = await loadCachedProjects();
       if (!projects || projects.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #a0aec0;">No projects found in database.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #a0aec0;">No projects found in database.</td></tr>';
         return;
       }
 
@@ -455,7 +455,6 @@
           <tr>
             <td style="font-weight: 600; color: #00b5ad; font-family: monospace;">${escapeHtml(p.id)}</td>
             <td style="font-weight: 600; color: #edf2f7;">${escapeHtml(p.name)}</td>
-            <td style="color: #cbd5e0; font-family: monospace; font-size: 0.85rem;">${escapeHtml(p.dbName)}</td>
             <td><span class="ui mini basic teal label" style="font-family: monospace;">${escapeHtml(format)}</span></td>
             <td style="color: #a0aec0; font-size: 0.85rem;">${escapeHtml(p.description || '—')}</td>
             <td class="right aligned" style="color: #718096; font-size: 0.85rem;">${escapeHtml(dateStr)}</td>
@@ -463,7 +462,7 @@
         `;
       }).join('');
     } catch (err) {
-      tbody.innerHTML = `<tr><td colspan="6" style="color: #e53e3e;">Failed to load projects: ${escapeHtml(err.message)}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="5" style="color: #e53e3e;">Failed to load projects: ${escapeHtml(err.message)}</td></tr>`;
     }
   }
 
@@ -473,13 +472,11 @@
 
     const idInput = document.getElementById('adminNewProjectId');
     const nameInput = document.getElementById('adminNewProjectName');
-    const dbInput = document.getElementById('adminNewProjectDb');
     const descInput = document.getElementById('adminNewProjectDesc');
     const errBox = document.getElementById('adminCreateProjectError');
 
     if (idInput) idInput.value = '';
     if (nameInput) nameInput.value = '';
-    if (dbInput) dbInput.value = '';
     if (descInput) descInput.value = '';
     if (errBox) errBox.style.display = 'none';
 
@@ -495,7 +492,6 @@
   async function handleCreateProjectSubmit() {
     const idInput = document.getElementById('adminNewProjectId');
     const nameInput = document.getElementById('adminNewProjectName');
-    const dbInput = document.getElementById('adminNewProjectDb');
     const descInput = document.getElementById('adminNewProjectDesc');
     const errBox = document.getElementById('adminCreateProjectError');
     const errText = document.getElementById('adminCreateProjectErrorText');
@@ -503,7 +499,6 @@
 
     const id = idInput ? idInput.value.trim() : '';
     const name = nameInput ? nameInput.value.trim() : '';
-    const dbName = dbInput ? dbInput.value.trim() : '';
     const desc = descInput ? descInput.value.trim() : '';
 
     if (errBox) errBox.style.display = 'none';
@@ -519,7 +514,7 @@
     if (submitBtn) submitBtn.classList.add('loading');
 
     try {
-      await MongoSync.createProject({ id, name, dbName, description: desc });
+      await MongoSync.createProject({ id, name, description: desc });
       if (submitBtn) submitBtn.classList.remove('loading');
       closeCreateProjectModal();
       UI.toast(`Project "${name}" (${id}) created and seeded successfully.`, 'success');
@@ -551,23 +546,23 @@
 
     const currentVal = select.value;
     select.innerHTML = cachedProjects.map(p =>
-      `<option value="${escapeHtml(p.dbName)}">${escapeHtml(p.name)} (${escapeHtml(p.id)})</option>`
+      `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)} (${escapeHtml(p.id)})</option>`
     ).join('');
 
-    if (currentVal && cachedProjects.some(p => p.dbName === currentVal)) {
+    if (currentVal && cachedProjects.some(p => p.id === currentVal)) {
       select.value = currentVal;
     } else if (cachedProjects.length > 0) {
-      select.value = cachedProjects[0].dbName;
+      select.value = cachedProjects[0].id;
     }
   }
 
   async function renderTaskTypesTab() {
     const select = document.getElementById('adminTaskTypeProjectSelect');
-    const targetDb = select ? select.value : (cachedProjects[0] ? cachedProjects[0].dbName : null);
+    const targetProject = select ? select.value : (cachedProjects[0] ? cachedProjects[0].id : null);
     const tbody = document.getElementById('adminTaskTypesTableBody');
     if (!tbody) return;
 
-    if (!targetDb) {
+    if (!targetProject) {
       tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #a0aec0;">Select a project to view task types.</td></tr>';
       return;
     }
@@ -575,7 +570,7 @@
     tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #a0aec0;"><i class="spinner loading icon"></i> Loading task types...</td></tr>';
 
     try {
-      const types = await MongoSync.fetchProjectTaskTypes(targetDb);
+      const types = await MongoSync.fetchProjectTaskTypes(targetProject);
       if (!types || types.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #a0aec0;">No task types found for this project.</td></tr>';
         return;
@@ -646,13 +641,13 @@
           if (!confirmed) return;
 
           try {
-            await MongoSync.deleteProjectTaskType(targetDb, typeId);
+            await MongoSync.deleteProjectTaskType(targetProject, typeId);
             UI.toast(`Task type "${typeId}" deleted and existing tasks reassigned to "task".`, 'success');
             await renderTaskTypesTab();
 
-            // If targetDb is currently active board database, refresh board task types and reload tasks
-            if (targetDb === MongoSync.getCurrentDb()) {
-              const refreshedTypes = await MongoSync.fetchProjectTaskTypes(targetDb);
+            // If targetProject is currently active board project, refresh board task types and reload tasks
+            if (targetProject === MongoSync.getCurrentProject()) {
+              const refreshedTypes = await MongoSync.fetchProjectTaskTypes(targetProject);
               window.VG.Constants.updateTaskTypes(refreshedTypes);
               if (window.VG.App && window.VG.App.refreshTaskTypeDropdowns) {
                 window.VG.App.refreshTaskTypeDropdowns();
@@ -713,8 +708,8 @@
 
   async function handleTaskTypeSubmit() {
     const select = document.getElementById('adminTaskTypeProjectSelect');
-    const targetDb = select ? select.value : (cachedProjects[0] ? cachedProjects[0].dbName : null);
-    if (!targetDb) {
+    const targetProject = select ? select.value : (cachedProjects[0] ? cachedProjects[0].id : null);
+    if (!targetProject) {
       UI.toast('No project selected.', 'error');
       return;
     }
@@ -746,7 +741,7 @@
     if (submitBtn) submitBtn.classList.add('loading');
 
     try {
-      await MongoSync.saveProjectTaskType(targetDb, {
+      await MongoSync.saveProjectTaskType(targetProject, {
         id: typeId,
         name: typeName,
         icon: icon,
@@ -759,9 +754,9 @@
 
       await renderTaskTypesTab();
 
-      // If updating currently active board database, update constants and dropdowns
-      if (targetDb === MongoSync.getCurrentDb()) {
-        const refreshedTypes = await MongoSync.fetchProjectTaskTypes(targetDb);
+      // If updating currently active board project, update constants and dropdowns
+      if (targetProject === MongoSync.getCurrentProject()) {
+        const refreshedTypes = await MongoSync.fetchProjectTaskTypes(targetProject);
         window.VG.Constants.updateTaskTypes(refreshedTypes);
         if (window.VG.App && window.VG.App.refreshTaskTypeDropdowns) {
           window.VG.App.refreshTaskTypeDropdowns();
@@ -786,23 +781,23 @@
 
     const currentVal = select.value;
     select.innerHTML = cachedProjects.map(p =>
-      `<option value="${escapeHtml(p.dbName)}">${escapeHtml(p.name)} (${escapeHtml(p.id)})</option>`
+      `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)} (${escapeHtml(p.id)})</option>`
     ).join('');
 
-    if (currentVal && cachedProjects.some(p => p.dbName === currentVal)) {
+    if (currentVal && cachedProjects.some(p => p.id === currentVal)) {
       select.value = currentVal;
     } else if (cachedProjects.length > 0) {
-      select.value = cachedProjects[0].dbName;
+      select.value = cachedProjects[0].id;
     }
   }
 
   async function renderTagsTab() {
     const select = document.getElementById('adminTagProjectSelect');
-    const targetDb = select ? select.value : (cachedProjects[0] ? cachedProjects[0].dbName : null);
+    const targetProject = select ? select.value : (cachedProjects[0] ? cachedProjects[0].id : null);
     const tbody = document.getElementById('adminTagsTableBody');
     if (!tbody) return;
 
-    if (!targetDb) {
+    if (!targetProject) {
       tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #a0aec0;">Select a project to view tags.</td></tr>';
       return;
     }
@@ -810,7 +805,7 @@
     tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #a0aec0;"><i class="spinner loading icon"></i> Loading tags and usage counts...</td></tr>';
 
     try {
-      const tags = await MongoSync.fetchProjectTags(targetDb);
+      const tags = await MongoSync.fetchProjectTags(targetProject);
       if (!tags || tags.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #a0aec0;">No tags registered in this project. Click "Add Tag" to create one.</td></tr>';
         return;
@@ -880,12 +875,12 @@
           if (!confirmed) return;
 
           try {
-            await MongoSync.deleteProjectTag(targetDb, tagName);
+            await MongoSync.deleteProjectTag(targetProject, tagName);
             UI.toast(`Tag "${tagName}" deleted and removed from tasks.`, 'success');
             await renderTagsTab();
 
-            // If targetDb is currently active board database, reload board
-            if (targetDb === MongoSync.getCurrentDb() && window.VG.App && window.VG.App.loadFromMongo) {
+            // If targetProject is currently active board project, reload board
+            if (targetProject === MongoSync.getCurrentProject() && window.VG.App && window.VG.App.loadFromMongo) {
               await window.VG.App.loadFromMongo();
             }
           } catch (err) {
@@ -933,8 +928,8 @@
 
   async function handleTagSubmit() {
     const select = document.getElementById('adminTagProjectSelect');
-    const targetDb = select ? select.value : (cachedProjects[0] ? cachedProjects[0].dbName : null);
-    if (!targetDb) {
+    const targetProject = select ? select.value : (cachedProjects[0] ? cachedProjects[0].id : null);
+    if (!targetProject) {
       UI.toast('No project selected.', 'error');
       return;
     }
@@ -961,10 +956,10 @@
 
     try {
       if (isEdit) {
-        await MongoSync.updateProjectTag(targetDb, oldName, newName, color);
+        await MongoSync.updateProjectTag(targetProject, oldName, newName, color);
         UI.toast(`Tag "${oldName}" updated and cascaded to all tasks in project.`, 'success');
       } else {
-        await MongoSync.addProjectTag(targetDb, newName, color);
+        await MongoSync.addProjectTag(targetProject, newName, color);
         UI.toast(`Tag "${newName}" created.`, 'success');
       }
 
@@ -973,8 +968,8 @@
 
       await renderTagsTab();
 
-      // If targetDb is currently active board database, reload board
-      if (targetDb === MongoSync.getCurrentDb() && window.VG.App && window.VG.App.loadFromMongo) {
+      // If targetProject is currently active board project, reload board
+      if (targetProject === MongoSync.getCurrentProject() && window.VG.App && window.VG.App.loadFromMongo) {
         await window.VG.App.loadFromMongo();
       }
     } catch (err) {
