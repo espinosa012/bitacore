@@ -7,7 +7,7 @@
 
   <link rel="stylesheet" href="vendor/fomantic-ui/semantic.min.css?v=20261017.3" />
   <link rel="stylesheet" href="vendor/easymde/easymde.min.css?v=20261017.3" />
-  <link rel="stylesheet" href="css/app.css?v=20261021.1" />
+  <link rel="stylesheet" href="css/app.css?v=20261021.3" />
   <link rel="stylesheet" href="css/markdown.css?v=20261017.3" />
 </head>
 <body>
@@ -260,11 +260,26 @@
     </div>
 
     <div class="board-stats-bar" id="boardStatsBar" style="display: none;">
+      <div class="ui mini inverted buttons view-switch" role="group" aria-label="Project view">
+        <button type="button" class="ui basic inverted button view-switch-btn active" data-view="board" aria-pressed="true" title="Kanban board">
+          <i class="columns icon"></i>
+          Board
+        </button>
+        <button type="button" class="ui basic inverted button view-switch-btn" data-view="overview" aria-pressed="false" title="Project overview">
+          <i class="chart pie icon"></i>
+          Overview
+        </button>
+      </div>
       <span class="board-stats-counter" id="taskStatsCounter">0 tasks · 0 in progress · 0 blocked</span>
     </div>
 
     <div class="board" id="kanbanBoard">
       <!-- Columns rendered dynamically -->
+    </div>
+
+    <!-- Project Overview (Board | Overview switch) -->
+    <div class="project-overview" id="projectOverview" style="display: none;" aria-label="Project overview">
+      <!-- Cards rendered dynamically -->
     </div>
   </main>
 
@@ -1636,11 +1651,12 @@
   <script src="js/attachments.js?v=20261019.1"></script>
   <script src="js/mongo-sync.js?v=20261020.1"></script>
   <script src="js/auth.js?v=20261021.1"></script>
-  <script src="js/board.js?v=20261018.2"></script>
+  <script src="js/board.js?v=20261021.1"></script>
   <script src="js/modals.js?v=20261019.1"></script>
   <script src="js/task-page.js?v=20261019.1"></script>
   <script src="js/admin.js?v=20261021.1"></script>
   <script src="js/tag-explorer.js?v=20261019.1"></script>
+  <script src="js/overview.js?v=20261021.2"></script>
   <script src="js/app.js?v=20261020.1"></script>
 </body>
 </html>

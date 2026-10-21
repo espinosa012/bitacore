@@ -305,6 +305,10 @@
     if (searchIcon) {
       searchIcon.style.display = query ? 'none' : '';
     }
+
+    if (window.VG.Overview && window.VG.Overview.refresh) {
+      window.VG.Overview.refresh();
+    }
   }
 
   /** Escapes text and wraps case-insensitive matches of query in <mark> */
