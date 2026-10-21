@@ -25,7 +25,8 @@
     'task': { id: 'task', label: 'Task', icon: 'check square outline', color: 'blue' },
     'bug': { id: 'bug', label: 'Bug', icon: 'bug', color: 'red' },
     'analysis': { id: 'analysis', label: 'Analysis', icon: 'search', color: 'teal' },
-    'feature': { id: 'feature', label: 'Feature', icon: 'star', color: 'green' }
+    'feature': { id: 'feature', label: 'Feature', icon: 'star', color: 'green' },
+    'openspec-change': { id: 'openspec-change', label: 'OpenSpec Change', icon: 'code branch', color: 'purple' }
   };
 
   const TASK_TYPE_MAPPINGS = {
@@ -39,7 +40,11 @@
     'investigacion': 'analysis',
     'feature': 'feature',
     'funcionalidad': 'feature',
-    'mejora': 'feature'
+    'mejora': 'feature',
+    'openspec-change': 'openspec-change',
+    'openspec_change': 'openspec-change',
+    'openspec': 'openspec-change',
+    'change': 'openspec-change'
   };
 
   function updateTaskTypes(typesArray) {

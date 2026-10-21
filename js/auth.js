@@ -449,6 +449,15 @@
           isAdmin: Boolean(u.isAdmin),
           createdAt: (u.createdAt && u.createdAt.$date) ? u.createdAt.$date : u.createdAt
         }));
+
+        if (currentUser) {
+          const fresh = cachedUsers.find(u => u.username.toLowerCase() === currentUser.username.toLowerCase());
+          if (fresh && (Boolean(fresh.isAdmin) !== Boolean(currentUser.isAdmin) || JSON.stringify(fresh.projects) !== JSON.stringify(currentUser.projects))) {
+            currentUser.isAdmin = fresh.isAdmin;
+            currentUser.projects = fresh.projects;
+            setCurrentUser(currentUser);
+          }
+        }
       }
       return cachedUsers;
     } catch (err) {

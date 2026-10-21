@@ -23,6 +23,7 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
 }
 
 /* Header */
@@ -30,6 +31,9 @@ body {
   position: sticky;
   top: 0;
   z-index: 50;
+  width: 100%;
+  max-width: 100vw;
+  box-sizing: border-box;
 }
 
 .app-header .ui.menu.app-menu {
@@ -43,6 +47,9 @@ body {
   align-items: center;
   overflow: visible !important;
   overflow-x: visible !important;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .app-header .ui.menu.app-menu::-webkit-scrollbar {
@@ -52,18 +59,19 @@ body {
 .app-header .ui.menu.app-menu .right.menu {
   flex-wrap: nowrap !important;
   margin-left: auto !important;
+  flex-shrink: 0;
 }
 
 .app-header .ui.menu.app-menu > .item,
 .app-header .ui.menu.app-menu .right.menu > .item {
-  padding-left: 7px !important;
-  padding-right: 7px !important;
+  padding-left: 6px !important;
+  padding-right: 6px !important;
 }
 
 .app-brand {
   gap: 4px;
-  padding-left: 12px !important;
-  padding-right: 10px !important;
+  padding-left: 10px !important;
+  padding-right: 8px !important;
   flex-shrink: 0;
 }
 
@@ -230,7 +238,9 @@ body {
   margin-left: 4px;
 }
 
-body.view-task .board-only {
+body.view-task .board-only,
+body.view-admin .board-only,
+body.view-tag-explorer .board-only {
   display: none !important;
 }
 
@@ -278,9 +288,20 @@ body.view-task .board-only {
 .mongo-status-btn {
   display: inline-flex !important;
   align-items: center !important;
-  gap: 8px !important;
+  gap: 6px !important;
   font-weight: 500 !important;
   transition: all 0.2s ease !important;
+  white-space: nowrap !important;
+  max-width: 175px;
+}
+
+.mongo-status-btn #mongoStatusLabel {
+  display: inline-block;
+  max-width: 125px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 
 .mongo-empty-state {
@@ -950,50 +971,120 @@ main[hidden],
 }
 
 /* Responsive header menu: ensure all elements fit without any horizontal scrolling */
-@media (max-width: 1250px) {
+@media (max-width: 1440px) {
   .app-header .ui.menu.app-menu > .item,
   .app-header .ui.menu.app-menu .right.menu > .item {
     padding-left: 5px !important;
     padding-right: 5px !important;
   }
   .app-menu #searchInput {
-    width: 135px;
+    width: 125px;
   }
   .app-menu #searchInput:focus {
-    width: 170px;
+    width: 155px;
   }
   .app-menu select.ui.dropdown {
-    max-width: 110px;
+    max-width: 125px;
+  }
+  #btnClearFiltersText {
+    display: none;
+  }
+  #btnClearFilters i.icon {
+    margin: 0 !important;
   }
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1300px) {
   .app-header .ui.menu.app-menu > .item,
   .app-header .ui.menu.app-menu .right.menu > .item {
     padding-left: 4px !important;
     padding-right: 4px !important;
   }
-  .user-criteria-btn .criteria-label-text {
+  #btnFilterFavoriteText {
     display: none;
+  }
+  #btnFilterFavorite i.icon {
+    margin-right: 2px !important;
+    margin-left: 0 !important;
   }
   .mongo-status-btn #mongoStatusLabel {
     display: none;
   }
-  .app-menu select.ui.dropdown {
-    max-width: 96px;
+  .mongo-status-btn i.icon {
+    margin: 0 !important;
   }
-}
-
-@media (max-width: 980px) {
-  #btnClearFiltersText,
-  #btnFilterFavoriteText {
-    display: none;
+  .app-menu select.ui.dropdown {
+    max-width: 115px;
   }
   .app-menu #searchInput {
     width: 110px;
   }
   .app-menu #searchInput:focus {
     width: 140px;
+  }
+}
+
+@media (max-width: 1150px) {
+  .app-header .ui.menu.app-menu > .item,
+  .app-header .ui.menu.app-menu .right.menu > .item {
+    padding-left: 3px !important;
+    padding-right: 3px !important;
+  }
+  #btnTagExplorerText {
+    display: none;
+  }
+  #btnOpenTagExplorer i.icon {
+    margin: 0 !important;
+  }
+  #btnAdminPanelText {
+    display: none;
+  }
+  #btnOpenAdminPanel i.icon {
+    margin: 0 !important;
+  }
+  .app-menu select.ui.dropdown {
+    max-width: 100px;
+  }
+}
+
+@media (max-width: 990px) {
+  #btnFiltersMenuText {
+    display: none;
+  }
+  #btnFiltersMenu i.filter.icon {
+    margin-right: 2px !important;
+    margin-left: 0 !important;
+  }
+  .user-session-btn #headerUserLabel {
+    max-width: 60px;
+  }
+  .app-brand-title {
+    font-size: 0.95em;
+  }
+  .app-menu #searchInput {
+    width: 95px;
+  }
+  .app-menu #searchInput:focus {
+    width: 125px;
+  }
+}
+
+@media (max-width: 860px) {
+  .app-brand-title {
+    display: none;
+  }
+  .app-brand {
+    padding-left: 6px !important;
+    padding-right: 4px !important;
+  }
+  .user-session-btn #headerUserLabel {
+    display: none;
+  }
+  .user-session-btn i.icon {
+    margin: 0 !important;
+  }
+  .app-menu select.ui.dropdown {
+    max-width: 85px;
   }
 }
 
@@ -1798,6 +1889,16 @@ select.ui.dropdown option {
   gap: 6px;
   font-weight: 600 !important;
   white-space: nowrap;
+  max-width: 140px;
+}
+
+.user-session-btn #headerUserLabel {
+  display: inline-block;
+  max-width: 95px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 
 .user-session-btn.is-authenticated {
@@ -1960,36 +2061,57 @@ select.ui.dropdown option {
    Admin Panel Styles
    ========================================================================== */
 
+/* The board container is flex: 1, so hide it while a full-page view is open;
+   otherwise it fills the viewport and pushes the view to the bottom. */
+body:has(#adminView:not([hidden])) main.board-view,
+body:has(#tagExplorerView:not([hidden])) main.board-view {
+  display: none !important;
+}
+
 .admin-view {
-  max-width: 1200px;
-  margin: 1.5rem auto 3rem;
-  padding: 0 1.5rem;
+  flex: 1;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem 2rem 3rem;
+  box-sizing: border-box;
+  font-size: 15px;
 }
 
 .admin-view-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.75rem;
+  padding-bottom: 1.25rem;
   border-bottom: 1px solid var(--app-border, rgba(255, 255, 255, 0.12));
 }
 
 .admin-view-title {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  font-size: 1.5rem;
+  gap: 0.85rem;
+  font-size: 1.9rem;
   font-weight: 700;
   color: #fff;
 }
 
 .admin-view-title i.icon {
   color: #00b5ad;
+  font-size: 1.6rem;
+  margin: 0;
 }
 
-.admin-tabs {
-  margin-bottom: 1.5rem !important;
+.admin-tabs.ui.menu {
+  margin-bottom: 1.75rem !important;
+  font-size: 1.05rem;
+}
+
+.admin-tabs.ui.menu .item {
+  padding: 0.95rem 1.4rem !important;
+  font-weight: 600;
 }
 
 .admin-tab-pane {
@@ -2004,40 +2126,65 @@ select.ui.dropdown option {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
   gap: 1rem;
   flex-wrap: wrap;
+}
+
+.admin-pane-actions .ui.button {
+  font-size: 0.95rem;
+  padding: 0.85em 1.4em;
 }
 
 .admin-project-filter {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  font-size: 1rem;
+}
+
+.admin-project-filter select {
+  min-width: 220px;
+  padding: 0.6em 0.9em;
+  font-size: 0.95rem;
 }
 
 .admin-table-container {
   background: #1e2632;
   border: 1px solid #2d3748;
-  border-radius: 8px;
-  overflow: hidden;
+  border-radius: 10px;
+  overflow-x: auto;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
-.admin-table {
+.admin-table.ui.table {
   margin: 0 !important;
+  border: none !important;
+  font-size: 1rem;
 }
 
 .admin-table th {
   background: #18202c !important;
   color: #a0aec0 !important;
-  font-size: 0.85rem !important;
+  font-size: 0.8rem !important;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.6px;
+  padding: 1rem 1.25rem !important;
 }
 
 .admin-table td {
   vertical-align: middle !important;
   color: #e2e8f0 !important;
+  padding: 0.95rem 1.25rem !important;
+}
+
+.admin-table td .ui.mini.label {
+  font-size: 0.8rem;
+}
+
+.admin-table td .ui.mini.button {
+  font-size: 0.85rem;
+  padding: 0.65em 1.1em;
 }
 
 .admin-project-tag-badge {

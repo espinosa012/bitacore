@@ -21,7 +21,8 @@
     { id: 'task', name: 'Task', icon: 'check square outline', color: 'blue' },
     { id: 'bug', name: 'Bug', icon: 'bug', color: 'red' },
     { id: 'analysis', name: 'Analysis', icon: 'search', color: 'teal' },
-    { id: 'feature', name: 'Feature', icon: 'star', color: 'green' }
+    { id: 'feature', name: 'Feature', icon: 'star', color: 'green' },
+    { id: 'openspec-change', name: 'OpenSpec Change', icon: 'code branch', color: 'purple' }
   ];
 
   let isConnected = false;

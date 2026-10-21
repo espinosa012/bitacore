@@ -129,7 +129,8 @@ const DEFAULT_TASK_TYPES = [
   { id: 'task', name: 'Task', icon: 'check square outline', color: 'blue' },
   { id: 'bug', name: 'Bug', icon: 'bug', color: 'red' },
   { id: 'analysis', name: 'Analysis', icon: 'search', color: 'teal' },
-  { id: 'feature', name: 'Feature', icon: 'star', color: 'green' }
+  { id: 'feature', name: 'Feature', icon: 'star', color: 'green' },
+  { id: 'openspec-change', name: 'OpenSpec Change', icon: 'code branch', color: 'purple' }
 ];
 
 // All projects share one database. Tasks carry a `project` field; task types
@@ -177,10 +178,7 @@ async function seedProjectDefaults(db, projectId) {
 
 async function ensureProjectTaskTypes(db, projectId) {
   try {
-    const count = await db.collection('task_types').countDocuments({ project: projectId }).catch(() => 0);
-    if (count === 0) {
-      await seedProjectDefaults(db, projectId);
-    }
+    await seedProjectDefaults(db, projectId);
   } catch (err) {
     console.error(`[MongoDB] Error ensuring task_types for project "${projectId}":`, err.message);
   }
@@ -365,6 +363,11 @@ async function connectMongo(uri) {
     await migrateToSharedDb(db);
   } catch (err) {
     console.error('[MongoDB] Shared database migration failed:', err.message);
+  }
+  const allProjects = await db.collection('projects').find({}).toArray().catch(() => []);
+  for (const p of allProjects) {
+    const pid = p.id || String(p._id);
+    await ensureProjectTaskTypes(db, pid);
   }
   await ensureProjectTaskTypes(db, DEFAULT_PROJECT.id);
   const typeCount = await db.collection('task_types').countDocuments().catch(() => 0);

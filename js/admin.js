@@ -42,6 +42,12 @@
     if (kanbanBoard) kanbanBoard.style.display = 'none';
     const boardStatsBar = document.getElementById('boardStatsBar');
     if (boardStatsBar) boardStatsBar.style.display = 'none';
+
+    document.body.classList.add('view-admin');
+    document.querySelectorAll('.board-only').forEach(item => {
+      item.style.display = 'none';
+    });
+
     if (adminView) {
       adminView.hidden = false;
       adminView.style.display = 'block';
@@ -69,6 +75,12 @@
       adminView.hidden = true;
       adminView.style.display = 'none';
     }
+
+    document.body.classList.remove('view-admin');
+    document.querySelectorAll('.board-only').forEach(item => {
+      item.style.display = '';
+    });
+
     if (kanbanBoard) {
       kanbanBoard.style.display = 'flex';
     }

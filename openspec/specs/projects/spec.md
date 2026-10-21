@@ -67,4 +67,4 @@ The system SHALL load and enforce the task types defined for the active project.
 
 #### Scenario: Default task types for new projects
 - **WHEN** a project is created or has no task types configured
-- **THEN** system seeds or falls back to the default task types (task, bug, analysis, feature)
+- **THEN** system seeds or falls back to the default task types (task, bug, analysis, feature, openspec-change)
