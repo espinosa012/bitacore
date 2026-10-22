@@ -25,6 +25,7 @@
   /** Replaces the whole board with its tag registry */
   function replaceBoard(newTasks, rawTags = []) {
     tasks = Validation.orderTasks(newTasks);
+    if (window.VG.Notifications) window.VG.Notifications.resetSnapshot(tasks);
     Tags.load(rawTags, tasks);
     refreshTagFilter();
     if (window.VG.Board && window.VG.Board.clearSelection) {
@@ -77,7 +78,9 @@
     refreshTagFilter();
 
     if (MongoSync && MongoSync.isConnected()) {
+      const notifications = window.VG.Notifications ? window.VG.Notifications.collectChanges(tasks) : [];
       MongoSync.saveTasks(buildDocument()).then(saved => {
+        if (saved && notifications.length) window.VG.Notifications.send(notifications);
         if (!saved) {
           markDirty();
           showToast('Could not save changes to MongoDB', 'error', 7000);

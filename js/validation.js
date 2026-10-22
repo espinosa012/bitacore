@@ -157,6 +157,21 @@
     return id.length > 0 && id.length <= 128 && id !== '.' && id !== '..' && !/[/\\\x00-\x1f]/.test(id);
   }
 
+  /** Mentioned usernames of a comment: unique, non-empty strings */
+  function normalizeMentions(raw) {
+    if (!Array.isArray(raw)) return [];
+    const seen = new Set();
+    return raw
+      .filter(m => typeof m === 'string' && m.trim().length > 0)
+      .map(m => m.trim().replace(/^@/, ''))
+      .filter(m => {
+        const key = m.toLowerCase();
+        if (!m || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+  }
+
   function normalizeTasks(raw) {
     if (!raw) return [];
     const list = Array.isArray(raw) ? raw : (raw.tasks || []);
@@ -223,6 +238,7 @@
         id: c.id || window.VG.Constants.generateId('comm'),
         author: (c.author !== undefined ? c.author : c.autor) || 'User',
         text: (c.text !== undefined ? c.text : c.texto) || '',
+        mentions: normalizeMentions(c.mentions !== undefined ? c.mentions : c.menciones),
         timestamp: c.timestamp || new Date().toISOString()
       }));
 
@@ -331,6 +347,7 @@
   window.VG.Validation = {
     validateTasksJson,
     normalizeTasks,
+    normalizeMentions,
     orderTasks
   };
 })();

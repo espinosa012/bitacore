@@ -435,6 +435,7 @@
         if (addCommentForm) addCommentForm.requestSubmit();
       }
     });
+    if (window.VG.Mentions) window.VG.Mentions.attach(modalCommentEditor);
 
     // Tag pickers (suggestions while typing, new tags created on save)
     createTagPicker = window.VG.Tags.createPicker(document.getElementById('newTaskTags'));
@@ -1483,10 +1484,16 @@
           <div class="metadata">
             <span class="date" title="${escapeHtml(new Date(c.timestamp).toLocaleString())}">${formatRelativeTime(c.timestamp)}</span>
           </div>
-          <div class="text comment-text">${window.VG.Markdown ? window.VG.Markdown.render(c.text) : escapeHtml(c.text)}</div>
+          <div class="text comment-text">${renderCommentText(c)}</div>
         </div>
       </div>
     `).join('');
+  }
+
+  /** Comment markdown as sanitized HTML with its @mentions highlighted */
+  function renderCommentText(c) {
+    const html = window.VG.Markdown ? window.VG.Markdown.render(c.text) : escapeHtml(c.text);
+    return window.VG.Mentions ? window.VG.Mentions.highlight(html, c.mentions) : html;
   }
 
   /** Appends a comment and remembers its author for next time */
@@ -1502,6 +1509,7 @@
       id: window.VG.Constants.generateId('comm'),
       author: authorName,
       text: text.trim(),
+      mentions: window.VG.Mentions ? window.VG.Mentions.extract(text) : [],
       timestamp: now
     });
     task.updated_at = now;

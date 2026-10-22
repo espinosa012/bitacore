@@ -930,6 +930,7 @@
         if (form) form.requestSubmit();
       }
     });
+    if (window.VG.Mentions) window.VG.Mentions.attach(commentEditor);
 
     el('pageCommentText').addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {

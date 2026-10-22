@@ -7,7 +7,7 @@
 
   <link rel="stylesheet" href="vendor/fomantic-ui/semantic.min.css?v=20261017.3" />
   <link rel="stylesheet" href="vendor/easymde/easymde.min.css?v=20261017.3" />
-  <link rel="stylesheet" href="css/app.css?v=20261021.3" />
+  <link rel="stylesheet" href="css/app.css?v=20261021.4" />
   <link rel="stylesheet" href="css/markdown.css?v=20261017.3" />
 </head>
 <body>
@@ -181,6 +181,23 @@
             <i class="database icon"></i>
             <span id="mongoStatusLabel">Connect MongoDB</span>
           </button>
+        </div>
+
+        <!-- Notifications Bell -->
+        <div class="item notifications-container" id="notificationsHeaderItem" style="display: none;">
+          <button type="button" id="btnNotifications" class="ui basic inverted icon button notifications-btn" title="Notifications" aria-haspopup="true" aria-expanded="false">
+            <i class="bell outline icon"></i>
+            <span class="notifications-badge" id="notificationsBadge" style="display: none;">0</span>
+          </button>
+          <div class="notifications-popover" id="notificationsPopover" role="dialog" aria-label="Notifications" style="display: none;">
+            <div class="notifications-popover-header">
+              <span class="notifications-popover-title"><i class="bell icon"></i>Notifications</span>
+              <button type="button" class="ui mini basic inverted button" id="btnMarkAllNotificationsRead">
+                <i class="check double icon"></i> Mark all as read
+              </button>
+            </div>
+            <div class="notifications-list" id="notificationsList"></div>
+          </div>
         </div>
 
         <!-- User Session / Log In Header Item -->
@@ -1646,17 +1663,19 @@
   <script src="js/ui.js?v=20261017.3"></script>
   <script src="js/tags.js?v=20261017.3"></script>
   <script src="js/storage.js?v=20261017.3"></script>
-  <script src="js/validation.js?v=20261020.1"></script>
+  <script src="js/validation.js?v=20261021.3"></script>
   <script src="js/markdown.js?v=20261017.3"></script>
   <script src="js/attachments.js?v=20261019.1"></script>
   <script src="js/mongo-sync.js?v=20261020.1"></script>
   <script src="js/auth.js?v=20261021.1"></script>
+  <script src="js/mentions.js?v=20261021.3"></script>
+  <script src="js/notifications.js?v=20261021.3"></script>
   <script src="js/board.js?v=20261021.1"></script>
-  <script src="js/modals.js?v=20261019.1"></script>
-  <script src="js/task-page.js?v=20261019.1"></script>
+  <script src="js/modals.js?v=20261021.3"></script>
+  <script src="js/task-page.js?v=20261021.3"></script>
   <script src="js/admin.js?v=20261021.1"></script>
   <script src="js/tag-explorer.js?v=20261019.1"></script>
   <script src="js/overview.js?v=20261021.2"></script>
-  <script src="js/app.js?v=20261020.1"></script>
+  <script src="js/app.js?v=20261021.3"></script>
 </body>
 </html>
