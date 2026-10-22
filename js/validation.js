@@ -1,5 +1,5 @@
 /**
- * vg-task-manager: Strict Task Schema Validation and Normalization
+ * bitacore: Strict Task Schema Validation and Normalization
  */
 (function() {
   window.VG = window.VG || {};

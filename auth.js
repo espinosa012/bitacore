@@ -1,5 +1,5 @@
 /**
- * vg-task-manager: JWT Authentication Helpers
+ * bitacore: JWT Authentication Helpers
  *
  * Provides token creation, verification, and middleware
  * to protect API routes with a signed JWT.

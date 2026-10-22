@@ -1,5 +1,5 @@
 /**
- * vg-task-manager: Fomantic-UI helpers (toasts, modals and dialogs)
+ * bitacore: Fomantic-UI helpers (toasts, modals and dialogs)
  *
  * Dialogs return Promises and replace the browser's alert/confirm/prompt,
  * so they match the rest of the interface.

@@ -1,5 +1,5 @@
 /**
- * vg-task-manager: @mentions in comments
+ * bitacore: @mentions in comments
  *
  * - `@` autocomplete for comment editors (EasyMDE/CodeMirror) listing the
  *   active project's users

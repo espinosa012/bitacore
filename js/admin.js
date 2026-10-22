@@ -1,5 +1,5 @@
 /**
- * vg-task-manager: Administrator Panel Controller
+ * bitacore: Administrator Panel Controller
  * Handles user management, project creation, task types customization,
  * and project tags management with cascading task updates.
  */

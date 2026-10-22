@@ -1,5 +1,5 @@
 /**
- * vg-task-manager: Attachment Management (File handling, preview, download, MongoDB sync)
+ * bitacore: Attachment Management (File handling, preview, download, MongoDB sync)
  */
 (function() {
   window.VG = window.VG || {};

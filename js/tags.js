@@ -1,5 +1,5 @@
 /**
- * vg-task-manager: Tags (registry + picker)
+ * bitacore: Tags (registry + picker)
  *
  * The registry lists every tag known to the board, saved in tasks.json as
  * `"tags": [{ "name": "frontend", "color": "blue" }, ...]`. Tasks reference

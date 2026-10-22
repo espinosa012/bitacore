@@ -1,5 +1,5 @@
 {
-  "name": "vg-task-manager",
+  "name": "bitacore",
   "version": "1.0.0",
   "description": "Minimalist single-file task manager & kanban board with JSON persistence and drag-and-drop",
   "main": "server.js",

@@ -1,5 +1,5 @@
 /**
- * vg-task-manager: Authentication & User Management Client
+ * bitacore: Authentication & User Management Client
  * Handles user registration, login, logout, session persistence,
  * and user list synchronization directly with MongoDB Atlas via vg-mongo-proxy.
  */

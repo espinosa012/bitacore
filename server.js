@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * vg-task-manager: HTTP Server & MongoDB Atlas Sync Backend
+ * bitacore: HTTP Server & MongoDB Atlas Sync Backend
  * Serves the web UI and provides API endpoints for:
  *   - Connecting to MongoDB Atlas (vg-task-manager database, tasks and attachments collections)
  *   - Querying, creating, updating, and deleting tasks
@@ -682,7 +682,7 @@ async function handleApi(req, res, pathname, cors) {
     }
     return sendJson(res, 200, {
       ok: true,
-      app: 'vg-task-manager',
+      app: 'bitacore',
       connected: isConnected,
       database: isConnected ? DB_NAME : null,
       taskCount: count,
@@ -2116,7 +2116,7 @@ async function main() {
 
     server.listen(port, '127.0.0.1', () => {
       const url = `http://localhost:${port}/`;
-      console.log(`\nvg-task-manager running: ${url} (Press Ctrl+C to stop)`);
+      console.log(`\nbitacore running: ${url} (Press Ctrl+C to stop)`);
       console.log(`MongoDB target: database "${DB_NAME}", collection "tasks"`);
       if (mongoDb) {
         console.log(`Status: Connected to MongoDB Atlas (${maskUri(activeUri)})\n`);
@@ -2127,7 +2127,7 @@ async function main() {
     });
 
     const shutdown = async () => {
-      console.log('\nStopping vg-task-manager...');
+      console.log('\nStopping bitacore...');
       await disconnectMongo();
       server.close(() => process.exit(0));
     };
@@ -2135,7 +2135,7 @@ async function main() {
     process.on('SIGINT', shutdown);
     process.on('SIGTERM', shutdown);
   } catch (err) {
-    console.error(`Error starting vg-task-manager: ${err.message}`);
+    console.error(`Error starting bitacore: ${err.message}`);
     process.exit(1);
   }
 }

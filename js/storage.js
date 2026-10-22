@@ -1,5 +1,5 @@
 /**
- * vg-task-manager: Storage (IndexedDB for attachment files + localStorage for tasks metadata)
+ * bitacore: Storage (IndexedDB for attachment files + localStorage for tasks metadata)
  */
 (function() {
   window.VG = window.VG || {};

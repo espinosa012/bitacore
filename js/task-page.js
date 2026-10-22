@@ -1,5 +1,5 @@
 /**
- * vg-task-manager: Task Page (route #/task/<id>)
+ * bitacore: Task Page (route #/task/<id>)
  *
  * Full-page view of a single task: editable title and fields, a markdown
  * description editor, attachments with inline previews, comments and history.

@@ -1,5 +1,5 @@
 /**
- * vg-task-manager: MongoDB Synchronization Client (vg-mongo-proxy)
+ * bitacore: MongoDB Synchronization Client (vg-mongo-proxy)
  * Communicates directly with the FastAPI vg-mongo-proxy to manage MongoDB operations
  * and GridFS file streaming, fully compatible with static hosting (GitHub Pages).
  */

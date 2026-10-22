@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This specification defines a REST API that mirrors the capabilities of the vg-task-manager web UI. All operations require a valid JWT token in the `Authorization: Bearer <token>` header, issued via `/api/auth/register` or `/api/auth/login`.
+This specification defines a REST API that mirrors the capabilities of the bitacore web UI. All operations require a valid JWT token in the `Authorization: Bearer <token>` header, issued via `/api/auth/register` or `/api/auth/login`.
 
 ## Requirements
 

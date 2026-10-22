@@ -1,5 +1,5 @@
 /**
- * vg-task-manager: Local File System Synchronization ("sincronia")
+ * bitacore: Local File System Synchronization ("sincronia")
  * Links a local directory with tasks.json and attachments/<taskId>/<filename>.
  *
  * Three backends, chosen automatically:
@@ -81,7 +81,7 @@
       const res = await fetch(`${base}/api/status`, { signal: controller.signal, cache: 'no-store' });
       if (!res.ok) { agentStatus = null; return null; }
       const data = await res.json();
-      agentStatus = data && data.app === 'vg-task-manager' ? { ...data, base } : null;
+      agentStatus = data && data.app === 'bitacore' ? { ...data, base } : null;
     } catch (e) {
       agentStatus = null;
     } finally {

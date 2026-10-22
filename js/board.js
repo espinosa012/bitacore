@@ -1,5 +1,5 @@
 /**
- * vg-task-manager: Board Rendering & Drag-and-Drop Interaction
+ * bitacore: Board Rendering & Drag-and-Drop Interaction
  */
 (function() {
   window.VG = window.VG || {};

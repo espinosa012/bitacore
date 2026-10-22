@@ -1,5 +1,5 @@
 /**
- * vg-task-manager: Project Overview Controller
+ * bitacore: Project Overview Controller
  * Second view of the board area (Board | Overview). Renders summary cards with
  * hand-built SVG/CSS charts: status, priority, type, assignee, tags, activity
  * over time and the tasks with the most recent activity.

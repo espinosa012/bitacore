@@ -1,5 +1,5 @@
 /**
- * vg-task-manager: ZIP Export & Import Manager
+ * bitacore: ZIP Export & Import Manager
  * Packages tasks.json at root and task attachments under attachments/<taskId>/<filename>
  */
 (function() {

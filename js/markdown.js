@@ -1,5 +1,5 @@
 /**
- * vg-task-manager: Markdown editor (EasyMDE) and helpers
+ * bitacore: Markdown editor (EasyMDE) and helpers
  *
  * Wraps the vendored EasyMDE editor (vendor/easymde, MIT) with the app's look:
  * SVG toolbar icons (no Font Awesome download), sanitized previews (DOMPurify)

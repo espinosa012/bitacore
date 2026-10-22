@@ -1,4 +1,4 @@
-# vg-task-manager API
+# bitacore API
 
 This project is a task manager web application that provides both a web UI and a REST API.
 

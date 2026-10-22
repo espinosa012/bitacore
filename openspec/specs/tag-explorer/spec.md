@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Provides a dedicated Tag Explorer view to inspect, search, and navigate project tags and their associated tasks in vg-task-manager.
+Provides a dedicated Tag Explorer view to inspect, search, and navigate project tags and their associated tasks in bitacore.
 
 ## Requirements
 

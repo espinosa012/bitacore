@@ -1,5 +1,5 @@
 /**
- * vg-task-manager: Modals Management (Create, Edit, Comments, History, Attachments)
+ * bitacore: Modals Management (Create, Edit, Comments, History, Attachments)
  */
 (function() {
   window.VG = window.VG || {};

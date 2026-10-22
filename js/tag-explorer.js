@@ -1,5 +1,5 @@
 /**
- * vg-task-manager: Tag Explorer Controller
+ * bitacore: Tag Explorer Controller
  * Manages the tag explorer view, live search, tag inspection, and task list rendering.
  */
 (function() {

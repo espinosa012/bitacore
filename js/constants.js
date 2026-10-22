@@ -1,5 +1,5 @@
 /**
- * vg-task-manager: Constants and Formatting Helpers
+ * bitacore: Constants and Formatting Helpers
  */
 (function() {
   window.VG = window.VG || {};

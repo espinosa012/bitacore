@@ -1,5 +1,5 @@
 /**
- * vg-task-manager: Main Application Orchestrator (MongoDB Atlas Backend)
+ * bitacore: Main Application Orchestrator (MongoDB Atlas Backend)
  */
 (function() {
   window.VG = window.VG || {};

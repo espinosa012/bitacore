@@ -1,5 +1,5 @@
 /**
- * vg-task-manager: Notifications
+ * bitacore: Notifications
  *
  * Per-user notifications stored in the shared `notifications` collection
  * through vg-mongo-proxy. Document shape:
