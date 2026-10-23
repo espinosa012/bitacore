@@ -1,5 +1,9 @@
 schema: spec-driven
 
+context: |
+  All implemented code must be covered by automated tests (npm test, node:test).
+  Every tasks.md must include test tasks, and a change is not complete until tests pass.
+
 # Project context (optional)
 # Add only constraints that should guide OpenSpec artifacts and workflows.
 # Include constraints an agent cannot infer by reading the code.

@@ -4,7 +4,9 @@
   "description": "Minimalist single-file task manager & kanban board with JSON persistence and drag-and-drop",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test test/",
+    "test:coverage": "node --test --experimental-test-coverage test/"
   },
   "keywords": [
     "kanban",
