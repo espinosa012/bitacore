@@ -1036,12 +1036,6 @@ main[hidden],
   #btnOpenTagExplorer i.icon {
     margin: 0 !important;
   }
-  #btnAdminPanelText {
-    display: none;
-  }
-  #btnOpenAdminPanel i.icon {
-    margin: 0 !important;
-  }
   .app-menu select.ui.dropdown {
     max-width: 100px;
   }
