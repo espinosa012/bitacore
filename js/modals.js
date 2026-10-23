@@ -441,16 +441,60 @@
     createTagPicker = window.VG.Tags.createPicker(document.getElementById('newTaskTags'));
     editTagPicker = window.VG.Tags.createPicker(document.getElementById('editTaskTags'));
 
+    function setupEditorShortcuts(editor, onSave, onOpenPage) {
+      if (!editor || !editor.codemirror) return;
+      const extraKeys = editor.codemirror.getOption('extraKeys') || {};
+      const keys = {};
+      if (onSave) {
+        keys['Ctrl-Enter'] = () => onSave();
+        keys['Cmd-Enter'] = () => onSave();
+      }
+      if (onOpenPage) {
+        keys['Ctrl-Shift-Enter'] = () => onOpenPage();
+        keys['Cmd-Shift-Enter'] = () => onOpenPage();
+        keys['Alt-Enter'] = () => onOpenPage();
+      }
+      editor.codemirror.setOption('extraKeys', Object.assign({}, extraKeys, keys));
+    }
+
+    setupEditorShortcuts(createDescEditor, () => handleCreateTaskSubmit(null), () => handleCreateTaskSubmit(null, { openPage: true }));
+    setupEditorShortcuts(editDescEditor, () => handleSaveTaskDetails(), () => openCurrentEditingTaskPage());
+    setupEditorShortcuts(modalCommentEditor, null, () => openCurrentEditingTaskPage());
+
+    // Button to create task and directly open its page
+    const btnCreateAndOpenPage = document.getElementById('btnCreateAndOpenPage');
+    if (btnCreateAndOpenPage) {
+      btnCreateAndOpenPage.addEventListener('click', (e) => {
+        e.preventDefault();
+        handleCreateTaskSubmit(e, { openPage: true });
+      });
+    }
+
+    // Modal Create keyboard shortcuts:
+    // - Ctrl/Cmd+Shift+Enter or Alt+Enter: create and open full task page
+    // - Ctrl/Cmd+Enter or Shift+Enter (outside description editor): create and close
+    if (modalCreateOverlay) {
+      modalCreateOverlay.addEventListener('keydown', (e) => {
+        const isOpenPage = (e.key === 'Enter') && (((e.metaKey || e.ctrlKey) && e.shiftKey) || e.altKey);
+        if (isOpenPage) {
+          e.preventDefault();
+          handleCreateTaskSubmit(e, { openPage: true });
+          return;
+        }
+
+        const isSave = ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === 'Enter') ||
+                       (e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey && e.key === 'Enter' && !isMultilineEditorTarget(e.target));
+        if (isSave) {
+          e.preventDefault();
+          handleCreateTaskSubmit(e);
+        }
+      });
+    }
+
     // Open the full task page, carrying over unsaved edits from the modal
     const btnOpenTaskPage = document.getElementById('btnOpenTaskPage');
     if (btnOpenTaskPage) {
-      btnOpenTaskPage.addEventListener('click', () => {
-        if (!activeEditingTaskId) return;
-        const taskId = activeEditingTaskId;
-        const draft = readEditDraft();
-        closeEditModal({ restoreFocus: false });
-        window.VG.TaskPage.open(taskId, draft);
-      });
+      btnOpenTaskPage.addEventListener('click', openCurrentEditingTaskPage);
     }
 
     const btnEditToggleFav = document.getElementById('btnEditToggleFav');
@@ -470,19 +514,31 @@
       });
     }
 
-    // Cmd/Ctrl+Enter saves the edit modal (or posts the comment being written)
+    // Modal Edit keyboard shortcuts:
+    // - Ctrl/Cmd+Shift+Enter or Alt+Enter: open full task page (with draft edits)
+    // - Ctrl/Cmd+Enter or Shift+Enter (outside description/comment editor): save and close modal (or post comment)
     if (modalEditOverlay) {
       modalEditOverlay.addEventListener('keydown', (e) => {
-        if (e.key !== 'Enter' || !(e.metaKey || e.ctrlKey)) return;
-        e.preventDefault();
-        const isCommentTarget = e.target && (
-          e.target.id === 'newCommentText' ||
-          (modalCommentEditor && modalCommentEditor.codemirror && modalCommentEditor.codemirror.getWrapperElement().contains(e.target))
-        );
-        if (isCommentTarget) {
-          addCommentForm.requestSubmit();
-        } else {
-          handleSaveTaskDetails();
+        const isOpenPage = (e.key === 'Enter') && (((e.metaKey || e.ctrlKey) && e.shiftKey) || e.altKey);
+        if (isOpenPage) {
+          e.preventDefault();
+          openCurrentEditingTaskPage();
+          return;
+        }
+
+        const isSave = ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === 'Enter') ||
+                       (e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey && e.key === 'Enter' && !isMultilineEditorTarget(e.target));
+        if (isSave) {
+          e.preventDefault();
+          const isCommentTarget = e.target && (
+            e.target.id === 'newCommentText' ||
+            (modalCommentEditor && modalCommentEditor.codemirror && modalCommentEditor.codemirror.getWrapperElement().contains(e.target))
+          );
+          if (isCommentTarget) {
+            addCommentForm.requestSubmit();
+          } else {
+            handleSaveTaskDetails();
+          }
         }
       });
     }
@@ -791,8 +847,8 @@
     }
   }
 
-  async function handleCreateTaskSubmit(e) {
-    e.preventDefault();
+  async function handleCreateTaskSubmit(e, options = {}) {
+    if (e && e.preventDefault) e.preventDefault();
     const nameInput = document.getElementById('newTaskName');
     const descInput = document.getElementById('newTaskDesc');
     const openspecInput = document.getElementById('newTaskOpenspecId');
@@ -801,8 +857,11 @@
     const assigneeInput = document.getElementById('newTaskAssignee');
     const typeInput = document.getElementById('newTaskType');
 
-    const name = nameInput.value.trim();
-    if (!name) return;
+    const name = nameInput ? nameInput.value.trim() : '';
+    if (!name) {
+      if (nameInput) nameInput.focus();
+      return null;
+    }
 
     const id = (window.VG.App && window.VG.App.getNextTaskId)
       ? window.VG.App.getNextTaskId()
@@ -852,6 +911,11 @@
     closeCreateModal();
     window.VG.App.persistChanges('Task created successfully');
     window.VG.Board.renderBoard();
+
+    if (options && options.openPage && window.VG.TaskPage) {
+      window.VG.TaskPage.open(newTask.id);
+    }
+    return newTask;
   }
 
   function updateEditFavBtn(isFav) {
@@ -962,6 +1026,24 @@
     if (!modalEditOverlay || !UI.isModalVisible(modalEditOverlay)) return;
     restoreFocusOnHide = restoreFocus;
     UI.hideModal(modalEditOverlay);
+  }
+
+  function openCurrentEditingTaskPage() {
+    if (!activeEditingTaskId) return;
+    const taskId = activeEditingTaskId;
+    const draft = readEditDraft();
+    closeEditModal({ restoreFocus: false });
+    if (window.VG.TaskPage) window.VG.TaskPage.open(taskId, draft);
+  }
+
+  function isMultilineEditorTarget(target) {
+    if (!target) return false;
+    const el = target.nodeType === 3 ? target.parentElement : target;
+    if (!el) return false;
+    if (el.id === 'newCommentText' || el.id === 'editTaskDesc' || el.id === 'newTaskDesc') return true;
+    if (el.tagName === 'TEXTAREA') return true;
+    if (el.closest && el.closest('.CodeMirror, .EasyMDEContainer, textarea')) return true;
+    return false;
   }
 
   function switchTab(tabId) {
@@ -1608,6 +1690,8 @@
     addComment,
     getSavedCommentAuthor,
     renderCommentList,
-    renderHistoryList
+    renderHistoryList,
+    openCurrentEditingTaskPage,
+    handleCreateTaskSubmit
   };
 })();
