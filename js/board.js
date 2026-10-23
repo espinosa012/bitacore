@@ -171,6 +171,11 @@
       blocked: 0
     };
 
+    const shownCounts = {};
+    STATES.forEach(st => {
+      shownCounts[st.id] = 0;
+    });
+
     visibleTasks = [];
     tasks.forEach(t => {
       const st = canonicalState(t.status);
@@ -220,6 +225,9 @@
         visibleTasks.push(t);
         renderTaskCard(t, query);
         counts.shown++;
+        if (shownCounts[st] !== undefined) {
+          shownCounts[st]++;
+        }
       }
     });
 
@@ -236,7 +244,7 @@
     // Update column badges & empty placeholders
     STATES.forEach(st => {
       const badge = document.getElementById(`badge-${escapeCss(st.id)}`);
-      if (badge) badge.textContent = counts[st.id] || 0;
+      if (badge) badge.textContent = shownCounts[st.id] || 0;
 
       const container = document.getElementById(`col-container-${escapeCss(st.id)}`);
       if (container && container.children.length === 0) {
