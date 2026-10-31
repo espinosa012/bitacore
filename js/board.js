@@ -418,6 +418,9 @@
         <button type="button" class="ui mini icon button card-open-page" title="Open task page" aria-label="Open task page">
           <i class="external alternate icon"></i>
         </button>
+        <button type="button" class="ui mini icon button card-delete-task" title="Delete task" aria-label="Delete task">
+          <i class="trash alternate outline icon"></i>
+        </button>
       </div>
     `;
 
@@ -465,6 +468,11 @@
       if (e.target.closest('.card-edit-tags')) {
         e.stopPropagation();
         editTaskTags(task);
+        return;
+      }
+      if (e.target.closest('.card-delete-task')) {
+        e.stopPropagation();
+        deleteTaskFromCard(task);
         return;
       }
       const tagLabel = e.target.closest('.tag-label');
@@ -674,6 +682,15 @@
     task.updated_at = new Date().toISOString();
     window.VG.App.persistChanges('Tags updated');
     renderBoard();
+  }
+
+  /** Deletes a task from a board card, confirming through the shared Delete task modal */
+  async function deleteTaskFromCard(task) {
+    const Modals = window.VG.Modals;
+    if (!Modals || !Modals.confirmDeleteTask) return;
+    if (!(await Modals.confirmDeleteTask(task))) return;
+    selectedTaskIds.delete(task.id);
+    await Modals.deleteTask(task);
   }
 
   function toggleTaskSelection(taskId, isSelected) {

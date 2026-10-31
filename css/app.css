@@ -696,6 +696,15 @@ main[hidden],
   background: #3a4250;
 }
 
+.task-card .card-actions .ui.button.card-delete-task {
+  color: #ff6b6b;
+}
+
+.task-card .card-actions .ui.button.card-delete-task:hover {
+  background: #7f1d1d;
+  color: #fff;
+}
+
 .task-card:hover .card-actions,
 .task-card:focus-within .card-actions {
   opacity: 1;
